@@ -46,9 +46,6 @@ const App = () => (
             {/* Public route */}
             <Route path="/login" element={<Login />} />
 
-            {/* Route with separate layout to avoid double sidebar */}
-            <Route path="/machine-management" element={<MachineManagement />} />
-
             {/* Main layout wrapped routes */}
             <Route
               path="*"
@@ -61,6 +58,7 @@ const App = () => (
                     <Route path="/staff-dashboard" element={<StaffDashboard />} />
                     <Route path="/lab-dashboard" element={<LabDashboard />} />
                     <Route path="/pharmacist-dashboard" element={<PharmacistDashboard />} />
+                    <Route path="/machine-management" element={<MachineManagement />} />
                     <Route path="/patients" element={<PatientsPage />} />
                     <Route path="/appointments" element={<AppointmentsPage />} />
                     <Route path="/emr" element={<EMRPage />} />

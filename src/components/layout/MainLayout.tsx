@@ -3,6 +3,7 @@ import React from 'react';
 import SideNav from './SideNav';
 import TopBar from './TopBar';
 import { useAuth } from '@/contexts/AuthContext';
+import AIChatAssistant from '@/components/AIChatAssistant';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -31,6 +32,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </div>
         </main>
       </div>
+
+      {/* AI Chat Assistant */}
+      <AIChatAssistant />
     </div>
   );
 };

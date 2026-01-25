@@ -1,860 +1,96 @@
-// const express = require('express');
-// const cors = require('cors');
-// const { PrismaClient } = require('@prisma/client');
-// const { v4: uuidv4 } = require('uuid');
-// require('dotenv').config();
-
-// const app = express();
-// const prisma = new PrismaClient();
-// const PORT = process.env.PORT || 3001;
-
-// // Middleware
-// app.use(cors({
-//   origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'http://localhost:5175'],
-//   credentials: true
-// }));
-// app.use(express.json());
-
-// // Helper function to generate patient ID
-// const generatePatientId = () => {
-//   return `PAT-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-// };
-
-// // Routes
-
-// // Get all patients
-// app.get('/api/patients', async (req, res) => {
-//   try {
-//     const patients = await prisma.patient.findMany({
-//       orderBy: {
-//         createdAt: 'desc'
-//       }
-//     });
-    
-//     res.json({
-//       success: true,
-//       data: patients
-//     });
-//   } catch (error) {
-//     console.error('Error fetching patients:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch patients'
-//     });
-//   }
-// });
-
-// // Get patient by ID
-// app.get('/api/patients/:id', async (req, res) => {
-//   try {
-//     const { id } = req.params;
-    
-//     const patient = await prisma.patient.findUnique({
-//       where: { id },
-//       include: {
-//         activities: {
-//           include: {
-//             doctor: true
-//           },
-//           orderBy: {
-//             date: 'desc'
-//           }
-//         }
-//       }
-//     });
-    
-//     if (!patient) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Patient not found'
-//       });
-//     }
-    
-//     res.json({
-//       success: true,
-//       data: patient
-//     });
-//   } catch (error) {
-//     console.error('Error fetching patient:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch patient'
-//     });
-//   }
-// });
-
-// // Create new patient
-// app.post('/api/patients', async (req, res) => {
-//   try {
-//     const {
-//       name,
-//       dateOfBirth,
-//       gender,
-//       bloodType,
-//       contact,
-//       email,
-//       address,
-//       emergencyContact,
-//       medicalHistory,
-//       status = 'Active'
-//     } = req.body;
-
-//     // Validate required fields
-//     if (!name || !dateOfBirth || !gender || !bloodType || !contact) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Missing required fields: name, dateOfBirth, gender, bloodType, contact'
-//       });
-//     }
-
-//     // Create patient
-//     const patient = await prisma.patient.create({
-//       data: {
-//         patientId: generatePatientId(),
-//         name,
-//         dateOfBirth: new Date(dateOfBirth),
-//         gender,
-//         bloodType,
-//         contact,
-//         email: email || null,
-//         address: address || null,
-//         emergencyContact: emergencyContact || null,
-//         medicalHistory: medicalHistory || null,
-//         status
-//       }
-//     });
-
-//     res.status(201).json({
-//       success: true,
-//       data: patient,
-//       message: 'Patient created successfully'
-//     });
-//   } catch (error) {
-//     console.error('Error creating patient:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to create patient'
-//     });
-//   }
-// });
-
-// // Update patient
-// app.put('/api/patients/:id', async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const updateData = req.body;
-
-//     // Convert dateOfBirth to Date object if provided
-//     if (updateData.dateOfBirth) {
-//       updateData.dateOfBirth = new Date(updateData.dateOfBirth);
-//     }
-
-//     const patient = await prisma.patient.update({
-//       where: { id },
-//       data: updateData
-//     });
-
-//     res.json({
-//       success: true,
-//       data: patient,
-//       message: 'Patient updated successfully'
-//     });
-//   } catch (error) {
-//     console.error('Error updating patient:', error);
-//     if (error.code === 'P2025') {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Patient not found'
-//       });
-//     }
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to update patient'
-//     });
-//   }
-// });
-
-// // Delete patient
-// app.delete('/api/patients/:id', async (req, res) => {
-//   try {
-//     const { id } = req.params;
-
-//     await prisma.patient.delete({
-//       where: { id }
-//     });
-
-//     res.json({
-//       success: true,
-//       message: 'Patient deleted successfully'
-//     });
-//   } catch (error) {
-//     console.error('Error deleting patient:', error);
-//     if (error.code === 'P2025') {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Patient not found'
-//       });
-//     }
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to delete patient'
-//     });
-//   }
-// });
-
-// // Get recent activities
-// app.get('/api/activities', async (req, res) => {
-//   try {
-//     const { limit = 10 } = req.query;
-    
-//     const activities = await prisma.activity.findMany({
-//       take: parseInt(limit),
-//       orderBy: {
-//         date: 'desc'
-//       },
-//       include: {
-//         patient: {
-//           select: {
-//             name: true
-//           }
-//         },
-//         doctor: {
-//           select: {
-//             name: true
-//           }
-//         }
-//       }
-//     });
-
-//     res.json({
-//       success: true,
-//       data: activities
-//     });
-//   } catch (error) {
-//     console.error('Error fetching activities:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch activities'
-//     });
-//   }
-// });
-
-// // Create new activity
-// app.post('/api/activities', async (req, res) => {
-//   try {
-//     const {
-//       patientId,
-//       doctorId,
-//       diagnosis,
-//       notes,
-//       department,
-//       date
-//     } = req.body;
-
-//     if (!patientId || !doctorId || !diagnosis || !department) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Missing required fields: patientId, doctorId, diagnosis, department'
-//       });
-//     }
-
-//     const activity = await prisma.activity.create({
-//       data: {
-//         patientId,
-//         doctorId,
-//         diagnosis,
-//         notes: notes || null,
-//         department,
-//         date: date ? new Date(date) : new Date()
-//       },
-//       include: {
-//         patient: {
-//           select: {
-//             name: true
-//           }
-//         },
-//         doctor: {
-//           select: {
-//             name: true
-//           }
-//         }
-//       }
-//     });
-
-//     res.status(201).json({
-//       success: true,
-//       data: activity,
-//       message: 'Activity created successfully'
-//     });
-//   } catch (error) {
-//     console.error('Error creating activity:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to create activity'
-//     });
-//   }
-// });
-
-// // Create sample doctor (for testing)
-// app.post('/api/doctors', async (req, res) => {
-//   try {
-//     const { name, speciality, department } = req.body;
-
-//     if (!name || !department) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Missing required fields: name, department'
-//       });
-//     }
-
-//     const doctor = await prisma.doctor.create({
-//       data: {
-//         name,
-//         speciality: speciality || null,
-//         department
-//       }
-//     });
-
-//     res.status(201).json({
-//       success: true,
-//       data: doctor,
-//       message: 'Doctor created successfully'
-//     });
-//   } catch (error) {
-//     console.error('Error creating doctor:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to create doctor'
-//     });
-//   }
-// });
-
-// // Get all doctors
-// app.get('/api/doctors', async (req, res) => {
-//   try {
-//     const doctors = await prisma.doctor.findMany({
-//       orderBy: {
-//         name: 'asc'
-//       }
-//     });
-
-//     res.json({
-//       success: true,
-//       data: doctors
-//     });
-//   } catch (error) {
-//     console.error('Error fetching doctors:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch doctors'
-//     });
-//   }
-// });
-
-// // Health check endpoint
-// app.get('/api/health', (req, res) => {
-//   res.json({
-//     success: true,
-//     message: 'Server is running',
-//     timestamp: new Date().toISOString()
-//   });
-// });
-
-// // Error handling middleware
-// app.use((err, req, res, next) => {
-//   console.error(err.stack);
-//   res.status(500).json({
-//     success: false,
-//     message: 'Something went wrong!'
-//   });
-// });
-
-// // 404 handler
-// app.use('*', (req, res) => {
-//   res.status(404).json({
-//     success: false,
-//     message: 'Route not found'
-//   });
-// });
-
-// // Start server
-// app.listen(PORT, () => {
-//   console.log(`🚀 Server running on port ${PORT}`);
-//   console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-//   console.log(`🌐 CORS Origin: ${process.env.CORS_ORIGIN}`);
-// });
-
-// // Graceful shutdown
-// process.on('SIGINT', async () => {
-//   console.log('🛑 Shutting down server...');
-//   await prisma.$disconnect();
-//   process.exit(0);
-// });
-
-// import express from 'express';
-// import cors from 'cors';
-// import { PrismaClient } from '@prisma/client';
-// import { v4 as uuidv4 } from 'uuid';
-// import dotenv from 'dotenv';
-
-// dotenv.config();
-
-// const app = express();
-// const prisma = new PrismaClient();
-// const PORT = process.env.PORT || 3001;
-
-// console.log("🔥 SERVER.JS IS RUNNING!");
-
-// // Middleware
-// app.use(cors({
-//   origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'http://localhost:5175'],
-//   credentials: true
-// }));
-// app.use(express.json());
-
-// // Helper function to generate patient ID
-// const generatePatientId = () => {
-//   return `PAT-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-// };
-
-// // Routes
-
-// // Get all patients
-// app.get('/api/patients', async (req, res) => {
-//   try {
-//     const patients = await prisma.patient.findMany({
-//       orderBy: {
-//         createdAt: 'desc'
-//       }
-//     });
-    
-//     res.json({
-//       success: true,
-//       data: patients
-//     });
-//   } catch (error) {
-//     console.error('Error fetching patients:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch patients'
-//     });
-//   }
-// });
-
-// // Get patient by ID
-// app.get('/api/patients/:id', async (req, res) => {
-//   try {
-//     const { id } = req.params;
-    
-//     const patient = await prisma.patient.findUnique({
-//       where: { id },
-//       include: {
-//         activities: {
-//           include: {
-//             doctor: true
-//           },
-//           orderBy: {
-//             date: 'desc'
-//           }
-//         }
-//       }
-//     });
-    
-//     if (!patient) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Patient not found'
-//       });
-//     }
-    
-//     res.json({
-//       success: true,
-//       data: patient
-//     });
-//   } catch (error) {
-//     console.error('Error fetching patient:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch patient'
-//     });
-//   }
-// });
-
-// // Create new patient
-// app.post('/api/patients', async (req, res) => {
-//   try {
-//     const {
-//       name,
-//       dateOfBirth,
-//       gender,
-//       bloodType,
-//       contact,
-//       email,
-//       address,
-//       emergencyContact,
-//       medicalHistory,
-//       status = 'Active'
-//     } = req.body;
-
-//     // Validate required fields
-//     if (!name || !dateOfBirth || !gender || !bloodType || !contact) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Missing required fields: name, dateOfBirth, gender, bloodType, contact'
-//       });
-//     }
-
-//     // Create patient
-//     const patient = await prisma.patient.create({
-//       data: {
-//         patientId: generatePatientId(),
-//         name,
-//         dateOfBirth: new Date(dateOfBirth),
-//         gender,
-//         bloodType,
-//         contact,
-//         email: email || null,
-//         address: address || null,
-//         emergencyContact: emergencyContact || null,
-//         medicalHistory: medicalHistory || null,
-//         status
-//       }
-//     });
-
-//     res.status(201).json({
-//       success: true,
-//       data: patient,
-//       message: 'Patient created successfully'
-//     });
-//   } catch (error) {
-//     console.error('Error creating patient:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to create patient'
-//     });
-//   }
-// });
-
-// // Update patient
-// app.put('/api/patients/:id', async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const updateData = req.body;
-
-//     // Convert dateOfBirth to Date object if provided
-//     if (updateData.dateOfBirth) {
-//       updateData.dateOfBirth = new Date(updateData.dateOfBirth);
-//     }
-
-//     const patient = await prisma.patient.update({
-//       where: { id },
-//       data: updateData
-//     });
-
-//     res.json({
-//       success: true,
-//       data: patient,
-//       message: 'Patient updated successfully'
-//     });
-//   } catch (error) {
-//     console.error('Error updating patient:', error);
-//     if (error.code === 'P2025') {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Patient not found'
-//       });
-//     }
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to update patient'
-//     });
-//   }
-// });
-
-// // Delete patient
-// app.delete('/api/patients/:id', async (req, res) => {
-//   try {
-//     const { id } = req.params;
-
-//     await prisma.patient.delete({
-//       where: { id }
-//     });
-
-//     res.json({
-//       success: true,
-//       message: 'Patient deleted successfully'
-//     });
-//   } catch (error) {
-//     console.error('Error deleting patient:', error);
-//     if (error.code === 'P2025') {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Patient not found'
-//       });
-//     }
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to delete patient'
-//     });
-//   }
-// });
-
-// // Get recent activities
-// app.get('/api/activities', async (req, res) => {
-//   try {
-//     const { limit = 10 } = req.query;
-    
-//     const activities = await prisma.activity.findMany({
-//       take: parseInt(limit),
-//       orderBy: {
-//         date: 'desc'
-//       },
-//       include: {
-//         patient: {
-//           select: {
-//             name: true
-//           }
-//         },
-//         doctor: {
-//           select: {
-//             name: true
-//           }
-//         }
-//       }
-//     });
-
-//     res.json({
-//       success: true,
-//       data: activities
-//     });
-//   } catch (error) {
-//     console.error('Error fetching activities:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch activities'
-//     });
-//   }
-// });
-
-// // Create new activity
-// app.post('/api/activities', async (req, res) => {
-//   try {
-//     const {
-//       patientId,
-//       doctorId,
-//       diagnosis,
-//       notes,
-//       department,
-//       date
-//     } = req.body;
-
-//     if (!patientId || !doctorId || !diagnosis || !department) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Missing required fields: patientId, doctorId, diagnosis, department'
-//       });
-//     }
-
-//     const activity = await prisma.activity.create({
-//       data: {
-//         patientId,
-//         doctorId,
-//         diagnosis,
-//         notes: notes || null,
-//         department,
-//         date: date ? new Date(date) : new Date()
-//       },
-//       include: {
-//         patient: {
-//           select: {
-//             name: true
-//           }
-//         },
-//         doctor: {
-//           select: {
-//             name: true
-//           }
-//         }
-//       }
-//     });
-
-//     res.status(201).json({
-//       success: true,
-//       data: activity,
-//       message: 'Activity created successfully'
-//     });
-//   } catch (error) {
-//     console.error('Error creating activity:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to create activity'
-//     });
-//   }
-// });
-
-// // Create sample doctor (for testing)
-// app.post('/api/doctors', async (req, res) => {
-//   try {
-//     const { name, speciality, department } = req.body;
-
-//     if (!name || !department) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Missing required fields: name, department'
-//       });
-//     }
-
-//     const doctor = await prisma.doctor.create({
-//       data: {
-//         name,
-//         speciality: speciality || null,
-//         department
-//       }
-//     });
-
-//     res.status(201).json({
-//       success: true,
-//       data: doctor,
-//       message: 'Doctor created successfully'
-//     });
-//   } catch (error) {
-//     console.error('Error creating doctor:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to create doctor'
-//     });
-//   }
-// });
-
-// // Get all doctors
-// app.get('/api/doctors', async (req, res) => {
-//   try {
-//     const doctors = await prisma.doctor.findMany({
-//       orderBy: {
-//         name: 'asc'
-//       }
-//     });
-
-//     res.json({
-//       success: true,
-//       data: doctors
-//     });
-//   } catch (error) {
-//     console.error('Error fetching doctors:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch doctors'
-//     });
-//   }
-// });
-
-// // Health check endpoint
-// app.get('/api/health', (req, res) => {
-//   res.json({
-//     success: true,
-//     message: 'Server is running',
-//     timestamp: new Date().toISOString()
-//   });
-// });
-
-// // Error handling middleware
-// app.use((err, req, res, next) => {
-//   console.error(err.stack);
-//   res.status(500).json({
-//     success: false,
-//     message: 'Something went wrong!'
-//   });
-// });
-
-// // 404 handler
-// app.use('*', (req, res) => {
-//   res.status(404).json({
-//     success: false,
-//     message: 'Route not found'
-//   });
-// });
-
-// // Start server
-// app.listen(PORT, () => {
-//   console.log(`🚀 Server running on port ${PORT}`);
-//   console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-//   console.log(`🌐 CORS Origin: ${process.env.CORS_ORIGIN}`);
-// });
-
-// // Graceful shutdown
-// process.on('SIGINT', async () => {
-//   console.log('🛑 Shutting down server...');
-//   await prisma.$disconnect();
-//   process.exit(0);
-// });
-
-
-import express from 'express';
-import cors from 'cors';
-import { PrismaClient } from '@prisma/client';
-import { v4 as uuidv4 } from 'uuid';
-import dotenv from 'dotenv';
-
-dotenv.config();
+const express = require('express');
+const cors = require('cors');
+const { PrismaClient } = require('@prisma/client');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+require('dotenv').config();
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
-console.log("🔥 SERVER.JS IS RUNNING!");
+// Initialize Gemini AI
+const genAI = process.env.GEMINI_API_KEY
+  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  : null;
 
-// Middleware
+console.log("🔥 Hospital CRM Server starting...");
+console.log(`🤖 Gemini AI: ${genAI ? 'Configured' : 'Not configured (add GEMINI_API_KEY to .env)'}`);
+
+// =============================================================================
+// MIDDLEWARE
+// =============================================================================
+
 app.use(cors({
   origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'http://localhost:5175'],
   credentials: true
 }));
 
-// Add request logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-  next();
-});
-
 app.use(express.json({ limit: '10mb' }));
 
-// Add response logging middleware
-app.use((req, res, next) => {
-  const originalSend = res.send;
-  res.send = function(data) {
-    console.log(`Response for ${req.method} ${req.path}:`, data);
-    return originalSend.call(this, data);
-  };
-  next();
+// Request logging (development only)
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+  });
+}
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+// Root route - show server info
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    name: 'VitaCare Hospital CRM API',
+    version: '1.0.0',
+    geminiAI: !!process.env.GEMINI_API_KEY,
+    endpoints: {
+      health: 'GET /api/health',
+      patients: 'GET /api/patients',
+      doctors: 'GET /api/doctors',
+      aiChat: 'POST /api/ai/chat',
+      aiSymptoms: 'POST /api/ai/symptoms',
+      aiMedication: 'POST /api/ai/medication'
+    }
+  });
 });
 
-// Helper function to generate patient ID
 const generatePatientId = () => {
   return `PAT-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
 };
 
-// Routes
+// Healthcare system prompt for AI
+const HEALTHCARE_SYSTEM_PROMPT = `You are a helpful medical assistant AI for VitaCare Hospital CRM. 
+You provide information to help healthcare professionals with:
+- General health information and medical terminology
+- Symptom analysis suggestions (not diagnoses)
+- Drug interaction awareness
+- Patient care best practices
+
+IMPORTANT DISCLAIMERS:
+- Always remind users that AI suggestions are not replacements for professional medical judgment
+- Recommend consulting with specialists for complex cases
+- Never provide definitive diagnoses - only suggestions for consideration
+- Encourage proper medical testing and examination
+
+Be professional, concise, and helpful.`;
+
+// =============================================================================
+// PATIENT ROUTES
+// =============================================================================
 
 // Get all patients
 app.get('/api/patients', async (req, res) => {
   try {
     const patients = await prisma.patient.findMany({
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: { createdAt: 'desc' }
     });
-    
-    res.json({
-      success: true,
-      data: patients
-    });
+    res.json({ success: true, data: patients });
   } catch (error) {
     console.error('Error fetching patients:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch patients'
-    });
+    res.status(500).json({ success: false, message: 'Failed to fetch patients' });
   }
 });
 
@@ -862,94 +98,44 @@ app.get('/api/patients', async (req, res) => {
 app.get('/api/patients/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
     const patient = await prisma.patient.findUnique({
       where: { id },
       include: {
         activities: {
-          include: {
-            doctor: true
-          },
-          orderBy: {
-            date: 'desc'
-          }
+          include: { doctor: true },
+          orderBy: { date: 'desc' }
         }
       }
     });
-    
+
     if (!patient) {
-      return res.status(404).json({
-        success: false,
-        message: 'Patient not found'
-      });
+      return res.status(404).json({ success: false, message: 'Patient not found' });
     }
-    
-    res.json({
-      success: true,
-      data: patient
-    });
+
+    res.json({ success: true, data: patient });
   } catch (error) {
     console.error('Error fetching patient:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch patient'
-    });
+    res.status(500).json({ success: false, message: 'Failed to fetch patient' });
   }
 });
 
 // Create new patient
 app.post('/api/patients', async (req, res) => {
   try {
-    console.log('Received patient data:', req.body);
-    
-    const {
-      name,
-      dateOfBirth,
-      gender,
-      bloodType,
-      contact,
-      email,
-      address,
-      emergencyContact,
-      medicalHistory,
-      status = 'Active'
-    } = req.body;
+    const { name, dateOfBirth, gender, bloodType, contact, email, address, emergencyContact, medicalHistory, status = 'Active' } = req.body;
 
-    // Validate required fields
     if (!name || !dateOfBirth || !gender || !bloodType || !contact) {
-      console.log('Validation failed - missing required fields');
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: name, dateOfBirth, gender, bloodType, contact',
-        received: { name, dateOfBirth, gender, bloodType, contact }
+        message: 'Missing required fields: name, dateOfBirth, gender, bloodType, contact'
       });
     }
 
-    // Validate date format
     const parsedDate = new Date(dateOfBirth);
     if (isNaN(parsedDate.getTime())) {
-      console.log('Invalid date format:', dateOfBirth);
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid date format for dateOfBirth'
-      });
+      return res.status(400).json({ success: false, message: 'Invalid date format for dateOfBirth' });
     }
 
-    console.log('Creating patient with data:', {
-      patientId: generatePatientId(),
-      name,
-      dateOfBirth: parsedDate,
-      gender,
-      bloodType,
-      contact,
-      email: email || null,
-      address: address || null,
-      emergencyContact: emergencyContact || null,
-      medicalHistory: medicalHistory || null,
-      status
-    });
-
-    // Create patient
     const patient = await prisma.patient.create({
       data: {
         patientId: generatePatientId(),
@@ -966,42 +152,13 @@ app.post('/api/patients', async (req, res) => {
       }
     });
 
-    console.log('Patient created successfully:', patient);
-
-    res.status(201).json({
-      success: true,
-      data: patient,
-      message: 'Patient created successfully'
-    });
+    res.status(201).json({ success: true, data: patient, message: 'Patient created successfully' });
   } catch (error) {
     console.error('Error creating patient:', error);
-    console.error('Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      code: error.code
-    });
-    
-    // Handle Prisma-specific errors
     if (error.code === 'P2002') {
-      return res.status(409).json({
-        success: false,
-        message: 'Patient with this information already exists'
-      });
+      return res.status(409).json({ success: false, message: 'Patient with this information already exists' });
     }
-    
-    if (error.code === 'P2025') {
-      return res.status(404).json({
-        success: false,
-        message: 'Related record not found'
-      });
-    }
-    
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create patient',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
+    res.status(500).json({ success: false, message: 'Failed to create patient' });
   }
 });
 
@@ -1009,9 +166,8 @@ app.post('/api/patients', async (req, res) => {
 app.put('/api/patients/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = { ...req.body };
 
-    // Convert dateOfBirth to Date object if provided
     if (updateData.dateOfBirth) {
       updateData.dateOfBirth = new Date(updateData.dateOfBirth);
     }
@@ -1021,23 +177,13 @@ app.put('/api/patients/:id', async (req, res) => {
       data: updateData
     });
 
-    res.json({
-      success: true,
-      data: patient,
-      message: 'Patient updated successfully'
-    });
+    res.json({ success: true, data: patient, message: 'Patient updated successfully' });
   } catch (error) {
     console.error('Error updating patient:', error);
     if (error.code === 'P2025') {
-      return res.status(404).json({
-        success: false,
-        message: 'Patient not found'
-      });
+      return res.status(404).json({ success: false, message: 'Patient not found' });
     }
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update patient'
-    });
+    res.status(500).json({ success: false, message: 'Failed to update patient' });
   }
 });
 
@@ -1045,78 +191,44 @@ app.put('/api/patients/:id', async (req, res) => {
 app.delete('/api/patients/:id', async (req, res) => {
   try {
     const { id } = req.params;
-
-    await prisma.patient.delete({
-      where: { id }
-    });
-
-    res.json({
-      success: true,
-      message: 'Patient deleted successfully'
-    });
+    await prisma.patient.delete({ where: { id } });
+    res.json({ success: true, message: 'Patient deleted successfully' });
   } catch (error) {
     console.error('Error deleting patient:', error);
     if (error.code === 'P2025') {
-      return res.status(404).json({
-        success: false,
-        message: 'Patient not found'
-      });
+      return res.status(404).json({ success: false, message: 'Patient not found' });
     }
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete patient'
-    });
+    res.status(500).json({ success: false, message: 'Failed to delete patient' });
   }
 });
+
+// =============================================================================
+// ACTIVITY ROUTES
+// =============================================================================
 
 // Get recent activities
 app.get('/api/activities', async (req, res) => {
   try {
     const { limit = 10 } = req.query;
-    
     const activities = await prisma.activity.findMany({
       take: parseInt(limit),
-      orderBy: {
-        date: 'desc'
-      },
+      orderBy: { date: 'desc' },
       include: {
-        patient: {
-          select: {
-            name: true
-          }
-        },
-        doctor: {
-          select: {
-            name: true
-          }
-        }
+        patient: { select: { name: true } },
+        doctor: { select: { name: true } }
       }
     });
-
-    res.json({
-      success: true,
-      data: activities
-    });
+    res.json({ success: true, data: activities });
   } catch (error) {
     console.error('Error fetching activities:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch activities'
-    });
+    res.status(500).json({ success: false, message: 'Failed to fetch activities' });
   }
 });
 
 // Create new activity
 app.post('/api/activities', async (req, res) => {
   try {
-    const {
-      patientId,
-      doctorId,
-      diagnosis,
-      notes,
-      department,
-      date
-    } = req.body;
+    const { patientId, doctorId, diagnosis, notes, department, date } = req.body;
 
     if (!patientId || !doctorId || !diagnosis || !department) {
       return res.status(400).json({
@@ -1135,34 +247,36 @@ app.post('/api/activities', async (req, res) => {
         date: date ? new Date(date) : new Date()
       },
       include: {
-        patient: {
-          select: {
-            name: true
-          }
-        },
-        doctor: {
-          select: {
-            name: true
-          }
-        }
+        patient: { select: { name: true } },
+        doctor: { select: { name: true } }
       }
     });
 
-    res.status(201).json({
-      success: true,
-      data: activity,
-      message: 'Activity created successfully'
-    });
+    res.status(201).json({ success: true, data: activity, message: 'Activity created successfully' });
   } catch (error) {
     console.error('Error creating activity:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create activity'
-    });
+    res.status(500).json({ success: false, message: 'Failed to create activity' });
   }
 });
 
-// Create sample doctor (for testing)
+// =============================================================================
+// DOCTOR ROUTES
+// =============================================================================
+
+// Get all doctors
+app.get('/api/doctors', async (req, res) => {
+  try {
+    const doctors = await prisma.doctor.findMany({
+      orderBy: { name: 'asc' }
+    });
+    res.json({ success: true, data: doctors });
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch doctors' });
+  }
+});
+
+// Create doctor
 app.post('/api/doctors', async (req, res) => {
   try {
     const { name, speciality, department } = req.body;
@@ -1182,84 +296,180 @@ app.post('/api/doctors', async (req, res) => {
       }
     });
 
-    res.status(201).json({
-      success: true,
-      data: doctor,
-      message: 'Doctor created successfully'
-    });
+    res.status(201).json({ success: true, data: doctor, message: 'Doctor created successfully' });
   } catch (error) {
     console.error('Error creating doctor:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create doctor'
-    });
+    res.status(500).json({ success: false, message: 'Failed to create doctor' });
   }
 });
 
-// Get all doctors
-app.get('/api/doctors', async (req, res) => {
+// =============================================================================
+// AI / GEMINI ROUTES
+// =============================================================================
+
+// General AI Chat
+app.post('/api/ai/chat', async (req, res) => {
   try {
-    const doctors = await prisma.doctor.findMany({
-      orderBy: {
-        name: 'asc'
-      }
+    const { message, conversationHistory = [] } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ success: false, message: 'Message is required' });
+    }
+
+    if (!genAI) {
+      // Mock response when API key not configured
+      return res.json({
+        success: true,
+        data: {
+          response: `I understand you're asking about: "${message}". This is a demo response - please configure GEMINI_API_KEY in your .env file for real AI responses.`,
+          isDemo: true
+        }
+      });
+    }
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    // Build conversation context
+    const chatHistory = conversationHistory.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }]
+    }));
+
+    const chat = model.startChat({
+      history: chatHistory,
+      generationConfig: { maxOutputTokens: 1000 }
     });
 
-    res.json({
-      success: true,
-      data: doctors
-    });
+    const result = await chat.sendMessage(`${HEALTHCARE_SYSTEM_PROMPT}\n\nUser: ${message}`);
+    const response = result.response.text();
+
+    res.json({ success: true, data: { response, isDemo: false } });
   } catch (error) {
-    console.error('Error fetching doctors:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch doctors'
-    });
+    console.error('Error in AI chat:', error);
+    res.status(500).json({ success: false, message: 'AI service temporarily unavailable' });
   }
 });
 
-// Health check endpoint
+// Symptom Analysis
+app.post('/api/ai/symptoms', async (req, res) => {
+  try {
+    const { symptoms, patientInfo } = req.body;
+
+    if (!symptoms || !Array.isArray(symptoms) || symptoms.length === 0) {
+      return res.status(400).json({ success: false, message: 'Symptoms array is required' });
+    }
+
+    if (!genAI) {
+      return res.json({
+        success: true,
+        data: {
+          analysis: `Analysis requested for symptoms: ${symptoms.join(', ')}. Configure GEMINI_API_KEY for real analysis.`,
+          suggestions: ['Configure API key for detailed analysis'],
+          isDemo: true
+        }
+      });
+    }
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const prompt = `${HEALTHCARE_SYSTEM_PROMPT}
+
+Analyze these symptoms for a healthcare professional:
+Symptoms: ${symptoms.join(', ')}
+${patientInfo ? `Patient Info: ${JSON.stringify(patientInfo)}` : ''}
+
+Provide:
+1. Possible conditions to consider (not diagnoses)
+2. Recommended tests or examinations
+3. Red flags to watch for
+4. General care suggestions
+
+Format your response in clear sections.`;
+
+    const result = await model.generateContent(prompt);
+    const analysis = result.response.text();
+
+    res.json({ success: true, data: { analysis, symptoms, isDemo: false } });
+  } catch (error) {
+    console.error('Error in symptom analysis:', error);
+    res.status(500).json({ success: false, message: 'AI service temporarily unavailable' });
+  }
+});
+
+// Medication Info
+app.post('/api/ai/medication', async (req, res) => {
+  try {
+    const { medications, query } = req.body;
+
+    if (!medications && !query) {
+      return res.status(400).json({ success: false, message: 'Medications or query is required' });
+    }
+
+    if (!genAI) {
+      return res.json({
+        success: true,
+        data: {
+          info: `Query about: ${medications?.join(', ') || query}. Configure GEMINI_API_KEY for real information.`,
+          isDemo: true
+        }
+      });
+    }
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const prompt = `${HEALTHCARE_SYSTEM_PROMPT}
+
+${medications ? `Check for interactions between: ${medications.join(', ')}` : ''}
+${query ? `Medical query: ${query}` : ''}
+
+Provide helpful information for healthcare professionals. Include relevant warnings and recommendations.`;
+
+    const result = await model.generateContent(prompt);
+    const info = result.response.text();
+
+    res.json({ success: true, data: { info, isDemo: false } });
+  } catch (error) {
+    console.error('Error in medication query:', error);
+    res.status(500).json({ success: false, message: 'AI service temporarily unavailable' });
+  }
+});
+
+// =============================================================================
+// UTILITY ROUTES
+// =============================================================================
+
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
     message: 'Server is running',
+    geminiConfigured: !!genAI,
     timestamp: new Date().toISOString()
   });
 });
 
-// Test endpoint for debugging JSON responses
-app.post('/api/test', (req, res) => {
-  console.log('Test endpoint called with:', req.body);
-  res.json({
-    success: true,
-    message: 'Test successful',
-    received: req.body,
-    timestamp: new Date().toISOString()
-  });
+// =============================================================================
+// ERROR HANDLING
+// =============================================================================
+
+// 404 handler - must be last route handler (Express 5 doesn't support '*')
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found' });
 });
 
-// Error handling middleware
+// Error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: 'Something went wrong!'
-  });
+  res.status(500).json({ success: false, message: 'Something went wrong!' });
 });
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found'
-  });
-});
+// =============================================================================
+// SERVER START
+// =============================================================================
 
-// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🌐 CORS Origin: ${process.env.CORS_ORIGIN}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
 // Graceful shutdown

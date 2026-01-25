@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "client": "vite",
-    "server": "nodemon --exec ts-node src/server.ts",
+    "server": "nodemon --exec node src/server.js",
     "build": "vite build",
     "preview": "vite preview",
     "db:generate": "prisma generate",
@@ -15,6 +15,7 @@
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.9.0",
     "@prisma/client": "^6.8.2",
     "@radix-ui/react-accordion": "^1.2.0",
