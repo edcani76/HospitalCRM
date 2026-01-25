@@ -327,7 +327,7 @@ app.post('/api/ai/chat', async (req, res) => {
       });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     // Build conversation context
     const chatHistory = conversationHistory.map(msg => ({
@@ -370,7 +370,7 @@ app.post('/api/ai/symptoms', async (req, res) => {
       });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `${HEALTHCARE_SYSTEM_PROMPT}
 
@@ -415,7 +415,7 @@ app.post('/api/ai/medication', async (req, res) => {
       });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `${HEALTHCARE_SYSTEM_PROMPT}
 
