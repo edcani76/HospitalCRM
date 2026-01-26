@@ -329,18 +329,22 @@ app.post('/api/ai/chat', async (req, res) => {
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    // Build conversation context
-    const chatHistory = conversationHistory.map(msg => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }]
-    }));
+    // Build conversation context as a single prompt
+    let contextPrompt = HEALTHCARE_SYSTEM_PROMPT + '\n\n';
 
-    const chat = model.startChat({
-      history: chatHistory,
-      generationConfig: { maxOutputTokens: 1000 }
-    });
+    // Add conversation history if exists
+    if (conversationHistory && conversationHistory.length > 0) {
+      contextPrompt += 'Previous conversation:\n';
+      conversationHistory.forEach(msg => {
+        const role = msg.role === 'user' ? 'User' : 'Assistant';
+        contextPrompt += `${role}: ${msg.content}\n`;
+      });
+      contextPrompt += '\n';
+    }
 
-    const result = await chat.sendMessage(`${HEALTHCARE_SYSTEM_PROMPT}\n\nUser: ${message}`);
+    contextPrompt += `User: ${message}\n\nAssistant:`;
+
+    const result = await model.generateContent(contextPrompt);
     const response = result.response.text();
 
     res.json({ success: true, data: { response, isDemo: false } });
