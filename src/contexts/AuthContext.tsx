@@ -182,6 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Show logout toast
     toast.success("Logged out", {
       description: "You have been successfully logged out.",
+      duration: 3000, // Auto-dismiss after 3 seconds
     });
 
     // Redirect to login page
