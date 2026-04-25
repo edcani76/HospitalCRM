@@ -83,7 +83,7 @@ export default function Admin() {
             <ShieldCheck className="w-10 h-10 text-emerald-600" />
             Admin Control Panel
           </h1>
-          <p className="text-stone-500">Manage hospital operations, appointments, and staff.</p>
+          <p className="text-stone-500">Manage clinic operations, visits, and veterinary staff.</p>
         </div>
       </div>
 
@@ -100,14 +100,14 @@ export default function Admin() {
           <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4">
             <Users className="w-6 h-6" />
           </div>
-          <p className="text-stone-500 text-sm font-bold uppercase">Total Patients</p>
+          <p className="text-stone-500 text-sm font-bold uppercase">Total Pets</p>
           <p className="text-4xl font-bold">{users.filter(u => u.role === 'patient').length}</p>
         </div>
         <div className="bg-white p-8 rounded-3xl border border-stone-200 space-y-2">
           <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-4">
             <Stethoscope className="w-6 h-6" />
           </div>
-          <p className="text-stone-500 text-sm font-bold uppercase">Total Doctors</p>
+          <p className="text-stone-500 text-sm font-bold uppercase">Total Veterinarians</p>
           <p className="text-4xl font-bold">{doctors.length}</p>
         </div>
       </div>
@@ -138,7 +138,7 @@ export default function Admin() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
                 <input 
                   type="text" 
-                  placeholder="Search by patient or doctor..." 
+                  placeholder="Search by pet owner or veterinarian..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-12 pr-6 py-3 bg-white border border-stone-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none"
@@ -165,8 +165,8 @@ export default function Admin() {
                 <table className="w-full text-left">
                   <thead className="bg-stone-50 border-b border-stone-200">
                     <tr>
-                      <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase">Patient</th>
-                      <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase">Doctor</th>
+                      <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase">Pet Owner</th>
+                      <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase">Veterinarian</th>
                       <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase">Date & Time</th>
                       <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase">Status</th>
                       <th className="px-6 py-4 text-xs font-bold text-stone-400 uppercase">Actions</th>
@@ -232,7 +232,7 @@ export default function Admin() {
               </div>
               {filteredAppointments.length === 0 && (
                 <div className="p-20 text-center text-stone-400">
-                  No appointments found matching your criteria.
+                  No visits found matching your criteria.
                 </div>
               )}
             </div>
@@ -270,7 +270,7 @@ export default function Admin() {
             <div className="flex justify-end">
               <button className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2">
                 <UserPlus className="w-5 h-5" />
-                Add New Doctor
+                Add New Veterinarian
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -291,7 +291,7 @@ export default function Admin() {
               ))}
               {doctors.length === 0 && (
                 <div className="col-span-full p-20 text-center text-stone-400 bg-white rounded-3xl border border-dashed border-stone-300">
-                  No doctors registered in the database yet.
+                  No veterinarians registered in the database yet.
                 </div>
               )}
             </div>

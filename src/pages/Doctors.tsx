@@ -52,8 +52,8 @@ export default function Doctors() {
     <div className="space-y-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
         <div className="space-y-4">
-          <h1 className="text-4xl font-bold">Our Medical Experts</h1>
-          <p className="text-stone-500 max-w-xl">Find and book appointments with our world-class doctors across various specializations.</p>
+          <h1 className="text-4xl font-bold">Our Veterinary Experts</h1>
+          <p className="text-stone-500 max-w-xl">Find and book visits with our experienced veterinarians across key pet-care specialties.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
@@ -61,7 +61,7 @@ export default function Doctors() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
             <input 
               type="text" 
-              placeholder="Search doctors or specialty..." 
+              placeholder="Search veterinarians or specialty..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-12 pr-6 py-3 bg-white border border-stone-200 rounded-2xl w-full sm:w-64 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
@@ -128,14 +128,14 @@ export default function Doctors() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-stone-500">
                     <Stethoscope className="w-4 h-4 text-emerald-500" />
-                    1k+ Patients
+                    1k+ Pets Treated
                   </div>
                 </div>
                 <Link 
                   to={`/book-appointment?doctorId=${doctor.id}`} 
                   className="w-full bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all"
                 >
-                  Book Appointment <ArrowRight className="w-4 h-4" />
+                  Book Visit <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </motion.div>
@@ -148,7 +148,7 @@ export default function Doctors() {
           <div className="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mx-auto text-stone-400">
             <Search className="w-10 h-10" />
           </div>
-          <h3 className="text-xl font-bold">No doctors found</h3>
+          <h3 className="text-xl font-bold">No veterinarians found</h3>
           <p className="text-stone-500">Try adjusting your search or filter criteria.</p>
           <button 
             onClick={() => { setSearchTerm(''); setSelectedDept('All'); }}

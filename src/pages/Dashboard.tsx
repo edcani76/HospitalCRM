@@ -94,8 +94,8 @@ export default function Dashboard() {
             />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-stone-900">Hello, {user?.displayName?.split(' ')[0] || 'Patient'}</h1>
-            <p className="text-stone-500">Welcome to your health dashboard. Stay updated with your medical records.</p>
+            <h1 className="text-3xl font-bold text-stone-900">Hello, {user?.displayName?.split(' ')[0] || 'Pet Owner'}</h1>
+            <p className="text-stone-500">Welcome to your pet care dashboard. Stay updated with your pet records.</p>
           </div>
         </div>
         <Link 
@@ -103,7 +103,7 @@ export default function Dashboard() {
           className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 transition-all"
         >
           <Plus className="w-5 h-5" />
-          Book Appointment
+          Book Visit
         </Link>
       </div>
 
@@ -113,7 +113,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <Calendar className="w-6 h-6 text-emerald-600" />
-              Recent Appointments
+              Recent Visits
             </h2>
           </div>
 
@@ -123,8 +123,8 @@ export default function Dashboard() {
                 <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center mx-auto text-stone-300">
                   <Calendar className="w-8 h-8" />
                 </div>
-                <p className="text-stone-500">No appointments found.</p>
-                <Link to="/doctors" className="text-emerald-600 font-bold inline-block">Book your first appointment</Link>
+                <p className="text-stone-500">No visits found.</p>
+                <Link to="/doctors" className="text-emerald-600 font-bold inline-block">Book your first visit</Link>
               </div>
             ) : (
               appointments.map((app, idx) => (
@@ -163,7 +163,7 @@ export default function Dashboard() {
         <div className="space-y-6">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <FileText className="w-6 h-6 text-emerald-600" />
-            Medical Reports
+            Care Reports
           </h2>
 
           <div className="space-y-4">
@@ -172,7 +172,7 @@ export default function Dashboard() {
                 <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center mx-auto text-stone-300">
                   <FileText className="w-8 h-8" />
                 </div>
-                <p className="text-stone-500">No reports available.</p>
+                <p className="text-stone-500">No care reports available.</p>
               </div>
             ) : (
               reports.map((report, idx) => (

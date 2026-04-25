@@ -54,7 +54,7 @@ export default function Login() {
             <Hospital className="w-10 h-10" />
           </div>
           <h1 className="text-3xl font-bold text-stone-900">Welcome Back</h1>
-          <p className="text-stone-500">Access your health dashboard and manage your appointments securely.</p>
+          <p className="text-stone-500">Access your pet care dashboard and manage your visits securely.</p>
         </div>
 
         {error && (
@@ -89,7 +89,7 @@ export default function Login() {
           <div className="grid grid-cols-1 gap-4 text-xs text-stone-400 text-center">
             <div className="flex items-center justify-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              HIPAA Compliant Data Storage
+              Secure Pet Data Storage
             </div>
             <p>By continuing, you agree to our Terms of Service and Privacy Policy.</p>
           </div>

@@ -50,8 +50,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const navLinks = [
     { name: 'Home', path: '/' },
-    { name: 'Departments', path: '/departments' },
-    { name: 'Doctors', path: '/doctors' },
+    { name: 'Services', path: '/departments' },
+    { name: 'Veterinarians', path: '/doctors' },
   ];
 
   if (user) {
@@ -68,7 +68,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex justify-between h-16 items-center">
             <Link to="/" className="flex items-center gap-2 text-emerald-700 font-bold text-xl">
               <Hospital className="w-8 h-8" />
-              <span>MediGreen</span>
+              <span>MediPaws</span>
             </Link>
 
             {/* Desktop Menu */}
@@ -168,23 +168,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-white font-bold text-xl">
               <Hospital className="w-8 h-8 text-emerald-500" />
-              <span>MediGreen</span>
+              <span>MediPaws</span>
             </div>
-            <p className="text-sm">Providing world-class healthcare with a focus on sustainability and patient-centric care.</p>
+            <p className="text-sm">Providing trusted veterinary care with a focus on wellness, prevention, and compassionate support for pets and their families.</p>
           </div>
           <div>
             <h4 className="text-white font-semibold mb-4">Quick Links</h4>
             <ul className="space-y-2 text-sm">
               <li><Link to="/" className="hover:text-emerald-500 transition-colors">Home</Link></li>
-              <li><Link to="/departments" className="hover:text-emerald-500 transition-colors">Departments</Link></li>
-              <li><Link to="/doctors" className="hover:text-emerald-500 transition-colors">Doctors</Link></li>
+              <li><Link to="/departments" className="hover:text-emerald-500 transition-colors">Services</Link></li>
+              <li><Link to="/doctors" className="hover:text-emerald-500 transition-colors">Veterinarians</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="text-white font-semibold mb-4">Contact</h4>
             <ul className="space-y-2 text-sm">
-              <li>123 Medical Drive</li>
-              <li>Health City, HC 12345</li>
+              <li>123 Pawcare Lane</li>
+              <li>Petville, PV 12345</li>
               <li>Phone: (555) 123-4567</li>
               <li>Email: info@medigreen.com</li>
             </ul>
@@ -193,12 +193,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <h4 className="text-white font-semibold mb-4">Emergency</h4>
             <div className="bg-red-900/30 border border-red-900/50 p-4 rounded-xl">
               <p className="text-red-400 font-bold text-lg">911</p>
-              <p className="text-xs">Available 24/7 for medical emergencies</p>
+              <p className="text-xs">Available 24/7 for urgent pet care needs</p>
             </div>
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-8 border-t border-stone-800 text-center text-xs">
-          © 2026 MediGreen Hospital. All rights reserved.
+          © 2026 MediPaws Veterinary. All rights reserved.
         </div>
       </footer>
     </div>

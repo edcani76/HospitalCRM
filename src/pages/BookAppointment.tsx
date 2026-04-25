@@ -112,8 +112,8 @@ export default function BookAppointment() {
         >
           <CheckCircle className="w-12 h-12" />
         </motion.div>
-        <h1 className="text-3xl font-bold">Booking Successful!</h1>
-        <p className="text-stone-500">Your appointment with {doctor?.name} has been requested. You will be redirected to your dashboard shortly.</p>
+        <h1 className="text-3xl font-bold">Visit Request Successful!</h1>
+        <p className="text-stone-500">Your visit with {doctor?.name} has been requested. You will be redirected to your dashboard shortly.</p>
         <button 
           onClick={() => navigate('/dashboard')}
           className="text-emerald-600 font-bold flex items-center gap-2 mx-auto"
@@ -154,7 +154,7 @@ export default function BookAppointment() {
               </div>
             </div>
             <div className="space-y-2">
-              <p className="text-xs text-stone-400 uppercase font-bold">Department</p>
+              <p className="text-xs text-stone-400 uppercase font-bold">Service</p>
               <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">
                 <Stethoscope className="w-3 h-3" />
                 {doctor?.department}
@@ -166,12 +166,12 @@ export default function BookAppointment() {
         <div className="bg-emerald-950 text-white p-8 rounded-3xl space-y-4">
           <h4 className="font-bold flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-emerald-400" />
-            Booking Policy
+            Visit Policy
           </h4>
           <ul className="text-sm text-emerald-100/70 space-y-2 list-disc pl-4">
             <li>Please arrive 15 minutes before your scheduled time.</li>
             <li>Cancellations must be made at least 24 hours in advance.</li>
-            <li>Bring your ID and previous medical records if applicable.</li>
+            <li>Bring your pet's vaccination history and any prior clinic records if applicable.</li>
           </ul>
         </div>
       </div>
@@ -179,8 +179,8 @@ export default function BookAppointment() {
       {/* Booking Form */}
       <div className="lg:col-span-2 space-y-8">
         <div className="space-y-4">
-          <h1 className="text-4xl font-bold">Book Appointment</h1>
-          <p className="text-stone-500">Select your preferred date and time for consultation.</p>
+          <h1 className="text-4xl font-bold">Book Visit</h1>
+          <p className="text-stone-500">Select your preferred date and time for your pet's consultation.</p>
         </div>
 
         <form onSubmit={handleBooking} className="bg-white p-8 md:p-12 rounded-3xl border border-stone-200 space-y-10">
@@ -271,7 +271,7 @@ export default function BookAppointment() {
             {booking ? (
               <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              <>Confirm Appointment <ArrowRight className="w-5 h-5" /></>
+              <>Confirm Visit Request <ArrowRight className="w-5 h-5" /></>
             )}
           </button>
         </form>

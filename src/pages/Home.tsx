@@ -5,17 +5,17 @@ import { Calendar, UserRound, Stethoscope, Activity, Heart, ShieldCheck, ArrowRi
 
 export default function Home() {
   const features = [
-    { icon: <Calendar className="w-6 h-6" />, title: "Easy Booking", desc: "Book appointments with your preferred doctors in seconds." },
-    { icon: <UserRound className="w-6 h-6" />, title: "Expert Doctors", desc: "Access to top-tier medical professionals across all specializations." },
-    { icon: <ShieldCheck className="w-6 h-6" />, title: "Secure Data", desc: "Your medical records and personal data are fully encrypted." },
-    { icon: <Activity className="w-6 h-6" />, title: "Real-time Updates", desc: "Get instant notifications about your appointments and reports." },
+    { icon: <Calendar className="w-6 h-6" />, title: "Easy Booking", desc: "Book visits with your preferred veterinarian in seconds." },
+    { icon: <UserRound className="w-6 h-6" />, title: "Expert Veterinarians", desc: "Access experienced veterinarians across core pet specialties." },
+    { icon: <ShieldCheck className="w-6 h-6" />, title: "Secure Data", desc: "Your pet records and personal data are fully encrypted." },
+    { icon: <Activity className="w-6 h-6" />, title: "Real-time Updates", desc: "Get instant updates about visits, reminders, and care reports." },
   ];
 
   const departments = [
-    { name: "Cardiology", icon: <Heart className="w-8 h-8 text-red-500" />, desc: "Expert care for your heart and vascular system." },
+    { name: "Canine & Feline Cardiology", icon: <Heart className="w-8 h-8 text-red-500" />, desc: "Expert care for your heart and vascular system." },
     { name: "Neurology", icon: <Activity className="w-8 h-8 text-blue-500" />, desc: "Advanced treatment for brain and nervous system disorders." },
-    { name: "Pediatrics", icon: <UserRound className="w-8 h-8 text-yellow-500" />, desc: "Compassionate healthcare for children and adolescents." },
-    { name: "Orthopedics", icon: <Activity className="w-8 h-8 text-emerald-500" />, desc: "Specialized care for bones, joints, and muscles." },
+    { name: "Puppy & Kitten Care", icon: <UserRound className="w-8 h-8 text-yellow-500" />, desc: "Compassionate early-life wellness care for young pets." },
+    { name: "Orthopedics", icon: <Activity className="w-8 h-8 text-emerald-500" />, desc: "Specialized care for pet bones, joints, and mobility." },
   ];
 
   return (
@@ -28,7 +28,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             className="text-5xl md:text-7xl font-bold leading-tight"
           >
-            Your Health, <br />
+            Your Pet's Health, <br />
             <span className="text-emerald-400">Our Priority.</span>
           </motion.h1>
           <motion.p 
@@ -37,7 +37,7 @@ export default function Home() {
             transition={{ delay: 0.1 }}
             className="text-lg text-emerald-100/80 max-w-lg"
           >
-            Experience world-class healthcare with MediGreen. Modern facilities, expert doctors, and patient-centric care all in one place.
+            Experience modern veterinary care with MediPaws. Advanced facilities, skilled veterinarians, and compassionate support in one clinic platform.
           </motion.p>
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -46,7 +46,7 @@ export default function Home() {
             className="flex flex-wrap gap-4"
           >
             <Link to="/doctors" className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-full font-semibold flex items-center gap-2 transition-all">
-              Book Appointment <ArrowRight className="w-5 h-5" />
+              Book Visit <ArrowRight className="w-5 h-5" />
             </Link>
             <Link to="/departments" className="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-full font-semibold backdrop-blur-sm transition-all">
               Our Services
@@ -58,7 +58,7 @@ export default function Home() {
         <div className="absolute top-0 right-0 w-1/2 h-full hidden lg:block">
           <img 
             src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=1000" 
-            alt="Hospital Hallway" 
+            alt="Veterinary clinic interior" 
             className="w-full h-full object-cover opacity-40 mix-blend-overlay"
             referrerPolicy="no-referrer"
           />
@@ -90,8 +90,8 @@ export default function Home() {
       <section className="space-y-12">
         <div className="flex justify-between items-end">
           <div className="space-y-4">
-            <h2 className="text-4xl font-bold">Our Departments</h2>
-            <p className="text-stone-500 max-w-xl">We offer specialized care across various medical fields, ensuring comprehensive health solutions for all our patients.</p>
+            <h2 className="text-4xl font-bold">Our Services</h2>
+            <p className="text-stone-500 max-w-xl">We offer specialized veterinary services to deliver complete care for pets at every life stage.</p>
           </div>
           <Link to="/departments" className="text-emerald-600 font-semibold flex items-center gap-2 hover:gap-3 transition-all">
             View All <ArrowRight className="w-5 h-5" />
@@ -108,7 +108,7 @@ export default function Home() {
               <h3 className="text-xl font-bold mb-3">{dept.name}</h3>
               <p className="text-stone-500 text-sm leading-relaxed mb-6">{dept.desc}</p>
               <Link to={`/doctors?dept=${dept.name}`} className="text-emerald-600 text-sm font-bold flex items-center gap-2">
-                Find Doctors <ArrowRight className="w-4 h-4" />
+                Find Veterinarians <ArrowRight className="w-4 h-4" />
               </Link>
             </motion.div>
           ))}
@@ -119,15 +119,15 @@ export default function Home() {
       <section className="bg-emerald-50 rounded-3xl p-12 md:p-20 grid grid-cols-2 lg:grid-cols-4 gap-12 text-center">
         <div className="space-y-2">
           <p className="text-4xl md:text-5xl font-bold text-emerald-900">15k+</p>
-          <p className="text-emerald-600 font-medium">Happy Patients</p>
+          <p className="text-emerald-600 font-medium">Happy Pets</p>
         </div>
         <div className="space-y-2">
           <p className="text-4xl md:text-5xl font-bold text-emerald-900">120+</p>
-          <p className="text-emerald-600 font-medium">Expert Doctors</p>
+          <p className="text-emerald-600 font-medium">Expert Veterinarians</p>
         </div>
         <div className="space-y-2">
           <p className="text-4xl md:text-5xl font-bold text-emerald-900">25+</p>
-          <p className="text-emerald-600 font-medium">Departments</p>
+          <p className="text-emerald-600 font-medium">Services</p>
         </div>
         <div className="space-y-2">
           <p className="text-4xl md:text-5xl font-bold text-emerald-900">15+</p>
@@ -138,14 +138,14 @@ export default function Home() {
       {/* CTA Section */}
       <section className="relative overflow-hidden rounded-3xl bg-stone-900 text-white p-12 md:p-20 flex flex-col md:flex-row items-center justify-between gap-12">
         <div className="space-y-6 max-w-xl">
-          <h2 className="text-4xl font-bold">Ready to take care of your health?</h2>
-          <p className="text-stone-400">Join thousands of patients who trust MediGreen for their medical needs. Start your journey to better health today.</p>
+          <h2 className="text-4xl font-bold">Ready to take care of your pet's health?</h2>
+          <p className="text-stone-400">Join thousands of pet owners who trust MediPaws for reliable veterinary care. Start your pet wellness journey today.</p>
           <div className="flex gap-4">
             <Link to="/login" className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-full font-semibold transition-all">
               Get Started
             </Link>
             <Link to="/doctors" className="border border-stone-700 hover:bg-stone-800 text-white px-8 py-4 rounded-full font-semibold transition-all">
-              Find a Doctor
+              Find a Veterinarian
             </Link>
           </div>
         </div>
@@ -166,7 +166,7 @@ export default function Home() {
                 <Star className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-sm text-stone-400">Patient Rating</p>
+                <p className="text-sm text-stone-400">Client Rating</p>
                 <p className="text-xl font-bold">4.9/5.0 Stars</p>
               </div>
             </div>
