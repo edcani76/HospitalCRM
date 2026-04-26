@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Calendar, UserRound, Stethoscope, Activity, Heart, ShieldCheck, ArrowRight, Clock, Star } from 'lucide-react';
+import { Calendar, UserRound, Activity, ShieldCheck, ArrowRight, Clock, Star } from 'lucide-react';
+import { services } from '../data/services';
 
 export default function Home() {
   const features = [
@@ -11,16 +12,9 @@ export default function Home() {
     { icon: <Activity className="w-6 h-6" />, title: "Real-time Updates", desc: "Get instant updates about visits, reminders, and care reports." },
   ];
 
-  const departments = [
-    { name: "Canine & Feline Cardiology", icon: <Heart className="w-8 h-8 text-red-500" />, desc: "Expert care for your heart and vascular system." },
-    { name: "Neurology", icon: <Activity className="w-8 h-8 text-blue-500" />, desc: "Advanced treatment for brain and nervous system disorders." },
-    { name: "Puppy & Kitten Care", icon: <UserRound className="w-8 h-8 text-yellow-500" />, desc: "Compassionate early-life wellness care for young pets." },
-    { name: "Orthopedics", icon: <Activity className="w-8 h-8 text-emerald-500" />, desc: "Specialized care for pet bones, joints, and mobility." },
-  ];
-
   return (
     <div className="space-y-24">
-      {/* Hero Section */}
+      {/* Hero Section - Video Background */}
       <section className="relative overflow-hidden rounded-3xl bg-emerald-950 text-white py-20 px-8 md:px-16">
         <div className="relative z-10 max-w-2xl space-y-8">
           <motion.h1 
@@ -55,12 +49,11 @@ export default function Home() {
         </div>
         
         {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-1/2 h-full hidden lg:block">
+        <div className="absolute top-0 right-0 w-full md:w-1/2 h-full opacity-50 md:opacity-100">
           <img 
-            src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=1000" 
-            alt="Veterinary clinic interior" 
-            className="w-full h-full object-cover opacity-40 mix-blend-overlay"
-            referrerPolicy="no-referrer"
+            src="/cat_dog_hero.png" 
+            alt="Puppy and kitten cuddling in a veterinary clinic" 
+            className="w-full h-full object-cover opacity-80"
           />
           <div className="absolute inset-0 bg-gradient-to-l from-emerald-950/0 to-emerald-950" />
         </div>
@@ -97,17 +90,19 @@ export default function Home() {
             View All <ArrowRight className="w-5 h-5" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {departments.map((dept, idx) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
+          {services.map((service, idx) => (
             <motion.div 
               key={idx}
               whileHover={{ y: -8 }}
-              className="p-8 bg-stone-100 rounded-3xl border border-transparent hover:bg-white hover:border-stone-200 transition-all"
+              className="p-7 bg-white rounded-3xl border border-stone-200 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-900/5 transition-all"
             >
-              <div className="mb-6">{dept.icon}</div>
-              <h3 className="text-xl font-bold mb-3">{dept.name}</h3>
-              <p className="text-stone-500 text-sm leading-relaxed mb-6">{dept.desc}</p>
-              <Link to={`/doctors?dept=${dept.name}`} className="text-emerald-600 text-sm font-bold flex items-center gap-2">
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mb-6">
+                {service.icon}
+              </div>
+              <h3 className="text-xl font-bold mb-3">{service.name}</h3>
+              <p className="text-stone-500 text-sm leading-relaxed mb-6">{service.desc}</p>
+              <Link to={`/doctors?dept=${service.name}`} className="text-emerald-600 text-sm font-bold flex items-center gap-2">
                 Find Veterinarians <ArrowRight className="w-4 h-4" />
               </Link>
             </motion.div>

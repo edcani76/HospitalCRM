@@ -36,7 +36,11 @@ export default function Login() {
       navigate(from, { replace: true });
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to login with Google");
+      if (err.code === 'auth/unauthorized-domain') {
+        setError("Domain not authorized by Firebase. Please make sure you are accessing the site via http://localhost:3000 (not 0.0.0.0 or your IP) and that localhost is in your Firebase Authorized Domains.");
+      } else {
+        setError(err.message || "Failed to login with Google");
+      }
     } finally {
       setLoading(false);
     }

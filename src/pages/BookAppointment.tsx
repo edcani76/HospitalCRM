@@ -41,12 +41,12 @@ export default function BookAppointment() {
       } else {
         // Fallback for mock data if not in DB
         const mockDoctors: Doctor[] = [
-          { id: '1', name: 'Dr. Sarah Johnson', specialization: 'Cardiologist', department: 'Cardiology', experience: 12, image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=400' },
-          { id: '2', name: 'Dr. Michael Chen', specialization: 'Neurologist', department: 'Neurology', experience: 15, image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=400' },
-          { id: '3', name: 'Dr. Emily Rodriguez', specialization: 'Pediatrician', department: 'Pediatrics', experience: 8, image: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&q=80&w=400' },
-          { id: '4', name: 'Dr. James Wilson', specialization: 'Orthopedic Surgeon', department: 'Orthopedics', experience: 20, image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=400' },
-          { id: '5', name: 'Dr. Lisa Park', specialization: 'Dermatologist', department: 'Dermatology', experience: 10, image: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&q=80&w=400' },
-          { id: '6', name: 'Dr. David Miller', specialization: 'Oncologist', department: 'Oncology', experience: 18, image: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=400' },
+          { id: '1', name: 'Dr. Sarah Johnson', specialization: 'Veterinary Cardiologist', department: 'Diagnostic Medicine', experience: 12, image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=400' },
+          { id: '2', name: 'Dr. Michael Chen', specialization: 'Emergency Veterinarian', department: 'After-Hours Emergency Care', experience: 15, image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=400' },
+          { id: '3', name: 'Dr. Emily Rodriguez', specialization: 'Preventive Care Vet', department: 'Preventive Care', experience: 8, image: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&q=80&w=400' },
+          { id: '4', name: 'Dr. James Wilson', specialization: 'Veterinary Surgeon', department: 'Surgery', experience: 20, image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=400' },
+          { id: '5', name: 'Dr. Lisa Park', specialization: 'Exotic Animal Vet', department: 'Avian and Exotic Pet Care', experience: 10, image: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&q=80&w=400' },
+          { id: '6', name: 'Dr. David Miller', specialization: 'Rehabilitation Specialist', department: 'Therapy and Rehabilitation', experience: 18, image: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=400' },
         ];
         const found = mockDoctors.find(d => d.id === doctorId);
         if (found) setDoctor(found);

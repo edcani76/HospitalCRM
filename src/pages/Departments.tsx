@@ -1,20 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Heart, Activity, UserRound, Brain, Eye, Baby, Bone, Microscope, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { services } from '../data/services';
 
 export default function Departments() {
-  const departments = [
-    { name: "Cardiology", icon: <Heart className="w-10 h-10" />, color: "bg-red-50 text-red-600", desc: "Our veterinary cardiology team supports pets with heart conditions through diagnostics, treatment, and long-term monitoring." },
-    { name: "Neurology", icon: <Brain className="w-10 h-10" />, color: "bg-blue-50 text-blue-600", desc: "Expert neurologists treating complex brain and nervous system disorders using the latest diagnostic and therapeutic technologies." },
-    { name: "Puppy & Kitten Care", icon: <Baby className="w-10 h-10" />, color: "bg-yellow-50 text-yellow-600", desc: "Specialized care for puppies and kittens, including vaccination schedules, nutrition guidance, and growth checkups." },
-    { name: "Orthopedics", icon: <Bone className="w-10 h-10" />, color: "bg-emerald-50 text-emerald-600", desc: "Comprehensive treatment for musculoskeletal conditions, including joint replacements, sports injuries, and spinal disorders." },
-    { name: "Ophthalmology", icon: <Eye className="w-10 h-10" />, color: "bg-purple-50 text-purple-600", desc: "Advanced eye care services, from routine vision exams to complex surgical procedures for cataracts and glaucoma." },
-    { name: "Oncology", icon: <Microscope className="w-10 h-10" />, color: "bg-indigo-50 text-indigo-600", desc: "Personalized cancer care plans for pets, combining advanced treatment options with supportive family guidance." },
-    { name: "Dermatology", icon: <UserRound className="w-10 h-10" />, color: "bg-orange-50 text-orange-600", desc: "Expert care for skin, hair, and nail conditions, including medical, surgical, and cosmetic dermatology services." },
-    { name: "Urgent Care", icon: <Activity className="w-10 h-10" />, color: "bg-rose-50 text-rose-600", desc: "24/7 urgent and emergency care with experienced veterinary teams ready for critical situations." },
-  ];
-
   return (
     <div className="space-y-16">
       <div className="text-center space-y-4 max-w-3xl mx-auto">
@@ -23,7 +13,7 @@ export default function Departments() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {departments.map((dept, idx) => (
+        {services.map((service, idx) => (
           <motion.div 
             key={idx}
             initial={{ opacity: 0, x: idx % 2 === 0 ? -20 : 20 }}
@@ -31,15 +21,15 @@ export default function Departments() {
             viewport={{ once: true }}
             className="bg-white p-10 rounded-3xl border border-stone-200 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-900/5 transition-all flex flex-col md:flex-row gap-8 items-start"
           >
-            <div className={`w-20 h-20 shrink-0 rounded-2xl flex items-center justify-center ${dept.color}`}>
-              {dept.icon}
+            <div className="w-20 h-20 shrink-0 rounded-2xl flex items-center justify-center bg-emerald-100 text-emerald-700">
+              {service.icon}
             </div>
             <div className="space-y-4">
-              <h3 className="text-2xl font-bold">{dept.name}</h3>
-              <p className="text-stone-500 leading-relaxed">{dept.desc}</p>
+              <h3 className="text-2xl font-bold">{service.name}</h3>
+              <p className="text-stone-500 leading-relaxed">{service.desc}</p>
               <div className="flex flex-wrap gap-4 pt-2">
                 <Link 
-                  to={`/doctors?dept=${dept.name}`} 
+                  to={`/doctors?dept=${service.name}`} 
                   className="text-emerald-600 font-bold text-sm flex items-center gap-2 hover:gap-3 transition-all"
                 >
                   Find Veterinarians <ArrowRight className="w-4 h-4" />
