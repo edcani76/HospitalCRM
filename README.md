@@ -12,9 +12,12 @@ MediPaws is a modern, responsive veterinary clinic management system built to st
 - **Veterinary Profiles:** Browse, search, and filter a directory of specialized veterinarians (e.g., Cardiology, Surgery, Preventive Care).
 - **Service Catalog:** Detailed overview of clinic departments including Diagnostic Medicine, Avian/Exotics, Therapy/Rehabilitation, and Emergency Care.
 - **Appointment Booking:** Interactive calendar and time-slot selector to easily schedule and request pet visits.
-- **User Dashboard:** A personalized hub for pet owners to manage upcoming appointments and access secure pet data.
-- **Admin Dashboard:** A secure administrative panel for staff to manage appointments, users, and clinic doctors.
-- **AI Integration:** Ready for smart features using Google's GenAI API.
+- **Advanced CRM System:** Comprehensive management for Pet Owners, Patients, and Electronic Medical Records (EMR).
+- **Intelligent Breadcrumbs:** Context-aware, recursive navigation system for deep record hierarchies.
+- **Medical Billing:** Full-featured invoicing system with PDF generation and insurance tracking.
+- **Admin & Specialized Dashboards:** Role-based dashboards for Doctors, Pharmacists, and Lab Technicians.
+- **AI Integration:** Powered by Google Gemini for smart medical assistance and data insights.
+- **Progress Tracking:** See [PROGRESS.md](PROGRESS.md) for current development status and roadmap.
 
 ## 🛠️ Technology Stack
 
