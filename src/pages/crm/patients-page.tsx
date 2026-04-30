@@ -11,7 +11,9 @@ import {
   MoreHorizontal,
   Mail,
   Phone,
-  Activity
+  Activity,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
@@ -19,7 +21,20 @@ import { Badge } from '../../components/ui/badge';
 import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter 
+} from '../../components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
 import { patients as initialPatients } from '../../data/crm-data';
 
 export default function PatientsPage() {
@@ -28,6 +43,10 @@ export default function PatientsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<any>(null);
+  const [deletingPatient, setDeletingPatient] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -50,21 +69,85 @@ export default function PatientsPage() {
       patientId: `P-${1000 + patients.length + 1}`,
       name: formData.get('name') as string,
       owner: formData.get('owner') as string,
+      ownerId: `owner-${1000 + patients.length + 1}`,
       species: formData.get('species') as string,
       breed: formData.get('breed') as string,
+      color: formData.get('color') as string || '',
+      gender: formData.get('gender') as string,
+      weight: parseFloat(formData.get('weight') as string) || 0,
+      weightHistory: formData.get('weight') ? [
+        { date: new Date().toISOString().split('T')[0], weight: parseFloat(formData.get('weight') as string), notes: 'Initial record' }
+      ] : [],
       status: 'Active',
       contact: formData.get('contact') as string,
       email: formData.get('email') as string,
       address: formData.get('address') as string,
       dateOfBirth: formData.get('dob') as string,
-      gender: formData.get('gender') as string,
-      bloodType: formData.get('bloodType') as string,
+      bloodType: formData.get('bloodType') as string || 'Unknown',
+      photo: '',
       emergencyContact: '',
       medicalHistory: '',
+      auditTrail: [
+        { id: '1', event: 'Record Created', staff: 'Admin User', timestamp: new Date().toLocaleString() }
+      ],
       recentVisits: []
     };
     setPatients([newPatient, ...patients]);
     setIsAddModalOpen(false);
+  };
+
+  const handleEditClick = (patient: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingPatient(patient);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteClick = (patient: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeletingPatient(patient);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleUpdatePatient = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingPatient) return;
+    
+    const formData = new FormData(e.currentTarget);
+    const newWeight = parseFloat(formData.get('weight') as string);
+    const weightHistory = [...(editingPatient.weightHistory || [])];
+    
+    // Add to weight history if weight changed
+    if (newWeight && newWeight !== editingPatient.weight) {
+      weightHistory.push({
+        date: new Date().toISOString().split('T')[0],
+        weight: newWeight,
+        notes: 'Updated during edit'
+      });
+    }
+
+    const updatedPatient = {
+      ...editingPatient,
+      name: formData.get('name') as string,
+      owner: formData.get('owner') as string,
+      species: formData.get('species') as string,
+      breed: formData.get('breed') as string,
+      color: formData.get('color') as string || editingPatient.color,
+      contact: formData.get('contact') as string,
+      email: formData.get('email') as string,
+      weight: newWeight || editingPatient.weight,
+      weightHistory,
+    };
+
+    setPatients(patients.map(p => p.id === editingPatient.id ? updatedPatient : p));
+    setIsEditModalOpen(false);
+    setEditingPatient(null);
+  };
+
+  const confirmDelete = () => {
+    if (!deletingPatient) return;
+    setPatients(patients.filter(p => p.id !== deletingPatient.id));
+    setIsDeleteModalOpen(false);
+    setDeletingPatient(null);
   };
 
   return (
@@ -204,10 +287,32 @@ export default function PatientsPage() {
                           </div>
                         )}
                       </div>
-                      <div className={cn(
-                        "absolute -bottom-1 -right-1 w-5 h-5 border-2 border-white rounded-full",
-                        patient.status === 'Active' ? 'bg-green-500' : 'bg-gray-300'
-                      )}></div>
+                      </div>
+                    {/* Card Actions */}
+                    <div className="absolute top-6 right-6">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-gray-100">
+                            <MoreHorizontal className="h-5 w-5 text-gray-400" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-2xl p-2 border-gray-100 shadow-xl">
+                          <DropdownMenuItem 
+                            className="rounded-xl py-3 px-4 focus:bg-blue-50 focus:text-blue-600 font-bold cursor-pointer transition-colors"
+                            onClick={(e) => handleEditClick(patient, e)}
+                          >
+                            <Pencil className="w-4 h-4 mr-3" />
+                            Edit Patient
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="rounded-xl py-3 px-4 focus:bg-red-50 focus:text-red-600 font-bold cursor-pointer transition-colors"
+                            onClick={(e) => handleDeleteClick(patient, e)}
+                          >
+                            <Trash2 className="w-4 h-4 mr-3" />
+                            Delete Patient
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     <h3 className="text-lg font-bold text-gray-900 leading-tight mb-6">{patient.name}</h3>
                   </div>
@@ -272,7 +377,32 @@ export default function PatientsPage() {
                             {patient.status}
                           </Badge>
                       </div>
-                      <ChevronRight className="w-6 h-6 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                        <div className="flex items-center gap-2">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-gray-100">
+                                <MoreHorizontal className="h-5 w-5 text-gray-400" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="rounded-2xl p-2 border-gray-100 shadow-xl">
+                              <DropdownMenuItem 
+                                className="rounded-xl py-3 px-4 focus:bg-blue-50 focus:text-blue-600 font-bold cursor-pointer transition-colors"
+                                onClick={(e) => handleEditClick(patient, e)}
+                              >
+                                <Pencil className="w-4 h-4 mr-3" />
+                                Edit Patient
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="rounded-xl py-3 px-4 focus:bg-red-50 focus:text-red-600 font-bold cursor-pointer transition-colors"
+                                onClick={(e) => handleDeleteClick(patient, e)}
+                              >
+                                <Trash2 className="w-4 h-4 mr-3" />
+                                Delete Patient
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <ChevronRight className="w-6 h-6 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                        </div>
                     </div>
                   </div>
                 ))}
@@ -320,11 +450,204 @@ export default function PatientsPage() {
                 <Input id="email" name="email" type="email" className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" placeholder="owner@example.com" />
               </div>
             </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="dob" className="font-bold">Date of Birth</Label>
+                <Input id="dob" name="dob" type="date" className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gender" className="font-bold">Gender</Label>
+                <select id="gender" name="gender" className="rounded-xl border border-gray-100 bg-gray-50 focus:bg-white h-10 px-3 w-full">
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bloodType" className="font-bold">Blood Type</Label>
+                <Input id="bloodType" name="bloodType" className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" placeholder="DEA 1.1+" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="color" className="font-bold">Coat Color</Label>
+                <Input id="color" name="color" className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" placeholder="e.g., Golden, Black, Tabby" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="weight" className="font-bold">Weight (kg)</Label>
+                <Input id="weight" name="weight" type="number" step="0.1" min="0" className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" placeholder="0.0" />
+              </div>
+            </div>
             <DialogFooter className="pt-4 flex gap-3">
               <Button type="button" variant="ghost" onClick={() => setIsAddModalOpen(false)} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-blue-100">Create Record</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+      {/* Edit Patient Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-xl rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Edit Patient Record</DialogTitle>
+            <DialogDescription>Update the clinical profile for {editingPatient?.name}.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdatePatient} className="space-y-6 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-pet-name" className="font-bold">Pet Name</Label>
+                <Input 
+                  id="edit-pet-name" 
+                  name="name" 
+                  defaultValue={editingPatient?.name} 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" 
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-owner-name" className="font-bold">Owner Name</Label>
+                <Input 
+                  id="edit-owner-name" 
+                  name="owner" 
+                  defaultValue={editingPatient?.owner} 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" 
+                  required 
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-species" className="font-bold">Species</Label>
+                <Input 
+                  id="edit-species" 
+                  name="species" 
+                  defaultValue={editingPatient?.species} 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" 
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-breed" className="font-bold">Breed</Label>
+                <Input 
+                  id="edit-breed" 
+                  name="breed" 
+                  defaultValue={editingPatient?.breed} 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" 
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-contact" className="font-bold">Contact Number</Label>
+                <Input 
+                  id="edit-contact" 
+                  name="contact" 
+                  defaultValue={editingPatient?.contact} 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" 
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email" className="font-bold">Email Address</Label>
+                <Input 
+                  id="edit-email" 
+                  name="email" 
+                  type="email" 
+                  defaultValue={editingPatient?.email} 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" 
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-dob" className="font-bold">Date of Birth</Label>
+                <Input 
+                  id="edit-dob" 
+                  name="dob" 
+                  type="date"
+                  defaultValue={editingPatient?.dateOfBirth} 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" 
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-gender" className="font-bold">Gender</Label>
+                <select 
+                  id="edit-gender" 
+                  name="gender" 
+                  defaultValue={editingPatient?.gender}
+                  className="rounded-xl border border-gray-100 bg-gray-50 focus:bg-white h-10 px-3 w-full"
+                >
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-bloodType" className="font-bold">Blood Type</Label>
+                <Input 
+                  id="edit-bloodType" 
+                  name="bloodType" 
+                  defaultValue={editingPatient?.bloodType} 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" 
+                  placeholder="DEA 1.1+" 
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-color" className="font-bold">Coat Color</Label>
+                <Input 
+                  id="edit-color" 
+                  name="color" 
+                  defaultValue={editingPatient?.color} 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" 
+                  placeholder="e.g., Golden, Black, Tabby" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-weight" className="font-bold">Weight (kg)</Label>
+                <Input 
+                  id="edit-weight" 
+                  name="weight" 
+                  type="number" 
+                  step="0.1" 
+                  min="0"
+                  defaultValue={editingPatient?.weight} 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" 
+                  placeholder="0.0" 
+                />
+              </div>
+            </div>
+            <DialogFooter className="pt-4 flex gap-3">
+              <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-blue-100 flex-1">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className="max-w-md rounded-[2.5rem]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-red-600 flex items-center gap-2">
+              <Trash2 className="w-6 h-6" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription className="text-base pt-2">
+              Are you sure you want to delete <span className="font-bold text-gray-900">{deletingPatient?.name}</span>? 
+              This action will permanently remove all medical records and history for this patient.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-6 flex gap-3">
+            <Button type="button" variant="ghost" onClick={() => setIsDeleteModalOpen(false)} className="rounded-xl h-12 px-6 font-bold flex-1">Cancel</Button>
+            <Button 
+              type="button" 
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-red-100 flex-1"
+            >
+              Delete Patient
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

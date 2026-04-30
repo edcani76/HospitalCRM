@@ -19,7 +19,10 @@ import {
   Upload,
   RefreshCw,
   Check,
-  BarChart2
+  BarChart2,
+  Thermometer,
+  Stethoscope,
+  CreditCard
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 import { cn } from '../../lib/utils';
@@ -39,12 +42,18 @@ export default function PatientProfilePage() {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isPhotoActionModalOpen, setIsPhotoActionModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isTriageModalOpen, setIsTriageModalOpen] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Find the selected patient
   const [patient, setPatient] = useState(() => 
     allPatients.find(p => p.patientId === patientId) || allPatients[0]
+  );
+
+  // Sort weight history chronologically (early dates on left)
+  const sortedWeightHistory = [...(patient.weightHistory || [])].sort((a: any, b: any) => 
+    a.date.localeCompare(b.date)
   );
 
   const getAuditStats = () => {
@@ -189,20 +198,11 @@ export default function PatientProfilePage() {
               Edit Profile
             </Button>
             <Button 
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 rounded-xl px-6"
-              onClick={() => navigate(`/crm/emr/${patient.patientId}`, {
-                state: {
-                  from: `/crm/patients/${patient.patientId}`,
-                  breadcrumbParent: { 
-                    name: patient.name, 
-                    path: `/crm/patients/${patient.patientId}`,
-                    parent: location.state?.breadcrumbParent
-                  }
-                }
-              })}
+              className="bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200 rounded-xl px-6"
+              onClick={() => setIsTriageModalOpen(true)}
             >
-              <FileText className="w-4 h-4 mr-2" />
-              Open EMR
+              <Activity className="w-4 h-4 mr-2" />
+              Triage Check
             </Button>
           </div>
         }
@@ -280,6 +280,60 @@ export default function PatientProfilePage() {
                 <div>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Blood Type</p>
                   <p className="text-sm font-semibold text-gray-700">{patient.bloodType}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+                  <Activity className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Coat Color</p>
+                  <p className="text-sm font-semibold text-gray-700">{patient.color || 'Not specified'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+                  <Activity className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Size Category</p>
+                  <p className="text-sm font-semibold text-gray-700">{patient.size || 'Not specified'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+                  <CreditCard className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Microchip ID</p>
+                  <p className="text-sm font-semibold text-gray-700">{patient.microchipId || 'Not registered'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+                  <BarChart2 className="w-5 h-5 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Current Weight</p>
+                  <p className="text-sm font-semibold text-gray-700">{patient.weight ? `${patient.weight} kg` : 'Not recorded'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+                  <Activity className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Size Category</p>
+                  <p className="text-sm font-semibold text-gray-700">{patient.size || 'Not specified'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+                  <CreditCard className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Microchip ID</p>
+                  <p className="text-sm font-semibold text-gray-700">{patient.microchipId || 'Not registered'}</p>
                 </div>
               </div>
             </div>
@@ -398,6 +452,125 @@ export default function PatientProfilePage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Weight History */}
+          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <BarChart2 className="w-6 h-6 text-green-500" />
+                Weight History
+              </h3>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="text-green-600 border-green-200 hover:bg-green-50"
+                onClick={() => {
+                  const weight = prompt("Enter new weight (kg):");
+                  if (weight && !isNaN(parseFloat(weight))) {
+                    const newWeight = parseFloat(weight);
+                    const updatedPatient = {
+                      ...patient,
+                      weight: newWeight,
+                      weightHistory: [
+                        ...(patient.weightHistory || []),
+                        { date: new Date().toISOString().split('T')[0], weight: newWeight, notes: 'Triage update' }
+                      ],
+                      auditTrail: [
+                        ...(patient.auditTrail || []),
+                        {
+                          id: Date.now().toString(),
+                          event: `Weight Updated: ${newWeight}kg`,
+                          staff: 'Admin User',
+                          timestamp: new Date().toLocaleString('en-US', { 
+                            year: 'numeric', month: 'short', day: 'numeric', 
+                            hour: '2-digit', minute: '2-digit', hour12: true 
+                          })
+                        }
+                      ]
+                    };
+                    setPatient(updatedPatient);
+                  }
+                }}
+              >
+                <Activity className="w-4 h-4 mr-2" />
+                Record Weight
+              </Button>
+            </div>
+            
+            {/* Weight Chart */}
+            {sortedWeightHistory.length > 0 ? (
+              <div className="mb-6">
+                <div className="h-[200px] w-full">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                    <BarChart data={sortedWeightHistory} barSize={32}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 10, fill: '#64748b' }}
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false}
+                        tick={{ fontSize: 10, fill: '#64748b' }}
+                        domain={['dataMin - 1', 'dataMax + 1']}
+                      />
+                      <Tooltip 
+                        cursor={{ fill: 'rgba(16, 185, 129, 0.1)' }}
+                        contentStyle={{ 
+                          borderRadius: '12px', 
+                          border: 'none', 
+                          boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', 
+                          padding: '8px 12px' 
+                        }}
+                        itemStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#10b981' }}
+                        formatter={(value: any) => [`${value} kg`, 'Weight']}
+                      />
+                      <Bar 
+                        dataKey="weight" 
+                        fill="#10b981" 
+                        radius={[4, 4, 0, 0]}
+                      >
+                        {sortedWeightHistory.map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill="#10b981" />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                <BarChart2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No weight history recorded yet.</p>
+              </div>
+            )}
+            
+            {/* Weight History Table */}
+            {sortedWeightHistory.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left py-3 px-4 font-bold text-gray-400 uppercase tracking-wider text-xs">Date</th>
+                      <th className="text-left py-3 px-4 font-bold text-gray-400 uppercase tracking-wider text-xs">Weight (kg)</th>
+                      <th className="text-left py-3 px-4 font-bold text-gray-400 uppercase tracking-wider text-xs">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedWeightHistory.map((entry: any, idx: number) => (
+                      <tr key={idx} className="border-b border-gray-50 hover:bg-green-50/30 transition-colors">
+                        <td className="py-3 px-4 font-medium">{entry.date}</td>
+                        <td className="py-3 px-4 font-bold text-green-700">{entry.weight} kg</td>
+                        <td className="py-3 px-4 text-gray-600">{entry.notes || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Audit History Log */}
@@ -773,6 +946,147 @@ export default function PatientProfilePage() {
               Update Photo
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Triage Dialog */}
+      <Dialog open={isTriageModalOpen} onOpenChange={setIsTriageModalOpen}>
+        <DialogContent className="max-w-2xl rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <Stethoscope className="w-6 h-6 text-green-600" />
+              Triage Check - {patient.name}
+            </DialogTitle>
+            <DialogDescription>
+              Record vital signs and weight. This will update the patient's weight history and medical records.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e: React.FormEvent) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const newWeight = parseFloat(formData.get('triage-weight') as string);
+            const temperature = formData.get('temperature') as string;
+            const heartRate = formData.get('heart-rate') as string;
+            const respiratoryRate = formData.get('respiratory-rate') as string;
+            const bloodPressure = formData.get('blood-pressure') as string;
+            const notes = formData.get('triage-notes') as string;
+            
+            const weightHistory = [...(patient.weightHistory || [])];
+            if (newWeight && newWeight !== patient.weight) {
+              weightHistory.push({
+                date: new Date().toISOString().split('T')[0],
+                weight: newWeight,
+                notes: `Triage: ${temperature ? temperature + '°C' : ''} ${heartRate ? ', HR: ' + heartRate + 'bpm' : ''}`.trim() || 'Triage check'
+              });
+            }
+
+            const updatedPatient = {
+              ...patient,
+              weight: newWeight || patient.weight,
+              weightHistory,
+              auditTrail: [
+                ...(patient.auditTrail || []),
+                {
+                  id: Date.now().toString(),
+                  event: 'Triage Check Recorded',
+                  staff: 'Admin User',
+                  timestamp: new Date().toLocaleString('en-US', { 
+                    year: 'numeric', month: 'short', day: 'numeric', 
+                    hour: '2-digit', minute: '2-digit', hour12: true 
+                  })
+                }
+              ]
+            };
+            setPatient(updatedPatient);
+            setIsTriageModalOpen(false);
+          }} className="space-y-6 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="triage-weight" className="font-bold text-gray-700">Weight (kg)</Label>
+                <Input 
+                  id="triage-weight" 
+                  name="triage-weight" 
+                  type="number" 
+                  step="0.1" 
+                  min="0"
+                  defaultValue={patient.weight || ''} 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                  placeholder="0.0" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="temperature" className="font-bold text-gray-700">Temperature (°C)</Label>
+                <Input 
+                  id="temperature" 
+                  name="temperature" 
+                  type="number" 
+                  step="0.1" 
+                  min="35" 
+                  max="45"
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                  placeholder="38.5" 
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="heart-rate" className="font-bold text-gray-700">Heart Rate (bpm)</Label>
+                <Input 
+                  id="heart-rate" 
+                  name="heart-rate" 
+                  type="number" 
+                  min="50" 
+                  max="250"
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                  placeholder="120" 
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="respiratory-rate" className="font-bold text-gray-700">Respiratory Rate (/min)</Label>
+                <Input 
+                  id="respiratory-rate" 
+                  name="respiratory-rate" 
+                  type="number" 
+                  min="10" 
+                  max="60"
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                  placeholder="20" 
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="blood-pressure" className="font-bold text-gray-700">Blood Pressure (mmHg)</Label>
+              <Input 
+                id="blood-pressure" 
+                name="blood-pressure" 
+                className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                placeholder="120/80" 
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="triage-notes" className="font-bold text-gray-700">Notes</Label>
+              <textarea 
+                id="triage-notes" 
+                name="triage-notes" 
+                className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white p-3 text-sm min-h-[80px]"
+                placeholder="Additional observations..."
+              />
+            </div>
+
+            <DialogFooter className="pt-4 flex gap-3 border-t border-gray-50">
+              <Button type="button" variant="ghost" onClick={() => setIsTriageModalOpen(false)} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
+              <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-green-100 flex-1">
+                <Stethoscope className="w-4 h-4 mr-2" />
+                Save Triage Record
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

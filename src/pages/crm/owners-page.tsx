@@ -14,7 +14,9 @@ import {
   Activity,
   UserCheck,
   Calendar,
-  MapPin
+  MapPin,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
@@ -22,7 +24,20 @@ import { Badge } from '../../components/ui/badge';
 import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter 
+} from '../../components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
 import { owners as initialOwners } from '../../data/crm-data';
 
 export default function OwnersPage() {
@@ -31,6 +46,10 @@ export default function OwnersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [editingOwner, setEditingOwner] = useState<any>(null);
+  const [deletingOwner, setDeletingOwner] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -60,6 +79,43 @@ export default function OwnersPage() {
     };
     setOwners([newOwner, ...owners]);
     setIsAddModalOpen(false);
+  };
+
+  const handleEditClick = (owner: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingOwner(owner);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteClick = (owner: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeletingOwner(owner);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleUpdateOwner = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingOwner) return;
+    
+    const formData = new FormData(e.currentTarget);
+    const updatedOwner = {
+      ...editingOwner,
+      name: formData.get('name') as string,
+      contact: formData.get('contact') as string,
+      email: formData.get('email') as string,
+      address: formData.get('address') as string,
+    };
+
+    setOwners(owners.map(o => o.id === editingOwner.id ? updatedOwner : o));
+    setIsEditModalOpen(false);
+    setEditingOwner(null);
+  };
+
+  const confirmDelete = () => {
+    if (!deletingOwner) return;
+    setOwners(owners.filter(o => o.id !== deletingOwner.id));
+    setIsDeleteModalOpen(false);
+    setDeletingOwner(null);
   };
 
   return (
@@ -156,6 +212,34 @@ export default function OwnersPage() {
                 <div className="w-24 h-24 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-3xl font-bold mb-4 group-hover:scale-110 transition-transform">
                   {owner.name[0]}
                 </div>
+
+                {/* Card Actions */}
+                <div className="absolute top-6 right-6">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-gray-100">
+                        <MoreHorizontal className="h-5 w-5 text-gray-400" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="rounded-2xl p-2 border-gray-100 shadow-xl">
+                      <DropdownMenuItem 
+                        className="rounded-xl py-3 px-4 focus:bg-emerald-50 focus:text-emerald-600 font-bold cursor-pointer transition-colors"
+                        onClick={(e) => handleEditClick(owner, e)}
+                      >
+                        <Pencil className="w-4 h-4 mr-3" />
+                        Edit Client
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="rounded-xl py-3 px-4 focus:bg-red-50 focus:text-red-600 font-bold cursor-pointer transition-colors"
+                        onClick={(e) => handleDeleteClick(owner, e)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-3" />
+                        Delete Client
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
                 <h3 className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{owner.name}</h3>
                 <p className="text-sm text-gray-400 font-medium mb-3">{owner.id}</p>
                 <Badge 
@@ -242,14 +326,42 @@ export default function OwnersPage() {
                     {owner.patients.length} Pets
                   </td>
                   <td className="px-8 py-6 text-right">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="rounded-xl hover:bg-emerald-100 hover:text-emerald-600"
-                      onClick={() => navigate(`/crm/owners/${owner.id}`, { state: { from: '/crm/owners' } })}
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-gray-100">
+                            <MoreHorizontal className="h-5 w-5 text-gray-400" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-2xl p-2 border-gray-100 shadow-xl">
+                          <DropdownMenuItem 
+                            className="rounded-xl py-3 px-4 focus:bg-emerald-50 focus:text-emerald-600 font-bold cursor-pointer transition-colors"
+                            onClick={(e) => handleEditClick(owner, e)}
+                          >
+                            <Pencil className="w-4 h-4 mr-3" />
+                            Edit Client
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="rounded-xl py-3 px-4 focus:bg-red-50 focus:text-red-600 font-bold cursor-pointer transition-colors"
+                            onClick={(e) => handleDeleteClick(owner, e)}
+                          >
+                            <Trash2 className="w-4 h-4 mr-3" />
+                            Delete Client
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-10 w-10 rounded-xl hover:bg-emerald-100 hover:text-emerald-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/crm/owners/${owner.id}`, { state: { from: '/crm/owners' } });
+                        }}
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -289,6 +401,90 @@ export default function OwnersPage() {
               <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-emerald-100 flex-1">Register Client</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+      {/* Edit Owner Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-2xl rounded-[2.5rem]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Edit Client Information</DialogTitle>
+            <DialogDescription>Update contact details for {editingOwner?.name}.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateOwner} className="space-y-6 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name" className="font-bold text-gray-700">Full Name</Label>
+                <Input 
+                  id="edit-name" 
+                  name="name" 
+                  defaultValue={editingOwner?.name} 
+                  required 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-contact" className="font-bold text-gray-700">Phone Number</Label>
+                <Input 
+                  id="edit-contact" 
+                  name="contact" 
+                  defaultValue={editingOwner?.contact} 
+                  required 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email" className="font-bold text-gray-700">Email Address</Label>
+                <Input 
+                  id="edit-email" 
+                  name="email" 
+                  type="email" 
+                  defaultValue={editingOwner?.email} 
+                  required 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="edit-address" className="font-bold text-gray-700">Home Address</Label>
+                <Input 
+                  id="edit-address" 
+                  name="address" 
+                  defaultValue={editingOwner?.address} 
+                  required 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                />
+              </div>
+            </div>
+            <DialogFooter className="pt-4 flex gap-3">
+              <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
+              <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-emerald-100 flex-1">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className="max-w-md rounded-[2.5rem]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-red-600 flex items-center gap-2">
+              <Trash2 className="w-6 h-6" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription className="text-base pt-2">
+              Are you sure you want to delete <span className="font-bold text-gray-900">{deletingOwner?.name}</span>? 
+              This action cannot be undone and will remove all associated pet records.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-6 flex gap-3">
+            <Button type="button" variant="ghost" onClick={() => setIsDeleteModalOpen(false)} className="rounded-xl h-12 px-6 font-bold flex-1">Cancel</Button>
+            <Button 
+              type="button" 
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-red-100 flex-1"
+            >
+              Delete Permanently
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

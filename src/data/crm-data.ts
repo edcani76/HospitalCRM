@@ -36,7 +36,15 @@ export const patients = [
     dateOfBirth: '2020-05-15',
     species: 'Dog',
     breed: 'Golden Retriever',
+    color: 'Golden',
     gender: 'Male',
+    microchipId: 'MC-9988776655',
+    size: 'Large',
+    weight: 32,
+    weightHistory: [
+      { date: '2026-01-15', weight: 30, notes: 'Initial record' },
+      { date: '2026-04-15', weight: 32, notes: 'Annual checkup' }
+    ],
     photo: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=200&h=200',
     status: 'Active',
     bloodType: 'DEA 1.1+',
@@ -69,7 +77,15 @@ export const patients = [
     dateOfBirth: '2019-08-22',
     species: 'Cat',
     breed: 'Siamese',
+    color: 'Cream',
     gender: 'Female',
+    microchipId: 'MC-8877665544',
+    size: 'Small', // 4.5kg - Cat Small (5-10 kg)
+    weight: 4.5,
+    weightHistory: [
+      { date: '2026-02-01', weight: 4.2, notes: 'Initial record' },
+      { date: '2026-04-10', weight: 4.5, notes: 'Dental visit' }
+    ],
     photo: 'https://images.unsplash.com/photo-1513245543132-31f507417b26?auto=format&fit=crop&q=80&w=200&h=200',
     status: 'Active',
     bloodType: 'Type A',
@@ -101,7 +117,15 @@ export const patients = [
     dateOfBirth: '2018-12-10',
     species: 'Dog',
     breed: 'German Shepherd',
+    color: 'Black/Tan',
     gender: 'Male',
+    microchipId: 'MC-7766554433',
+    size: 'Large', // 34kg - Dog Large (26-44 kg)
+    weight: 34,
+    weightHistory: [
+      { date: '2026-01-20', weight: 32, notes: 'Initial record' },
+      { date: '2026-04-18', weight: 34, notes: 'Allergy visit - weight gain noted' }
+    ],
     photo: 'https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?auto=format&fit=crop&q=80&w=200&h=200',
     status: 'Active',
     bloodType: 'DEA 1.1-',
@@ -134,7 +158,15 @@ export const patients = [
     dateOfBirth: '2021-03-05',
     species: 'Cat',
     breed: 'Persian',
+    color: 'White',
     gender: 'Female',
+    microchipId: 'MC-6655443322',
+    size: 'Toy', // 3.8kg - Cat Toy (< 5 kg)
+    weight: 3.8,
+    weightHistory: [
+      { date: '2025-12-10', weight: 3.5, notes: 'Initial record' },
+      { date: '2026-03-25', weight: 3.8, notes: 'Wellness exam' }
+    ],
     photo: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=200&h=200',
     status: 'Inactive',
     bloodType: 'Type B',
@@ -166,7 +198,16 @@ export const patients = [
     dateOfBirth: '2019-11-28',
     species: 'Dog',
     breed: 'Labrador Retriever',
+    color: 'Yellow',
     gender: 'Male',
+    microchipId: 'MC-5544332211',
+    size: 'Large', // 30kg - Dog Large (26-44 kg)
+    weight: 30,
+    weightHistory: [
+      { date: '2026-02-10', weight: 35, notes: 'Initial record - obese' },
+      { date: '2026-03-22', weight: 32, notes: 'Diet progress check' },
+      { date: '2026-04-20', weight: 30, notes: '2kg weight loss achieved' }
+    ],
     photo: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=200&h=200',
     status: 'Active',
     bloodType: 'DEA 1.1+',
@@ -198,7 +239,15 @@ export const patients = [
     dateOfBirth: '2021-06-12',
     species: 'Dog',
     breed: 'Beagle',
+    color: 'Tri-color',
     gender: 'Female',
+    microchipId: 'MC-4433221100',
+    size: 'Medium', // 11kg - Dog Medium (11-25 kg)
+    weight: 11,
+    weightHistory: [
+      { date: '2026-03-05', weight: 10.5, notes: 'Initial record' },
+      { date: '2026-04-10', weight: 11, notes: 'Annual vaccination' }
+    ],
     photo: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&q=80&w=200&h=200',
     status: 'Active',
     bloodType: 'DEA 1.1+',
@@ -229,7 +278,15 @@ export const patients = [
     dateOfBirth: '2022-02-20',
     species: 'Cat',
     breed: 'Tabby',
+    color: 'Orange Tabby',
     gender: 'Male',
+    microchipId: 'MC-3322110099',
+    size: 'Toy', // 4.2kg - Cat Toy (< 5 kg)
+    weight: 4.2,
+    weightHistory: [
+      { date: '2026-03-05', weight: 4.0, notes: 'Initial record' },
+      { date: '2026-04-12', weight: 4.2, notes: 'Ear infection visit' }
+    ],
     photo: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=200&h=200',
     status: 'Active',
     bloodType: 'Type A',
