@@ -2,19 +2,61 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# MediPaws (VetCRM)
 
-This contains everything you need to run your app locally.
+MediPaws is a modern, responsive veterinary clinic management system built to streamline the pet care experience. It provides a beautiful interface for pet owners to find veterinary specialists, explore clinic services, and securely book appointments.
 
-View your app in AI Studio: https://ai.studio/apps/76dccee8-b2eb-4aa5-a270-e34e6c9df0c2
+## ✨ Features
 
-## Run Locally
+- **Secure Authentication:** Integrated Google Sign-In via Firebase for seamless and secure user access.
+- **Veterinary Profiles:** Browse, search, and filter a directory of specialized veterinarians (e.g., Cardiology, Surgery, Preventive Care).
+- **Service Catalog:** Detailed overview of clinic departments including Diagnostic Medicine, Avian/Exotics, Therapy/Rehabilitation, and Emergency Care.
+- **Appointment Booking:** Interactive calendar and time-slot selector to easily schedule and request pet visits.
+- **User Dashboard:** A personalized hub for pet owners to manage upcoming appointments and access secure pet data.
+- **Admin Dashboard:** A secure administrative panel for staff to manage appointments, users, and clinic doctors.
+- **AI Integration:** Ready for smart features using Google's GenAI API.
 
-**Prerequisites:**  Node.js
+## 🛠️ Technology Stack
 
+This application is built with a modern web stack designed for performance, scalability, and an excellent developer experience:
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- **Frontend Framework:** React 19 & Vite 6
+- **Routing:** React Router DOM v7
+- **Styling:** Tailwind CSS v4
+- **Icons & Animations:** Lucide React & Framer Motion
+- **Backend & Database:** Firebase 12 (Firestore & Authentication)
+- **AI Capabilities:** Google GenAI SDK (`@google/genai`)
+- **Server:** Node.js / Express
+- **Language:** TypeScript
+
+## ⚙️ Environment Variables
+
+To run this application locally, you must create a `.env` (or `.env.local`) file in the root directory and configure the following variables:
+
+```env
+# Required for Gemini AI API calls.
+GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
+
+# The URL where this applet is hosted (Used for self-referential links & OAuth).
+# For local development, this can be set to http://localhost:3000
+APP_URL="http://localhost:3000"
+```
+
+*Note: Firebase configuration is handled separately in `firebase-applet-config.json`.*
+
+## 🚀 Run Locally
+
+**Prerequisites:** Node.js (v18+ recommended)
+
+1. Clone the repository and navigate to the project directory.
+2. Install the required dependencies:
+   ```bash
+   npm install
+   ```
+3. Set your environment variables in `.env` as described above.
+4. Ensure your Firebase configuration is up-to-date in `firebase-applet-config.json`.
+5. Start the development server:
+   ```bash
+   npm run dev
+   ```
+6. Open your browser and navigate to `http://localhost:3000`.

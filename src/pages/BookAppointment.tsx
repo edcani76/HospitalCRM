@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { auth, db, doc, getDoc, collection, addDoc, serverTimestamp } from '../firebase';
-import { Doctor } from '../types';
+import { auth, db, doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs } from '../firebase';
+import { useAuth } from '../contexts/AuthContext';
+import { Doctor, Pet } from '../types';
 import { motion } from 'motion/react';
 import { Calendar, Clock, User, Stethoscope, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
 import { format, addDays, startOfToday } from 'date-fns';
@@ -10,6 +11,7 @@ export default function BookAppointment() {
   const [searchParams] = useSearchParams();
   const doctorId = searchParams.get('doctorId');
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,6 +21,8 @@ export default function BookAppointment() {
 
   const [selectedDate, setSelectedDate] = useState<string>(format(addDays(startOfToday(), 1), 'yyyy-MM-dd'));
   const [selectedTime, setSelectedTime] = useState<string>('');
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [selectedPetId, setSelectedPetId] = useState<string>('');
   const [notes, setNotes] = useState('');
 
   const timeSlots = [
@@ -27,12 +31,13 @@ export default function BookAppointment() {
   ];
 
   useEffect(() => {
-    if (!doctorId) {
-      navigate('/doctors');
-      return;
-    }
-
     const fetchDoctor = async () => {
+      if (!doctorId) {
+        setDoctor(null);
+        setLoading(false);
+        return;
+      }
+
       const docRef = doc(db, 'doctors', doctorId);
       const docSnap = await getDoc(docRef);
       
@@ -50,13 +55,25 @@ export default function BookAppointment() {
         ];
         const found = mockDoctors.find(d => d.id === doctorId);
         if (found) setDoctor(found);
-        else navigate('/doctors');
       }
       setLoading(false);
     };
 
+    const fetchPets = async () => {
+      if (user) {
+        const q = query(collection(db, 'pets'), where('ownerUid', '==', user.uid));
+        const snapshot = await getDocs(q);
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pet));
+        setPets(data);
+        if (data.length > 0) {
+          setSelectedPetId(data[0].id);
+        }
+      }
+    };
+
     fetchDoctor();
-  }, [doctorId, navigate]);
+    if (user) fetchPets();
+  }, [doctorId, user]);
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,19 +81,25 @@ export default function BookAppointment() {
       setError("Please select a time slot.");
       return;
     }
+    if (!selectedPetId) {
+      setError("Please select a pet for this visit.");
+      return;
+    }
 
     setBooking(true);
     setError(null);
 
     try {
-      const user = auth.currentUser;
       if (!user) throw new Error("User not authenticated");
 
+      const selectedPet = pets.find(p => p.id === selectedPetId);
+
       await addDoc(collection(db, 'appointments'), {
-        patientUid: user.uid,
-        patientName: user.displayName || user.email,
-        doctorId: doctor?.id,
-        doctorName: doctor?.name,
+        clientUid: user.uid,
+        petId: selectedPetId,
+        petName: selectedPet?.name || 'Unknown Pet',
+        doctorId: doctor?.id || 'general',
+        doctorName: doctor?.name || 'Any Available Doctor',
         date: selectedDate,
         time: selectedTime,
         status: 'pending',
@@ -93,6 +116,7 @@ export default function BookAppointment() {
       setBooking(false);
     }
   };
+
 
   if (loading) {
     return (
@@ -139,8 +163,8 @@ export default function BookAppointment() {
           </div>
           <div className="p-8 space-y-4">
             <div className="space-y-1">
-              <h2 className="text-2xl font-bold">{doctor?.name}</h2>
-              <p className="text-emerald-600 font-medium">{doctor?.specialization}</p>
+              <h2 className="text-2xl font-bold">{doctor?.name || 'Any Available Doctor'}</h2>
+              <p className="text-emerald-600 font-medium">{doctor?.specialization || 'General Consultation'}</p>
             </div>
             <div className="flex items-center gap-4 py-4 border-y border-stone-100">
               <div className="text-center flex-1">
@@ -247,6 +271,37 @@ export default function BookAppointment() {
                 );
               })}
             </div>
+          </div>
+
+          {/* Pet Selection */}
+          <div className="space-y-4">
+            <label className="text-lg font-bold flex items-center gap-2">
+              <User className="w-5 h-5 text-emerald-600" />
+              Select Pet
+            </label>
+            {pets.length === 0 ? (
+              <div className="bg-yellow-50 text-yellow-700 p-4 rounded-xl text-sm border border-yellow-200">
+                You don't have any registered pets. Please contact the clinic.
+              </div>
+            ) : (
+              <div className="relative">
+                <select 
+                  value={selectedPetId}
+                  onChange={(e) => setSelectedPetId(e.target.value)}
+                  className="w-full bg-stone-50 border border-stone-100 rounded-2xl p-4 appearance-none focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-bold"
+                >
+                  <option value="" disabled>Choose your pet...</option>
+                  {pets.map(pet => (
+                    <option key={pet.id} value={pet.id}>
+                      {pet.name} ({pet.species} - {pet.breed})
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400">
+                  <ArrowRight className="w-5 h-5 rotate-90" />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Notes */}

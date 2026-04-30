@@ -1,0 +1,780 @@
+import React, { useState, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { 
+  User, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  Calendar, 
+  Activity, 
+  Heart, 
+  ShieldAlert, 
+  Edit, 
+  FileText, 
+  Clock,
+  ExternalLink,
+  ChevronRight,
+  Camera,
+  X,
+  Upload,
+  RefreshCw,
+  Check,
+  BarChart2
+} from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
+import { cn } from '../../lib/utils';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
+import { PageHeader } from '../../components/ui/page-header';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
+import { patients as allPatients } from '../../data/crm-data';
+
+export default function PatientProfilePage() {
+  const { patientId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isPhotoActionModalOpen, setIsPhotoActionModalOpen] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Find the selected patient
+  const [patient, setPatient] = useState(() => 
+    allPatients.find(p => p.patientId === patientId) || allPatients[0]
+  );
+
+  const getAuditStats = () => {
+    const stats: { [key: string]: number } = {};
+    (patient.auditTrail || []).forEach(item => {
+      stats[item.staff] = (stats[item.staff] || 0) + 1;
+    });
+    return Object.entries(stats).map(([name, count]) => ({ name, count }));
+  };
+
+  const auditStats = getAuditStats();
+  // Premium harmonic colors for the chart
+  const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
+
+  const [tempPhoto, setTempPhoto] = useState<string | null>(patient.photo || null);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      alert("Could not access camera. Please check permissions.");
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        setTempPhoto(dataUrl);
+        setIsCameraModalOpen(false);
+        stopCamera();
+      }
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setTempPhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePhotoSave = () => {
+    if (tempPhoto) {
+      const updatedPatient = {
+        ...patient,
+        photo: tempPhoto,
+        auditTrail: [
+          ...(patient.auditTrail || []),
+          {
+            id: Date.now().toString(),
+            event: 'Profile Photo Updated',
+            staff: 'Admin User',
+            timestamp: new Date().toLocaleString('en-US', { 
+              year: 'numeric', 
+              month: 'short', 
+              day: 'numeric', 
+              hour: '2-digit', 
+              minute: '2-digit', 
+              hour12: true 
+            })
+          }
+        ]
+      };
+      setPatient(updatedPatient);
+      setIsPhotoActionModalOpen(false);
+    }
+  };
+
+  const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const updatedPatient = {
+      ...patient,
+      name: formData.get('name') as string,
+      owner: formData.get('owner') as string,
+      species: formData.get('species') as string,
+      breed: formData.get('breed') as string,
+      contact: formData.get('contact') as string,
+      email: formData.get('email') as string,
+      address: formData.get('address') as string,
+      dateOfBirth: formData.get('dob') as string,
+      gender: formData.get('gender') as string,
+      bloodType: formData.get('bloodType') as string,
+      photo: tempPhoto || patient.photo,
+      auditTrail: [
+        ...(patient.auditTrail || []),
+        {
+          id: Date.now().toString(),
+          event: 'Record Updated',
+          staff: 'Admin User',
+          timestamp: new Date().toLocaleString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            hour12: true 
+          })
+        }
+      ]
+    };
+    setPatient(updatedPatient);
+    setIsEditModalOpen(false);
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto pb-12">
+      <PageHeader 
+        title="Patient Profile" 
+        subtitle={`Managing administrative and contact details for ${patient.name}`}
+        onBack={() => navigate(location.state?.from || '/crm/patients')}
+        actions={
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              className="text-blue-600 border-blue-200 rounded-xl hover:bg-blue-50"
+              onClick={() => setIsEditModalOpen(true)}
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Profile
+            </Button>
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 rounded-xl px-6"
+              onClick={() => navigate(`/crm/emr/${patient.patientId}`, {
+                state: {
+                  from: `/crm/patients/${patient.patientId}`,
+                  breadcrumbParent: { 
+                    name: patient.name, 
+                    path: `/crm/patients/${patient.patientId}`,
+                    parent: location.state?.breadcrumbParent
+                  }
+                }
+              })}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Open EMR
+            </Button>
+          </div>
+        }
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column: Core Info Card */}
+        <div className="lg:col-span-1 space-y-6">
+          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col items-center text-center">
+            <div className="relative mb-6 group">
+              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-xl relative cursor-pointer group">
+                {patient.photo ? (
+                  <img 
+                    src={patient.photo} 
+                    alt={patient.name} 
+                    className="w-full h-full object-cover transition-transform group-hover:scale-110" 
+                    onClick={() => setIsLightboxOpen(true)}
+                  />
+                ) : (
+                  <div 
+                    className="w-full h-full bg-blue-100 text-blue-600 flex items-center justify-center text-4xl font-bold"
+                    onClick={() => setIsLightboxOpen(true)}
+                  >
+                    {patient.name[0]}
+                  </div>
+                )}
+                <div 
+                  className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTempPhoto(patient.photo || null);
+                    setIsPhotoActionModalOpen(true);
+                  }}
+                >
+                  <Camera className="w-6 h-6 text-white" />
+                  <span className="sr-only">Change Photo</span>
+                </div>
+              </div>
+              <div className="absolute bottom-1 right-2 w-8 h-8 bg-green-500 border-4 border-white rounded-full"></div>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">{patient.name}</h2>
+            <p className="text-gray-500 font-medium mb-4">{patient.species} • {patient.breed}</p>
+            <div className="flex gap-2 mb-6">
+              <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-100">
+                {patient.patientId}
+              </Badge>
+              <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-100">
+                {patient.status}
+              </Badge>
+            </div>
+            
+            <div className="w-full pt-6 border-t border-gray-50 space-y-4">
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5 text-gray-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Date of Birth</p>
+                  <p className="text-sm font-semibold text-gray-700">{patient.dateOfBirth}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+                  <Activity className="w-5 h-5 text-gray-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Gender</p>
+                  <p className="text-sm font-semibold text-gray-700">{patient.gender}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+                  <Heart className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Blood Type</p>
+                  <p className="text-sm font-semibold text-gray-700">{patient.bloodType}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Alerts Card */}
+          <div className="bg-red-50 rounded-2xl p-6 border border-red-100">
+            <h4 className="flex items-center gap-2 text-red-800 font-bold mb-3">
+              <ShieldAlert className="w-5 h-5" />
+              Critical Alerts
+            </h4>
+            <ul className="space-y-2">
+              <li className="text-sm text-red-700 flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 shrink-0"></span>
+                Severe Penicillin Allergy
+              </li>
+              <li className="text-sm text-red-700 flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 shrink-0"></span>
+                History of Hip Dysplasia
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Middle & Right Column: Details & Timeline */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Owner & Contact Details */}
+          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <User className="w-6 h-6 text-blue-500" />
+              Contact & Ownership
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
+                    <User className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-400 uppercase">Primary Owner</p>
+                    <p className="text-lg font-bold text-gray-900">{patient.owner}</p>
+                    <Button 
+                      variant="link" 
+                      className="p-0 h-auto text-blue-600 text-xs hover:text-blue-800 transition-colors"
+                      onClick={() => navigate(`/profile/${(patient as any).ownerId || 'unknown'}`)}
+                    >
+                      View Owner Profile
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
+                    <Phone className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-400 uppercase">Phone Number</p>
+                    <p className="text-lg font-bold text-gray-900">{patient.contact}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
+                    <Mail className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-400 uppercase">Email Address</p>
+                    <p className="text-lg font-bold text-gray-900">{patient.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
+                    <MapPin className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-400 uppercase">Home Address</p>
+                    <p className="text-gray-700 leading-relaxed">{patient.address}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity Timeline */}
+          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Clock className="w-6 h-6 text-blue-500" />
+                Recent Activity
+              </h3>
+              <Button variant="ghost" className="text-blue-600">See All</Button>
+            </div>
+            <div className="space-y-8 relative before:absolute before:left-[23px] before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-50">
+              <div className="relative flex gap-6 group">
+                <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white z-10 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div className="flex-1 pt-1">
+                  <div className="flex justify-between mb-1">
+                    <h4 className="font-bold text-gray-900">EMR Record Updated</h4>
+                    <span className="text-xs text-gray-400 font-bold">TODAY, 10:45 AM</span>
+                  </div>
+                  <p className="text-sm text-gray-500">Annual checkup results added by Dr. Sarah Johnson</p>
+                </div>
+              </div>
+              <div className="relative flex gap-6 group">
+                <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white z-10 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div className="flex-1 pt-1">
+                  <div className="flex justify-between mb-1">
+                    <h4 className="font-bold text-gray-900">Appointment Scheduled</h4>
+                    <span className="text-xs text-gray-400 font-bold">2 DAYS AGO</span>
+                  </div>
+                  <p className="text-sm text-gray-500">Upcoming vaccination set for May 15, 2026</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Audit History Log */}
+          <div className="bg-[#1E293B] rounded-[2rem] p-8 text-white shadow-xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <RefreshCw className="w-6 h-6 text-indigo-400" />
+                Audit Trail Log
+              </h3>
+              <Badge variant="outline" className="text-indigo-300 border-indigo-500/30">
+                Verified Records
+              </Badge>
+            </div>
+
+            {/* Activity Histogram */}
+            <div className="bg-white/5 rounded-2xl p-6 border border-white/10 mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h4 className="text-sm font-bold text-indigo-100 flex items-center gap-2">
+                    <BarChart2 className="w-4 h-4 text-indigo-400" />
+                    Staff Activity Distribution
+                  </h4>
+                  <p className="text-[10px] text-indigo-300/60 mt-1 uppercase tracking-wider">Updates by staff member</p>
+                </div>
+                <Badge variant="outline" className="bg-indigo-500/10 text-indigo-300 border-indigo-500/20 text-[10px]">
+                  {(patient.auditTrail || []).length} Actions
+                </Badge>
+              </div>
+              
+              <div className="h-[160px] w-full">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                  <BarChart data={auditStats}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }}
+                      dy={10}
+                    />
+                    <YAxis hide />
+                    <Tooltip 
+                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                      contentStyle={{ 
+                        borderRadius: '12px', 
+                        border: 'none', 
+                        backgroundColor: '#1e293b',
+                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.3)',
+                        padding: '8px 12px'
+                      }}
+                      itemStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#fff' }}
+                      labelStyle={{ fontSize: '9px', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}
+                    />
+                    <Bar 
+                      dataKey="count" 
+                      radius={[4, 4, 0, 0]} 
+                      barSize={32}
+                    >
+                      {auditStats.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {(patient.auditTrail || []).slice().reverse().map((log: any, idx: number) => (
+                <div key={log.id} className="group relative pl-6 border-l border-indigo-500/20 last:border-0 pb-6 last:pb-0">
+                  <div className="absolute -left-1.5 top-0 w-3 h-3 rounded-full bg-indigo-500 ring-4 ring-[#1E293B] shadow-[0_0_15px_rgba(99,102,241,0.4)]" />
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="font-bold text-indigo-100">{log.event}</span>
+                    <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">
+                      {log.timestamp.split(',')[0]}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-indigo-300/60">
+                    <User className="w-3 h-3" />
+                    <span>Updated by <span className="text-indigo-200 font-medium">{log.staff}</span></span>
+                    <span className="mx-1">•</span>
+                    <Clock className="w-3 h-3" />
+                    <span>{log.timestamp.includes(',') ? log.timestamp.split(',')[1].trim() : log.timestamp}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Patient Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-2xl rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Edit Patient Profile</DialogTitle>
+            <DialogDescription>Update the demographics and administrative details for this record.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-8 py-4">
+            {/* Group 1: Pet Information */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <Activity className="w-4 h-4 text-blue-600" />
+                </div>
+                <h3 className="font-bold text-gray-900">Pet Information</h3>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="font-bold text-gray-700">Pet Name</Label>
+                  <Input id="name" name="name" defaultValue={patient.name} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="species" className="font-bold text-gray-700">Species</Label>
+                  <Input id="species" name="species" defaultValue={patient.species} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" required />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="breed" className="font-bold text-gray-700">Breed</Label>
+                  <Input id="breed" name="breed" defaultValue={patient.breed} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="gender" className="font-bold text-gray-700">Gender</Label>
+                    <Input id="gender" name="gender" defaultValue={patient.gender} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bloodType" className="font-bold text-gray-700">Blood Type</Label>
+                    <Input id="bloodType" name="bloodType" defaultValue={patient.bloodType} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="dob" className="font-bold text-gray-700">Date of Birth</Label>
+                  <Input id="dob" name="dob" type="date" defaultValue={patient.dateOfBirth} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
+                </div>
+                <div className="space-y-2">
+                  {/* Photo Section */}
+                  <Label className="font-bold text-gray-700">Patient Photo</Label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-white border border-gray-100 shrink-0 shadow-sm">
+                      {tempPhoto ? (
+                        <img src={tempPhoto} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                          <Camera className="w-5 h-5" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2 flex-1">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="rounded-xl border-blue-200 text-blue-600 hover:bg-blue-50 h-10 w-full"
+                        onClick={() => {
+                          setIsCameraModalOpen(true);
+                          startCamera();
+                        }}
+                      >
+                        <Camera className="w-4 h-4 mr-2" />
+                        Camera
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="rounded-xl border-gray-200 text-gray-600 hover:bg-gray-50 h-10 w-full"
+                        onClick={() => document.getElementById('photo-upload')?.click()}
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload
+                      </Button>
+                      <input 
+                        id="photo-upload" 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={handleFileUpload}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Group 2: Owner Information */}
+            <div className="space-y-6 pt-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
+                <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+                  <User className="w-4 h-4 text-orange-600" />
+                </div>
+                <h3 className="font-bold text-gray-900">Owner & Contact Details</h3>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="owner" className="font-bold text-gray-700">Owner Name</Label>
+                  <Input id="owner" name="owner" defaultValue={patient.owner} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contact" className="font-bold text-gray-700">Phone Number</Label>
+                  <Input id="contact" name="contact" defaultValue={patient.contact} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" required />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email" className="font-bold text-gray-700">Email Address</Label>
+                <Input id="email" name="email" type="email" defaultValue={patient.email} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address" className="font-bold text-gray-700">Home Address</Label>
+                <Input id="address" name="address" defaultValue={patient.address} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-8 flex gap-3 border-t border-gray-50 mt-4">
+              <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-blue-100">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Camera Capture Modal */}
+      <Dialog open={isCameraModalOpen} onOpenChange={(open) => {
+        setIsCameraModalOpen(open);
+        if (!open) stopCamera();
+      }}>
+        <DialogContent className="max-w-xl rounded-3xl p-0 overflow-hidden bg-black">
+          <div className="relative aspect-video bg-gray-900 flex items-center justify-center">
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline 
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute top-4 right-4 z-20">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="bg-black/50 text-white hover:bg-black/70 rounded-full"
+                onClick={() => {
+                  setIsCameraModalOpen(false);
+                  stopCamera();
+                }}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+          <div className="p-8 bg-white flex flex-col items-center gap-6">
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-gray-900 mb-1">Capture Patient Photo</h3>
+              <p className="text-sm text-gray-500">Center the pet in the frame for the best result.</p>
+            </div>
+            <div className="flex gap-4">
+              <Button 
+                variant="outline" 
+                className="rounded-full w-14 h-14 border-2 border-gray-100 flex items-center justify-center"
+                onClick={() => {
+                  stopCamera();
+                  startCamera();
+                }}
+              >
+                <RefreshCw className="w-6 h-6 text-gray-400" />
+              </Button>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-20 h-20 shadow-xl shadow-blue-200 flex items-center justify-center group"
+                onClick={capturePhoto}
+              >
+                <div className="w-16 h-16 rounded-full border-4 border-white/30 group-active:scale-95 transition-transform"></div>
+              </Button>
+              <div className="w-14"></div> {/* Spacer for symmetry */}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Lightbox Modal */}
+      <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none flex items-center justify-center">
+          <div className="relative group">
+            {patient.photo ? (
+              <img 
+                src={patient.photo} 
+                alt={patient.name} 
+                className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl" 
+              />
+            ) : (
+              <div className="w-64 h-64 bg-blue-100 text-blue-600 flex items-center justify-center text-6xl font-bold rounded-2xl">
+                {patient.name[0]}
+              </div>
+            )}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="absolute top-4 right-4 bg-black/50 text-white hover:bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => setIsLightboxOpen(false)}
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Photo Update Modal */}
+      <Dialog open={isPhotoActionModalOpen} onOpenChange={setIsPhotoActionModalOpen}>
+        <DialogContent className="max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Update Patient Photo</DialogTitle>
+            <DialogDescription>Capture a new photo or upload an image file for {patient.name}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="flex flex-col items-center gap-6">
+              <div className="w-48 h-48 rounded-2xl overflow-hidden bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center relative">
+                {tempPhoto ? (
+                  <img src={tempPhoto} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-gray-400">
+                    <Camera className="w-12 h-12" />
+                    <span className="text-xs font-bold uppercase tracking-wider">No Photo</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 w-full">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="rounded-2xl border-blue-200 text-blue-600 hover:bg-blue-50 h-14"
+                  onClick={() => {
+                    setIsCameraModalOpen(true);
+                    startCamera();
+                  }}
+                >
+                  <Camera className="w-5 h-5 mr-2" />
+                  Use Camera
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="rounded-2xl border-gray-200 text-gray-600 hover:bg-gray-50 h-14"
+                  onClick={() => {
+                    const uploadInput = document.getElementById('quick-photo-upload') as HTMLInputElement;
+                    if (uploadInput) uploadInput.click();
+                  }}
+                >
+                  <Upload className="w-5 h-5 mr-2" />
+                  Upload File
+                </Button>
+                <input 
+                  id="quick-photo-upload" 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handleFileUpload}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="pt-4 flex gap-3 border-t border-gray-50">
+            <Button variant="ghost" onClick={() => setIsPhotoActionModalOpen(false)} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
+            <Button 
+              disabled={!tempPhoto || tempPhoto === patient.photo}
+              onClick={handlePhotoSave}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-blue-100 flex-1"
+            >
+              <Check className="w-4 h-4 mr-2" />
+              Update Photo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

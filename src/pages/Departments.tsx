@@ -27,6 +27,20 @@ export default function Departments() {
             <div className="space-y-4">
               <h3 className="text-2xl font-bold">{service.name}</h3>
               <p className="text-stone-500 leading-relaxed">{service.desc}</p>
+              
+              {service.equipment && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">Key Equipment</p>
+                  <div className="flex flex-wrap gap-2">
+                    {service.equipment.map((item, i) => (
+                      <span key={i} className="text-xs px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-4 pt-2">
                 <Link 
                   to={`/doctors?dept=${service.name}`} 

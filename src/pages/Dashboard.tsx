@@ -1,34 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db, collection, query, where, onSnapshot, doc, getDoc } from '../firebase';
-import { Appointment, Report, UserProfile } from '../types';
+import { Appointment, Report, UserProfile, Invoice, Pet } from '../types';
 import { motion } from 'motion/react';
-import { Calendar, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, User, ArrowRight, Download } from 'lucide-react';
+import { LayoutDashboard, Calendar, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, User, ArrowRight, Download, Activity } from 'lucide-react';
 import { format } from 'date-fns';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import DashboardLayout from '../components/DashboardLayout';
+import { Badge } from '../components/ui/badge';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Dashboard() {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) return;
+    if (user && user.role !== 'client') {
+      let path = '/crm/admin-dashboard';
+      if (user.role === 'doctor') path = '/crm/doctor-dashboard';
+      else if (user.role === 'lab') path = '/crm/lab-dashboard';
+      else if (user.role === 'pharmacist') path = '/crm/pharmacist-dashboard';
+      navigate(path, { replace: true });
+    }
+  }, [user, navigate]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'pets' | 'appointments' | 'billing' | 'records'>('overview');
 
-    // Fetch User Profile
-    const fetchUser = async () => {
-      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-      if (userDoc.exists()) {
-        setUser(userDoc.data() as UserProfile);
-      }
-    };
-    fetchUser();
+  useEffect(() => {
+    if (!user || !user.uid) return;
 
     // Listen to Appointments
     const qAppointments = query(
       collection(db, 'appointments'),
-      where('patientUid', '==', firebaseUser.uid)
+      where('clientUid', '==', user.uid)
     );
     const unsubAppointments = onSnapshot(qAppointments, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
@@ -38,7 +45,7 @@ export default function Dashboard() {
     // Listen to Reports
     const qReports = query(
       collection(db, 'reports'),
-      where('patientUid', '==', firebaseUser.uid)
+      where('clientUid', '==', user.uid)
     );
     const unsubReports = onSnapshot(qReports, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Report));
@@ -46,11 +53,34 @@ export default function Dashboard() {
       setLoading(false);
     });
 
+    // Listen to Invoices
+    const qInvoices = query(
+      collection(db, 'invoices'),
+      where('clientUid', '==', user.uid)
+    );
+    const unsubInvoices = onSnapshot(qInvoices, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
+      setInvoices(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    });
+
+    // Listen to Pets
+    const qPets = query(
+      collection(db, 'pets'),
+      where('ownerUid', '==', user.uid)
+    );
+    const unsubPets = onSnapshot(qPets, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pet));
+      setPets(data);
+      setLoading(false);
+    });
+
     return () => {
       unsubAppointments();
       unsubReports();
+      unsubInvoices();
+      unsubPets();
     };
-  }, []);
+  }, [user]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -72,6 +102,14 @@ export default function Dashboard() {
     }
   };
 
+  const menuItems = [
+    { id: 'overview', label: 'Dashboard Overview', icon: <LayoutDashboard className="w-5 h-5" /> },
+    { id: 'pets', label: 'My Pets', icon: <User className="w-5 h-5" /> },
+    { id: 'appointments', label: 'My Appointments', icon: <Calendar className="w-5 h-5" /> },
+    { id: 'billing', label: 'Billing & Invoices', icon: <FileText className="w-5 h-5" /> },
+    { id: 'records', label: 'Medical Reports', icon: <Clock className="w-5 h-5" /> },
+  ];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -81,131 +119,426 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-12">
-      {/* Welcome Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-3xl border border-stone-200">
-        <div className="flex items-center gap-6">
-          <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-emerald-100">
-            <img 
-              src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName || user?.email}&background=10b981&color=fff`} 
-              alt="Profile" 
-              className="w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-            />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-stone-900">Hello, {user?.displayName?.split(' ')[0] || 'Pet Owner'}</h1>
-            <p className="text-stone-500">Welcome to your pet care dashboard. Stay updated with your pet records.</p>
-          </div>
-        </div>
-        <Link 
-          to="/doctors" 
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 transition-all"
-        >
-          <Plus className="w-5 h-5" />
-          Book Visit
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Appointments Section */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-emerald-600" />
-              Recent Visits
-            </h2>
-          </div>
-
-          <div className="space-y-4">
-            {appointments.length === 0 ? (
-              <div className="bg-white p-12 rounded-3xl border border-stone-200 text-center space-y-4">
-                <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center mx-auto text-stone-300">
-                  <Calendar className="w-8 h-8" />
-                </div>
-                <p className="text-stone-500">No visits found.</p>
-                <Link to="/doctors" className="text-emerald-600 font-bold inline-block">Book your first visit</Link>
-              </div>
-            ) : (
-              appointments.map((app, idx) => (
-                <motion.div 
-                  key={app.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="bg-white p-6 rounded-3xl border border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-6 hover:border-emerald-200 transition-all"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
-                      <User className="w-6 h-6" />
+    <DashboardLayout
+      user={user}
+      menuItems={menuItems}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      title="Pet Parent Portal"
+    >
+      <div className="space-y-12 pb-12">
+        {activeTab === 'overview' && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-12"
+          >
+            {/* Premium Welcome Hero */}
+            <div className="relative overflow-hidden bg-slate-900 rounded-[3rem] p-10 md:p-16 text-white shadow-2xl shadow-slate-900/40">
+              {/* Animated Background Element */}
+              <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] animate-pulse" />
+              <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px]" />
+              
+              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-12">
+                <div className="flex items-center gap-10">
+                  <div className="relative">
+                    <div className="w-32 h-32 rounded-[2.5rem] overflow-hidden border-4 border-white/10 ring-8 ring-emerald-500/10 shadow-2xl">
+                      <img 
+                        src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName || user?.email}&background=10b981&color=fff`} 
+                        alt="Profile" 
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
                     </div>
-                    <div>
-                      <h4 className="font-bold text-stone-900">{app.doctorName}</h4>
-                      <p className="text-xs text-stone-500">{format(new Date(app.date), 'MMMM dd, yyyy')} at {app.time}</p>
+                    <div className="absolute -bottom-2 -right-2 bg-emerald-500 w-8 h-8 rounded-2xl border-4 border-slate-900 flex items-center justify-center shadow-lg">
+                      <div className="w-2 h-2 bg-white rounded-full animate-ping" />
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className={`px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 ${getStatusColor(app.status)}`}>
-                      {getStatusIcon(app.status)}
-                      {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
-                    </span>
-                    <button className="p-2 hover:bg-stone-50 rounded-lg text-stone-400">
-                      <ArrowRight className="w-5 h-5" />
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
+                      <Activity className="w-3 h-3" />
+                      Premium Member
+                    </div>
+                    <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-none">
+                      Welcome home, <br />
+                      <span className="text-emerald-400">{user?.displayName?.split(' ')[0] || 'Pet Parent'}</span>
+                    </h1>
+                    <p className="text-slate-400 text-xl font-medium max-w-md">Your MediPaws family health summary is ready.</p>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-4">
+                  <Link 
+                    to="/doctors" 
+                    className="bg-emerald-500 hover:bg-emerald-400 text-white px-10 py-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-emerald-500/30 group"
+                  >
+                    <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-500" />
+                    Schedule Clinical Visit
+                  </Link>
+                  <p className="text-slate-500 text-xs text-center font-bold uppercase tracking-tighter">Next availability: Today, 2:30 PM</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Premium Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                { label: 'Registered Pets', value: pets.length, icon: User, color: 'text-blue-500', bg: 'bg-blue-50', shadow: 'shadow-blue-500/10' },
+                { label: 'Confirmed Visits', value: appointments.filter(a => a.status === 'confirmed').length, icon: Calendar, color: 'text-emerald-500', bg: 'bg-emerald-50', shadow: 'shadow-emerald-500/10' },
+                { label: 'Outstanding Balance', value: `$${invoices.filter(i => i.status === 'active').reduce((sum, inv) => sum + inv.amount, 0).toFixed(0)}`, icon: FileText, color: 'text-rose-500', bg: 'bg-rose-50', shadow: 'shadow-rose-500/10' }
+              ].map((stat, i) => (
+                <div key={i} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 transition-all group relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-bl-full -mr-16 -mt-16 group-hover:bg-slate-100/50 transition-colors" />
+                  <div className="relative z-10">
+                    <div className={`${stat.bg} ${stat.color} w-16 h-16 rounded-2xl flex items-center justify-center mb-8 ${stat.shadow} group-hover:scale-110 transition-transform`}>
+                      <stat.icon className="w-8 h-8" />
+                    </div>
+                    <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-[10px] mb-2">{stat.label}</p>
+                    <h3 className="text-5xl font-black text-slate-900 tracking-tighter">{stat.value}</h3>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Action Hub */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 bg-slate-50 p-10 rounded-[3rem] border border-slate-100">
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-2xl font-black text-slate-900 flex items-center gap-3">
+                    <Clock className="w-6 h-6 text-indigo-500" />
+                    Next Clinical Appointment
+                  </h3>
+                  <Link to="/appointments" className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-primary transition-colors">View All History</Link>
+                </div>
+                
+                {appointments.find(a => a.status === 'confirmed') ? (
+                  <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/40 border border-slate-100 flex flex-col md:flex-row items-center gap-8">
+                    <div className="w-24 h-24 bg-indigo-50 rounded-3xl flex flex-col items-center justify-center text-indigo-600 border border-indigo-100 shadow-inner">
+                      <span className="text-xs font-black uppercase tracking-tighter">
+                        {format(new Date(appointments.find(a => a.status === 'confirmed')!.date), 'MMM')}
+                      </span>
+                      <span className="text-4xl font-black leading-none">
+                        {format(new Date(appointments.find(a => a.status === 'confirmed')!.date), 'dd')}
+                      </span>
+                    </div>
+                    <div className="flex-1 text-center md:text-left">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 rounded-full text-indigo-600 text-[10px] font-black uppercase tracking-widest mb-3">
+                        General Consultation
+                      </div>
+                      <h4 className="text-3xl font-black text-slate-900 leading-tight">
+                        {appointments.find(a => a.status === 'confirmed')?.petName}'s Visit
+                      </h4>
+                      <p className="text-slate-400 font-bold mt-1 text-lg">
+                        Dr. {appointments.find(a => a.status === 'confirmed')?.doctorName} • <span className="text-slate-900">{appointments.find(a => a.status === 'confirmed')?.time}</span>
+                      </p>
+                    </div>
+                    <button className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20">
+                      Manage Visit
                     </button>
                   </div>
-                </motion.div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Reports Section */}
-        <div className="space-y-6">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <FileText className="w-6 h-6 text-emerald-600" />
-            Care Reports
-          </h2>
-
-          <div className="space-y-4">
-            {reports.length === 0 ? (
-              <div className="bg-white p-12 rounded-3xl border border-stone-200 text-center space-y-4">
-                <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center mx-auto text-stone-300">
-                  <FileText className="w-8 h-8" />
-                </div>
-                <p className="text-stone-500">No care reports available.</p>
-              </div>
-            ) : (
-              reports.map((report, idx) => (
-                <motion.div 
-                  key={report.id}
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="bg-white p-6 rounded-3xl border border-stone-200 space-y-4 hover:border-emerald-200 transition-all"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <h4 className="font-bold text-stone-900">{report.title}</h4>
-                      <p className="text-xs text-stone-500">{format(new Date(report.date), 'MMM dd, yyyy')}</p>
+                ) : (
+                  <div className="bg-white/40 p-12 rounded-[2.5rem] border-4 border-dashed border-slate-200 text-center space-y-4">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm">
+                      <Calendar className="w-8 h-8 text-slate-200" />
                     </div>
-                    <a 
-                      href={report.fileUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all"
-                    >
-                      <Download className="w-5 h-5" />
-                    </a>
+                    <div>
+                      <p className="text-slate-400 text-lg font-black uppercase tracking-widest">No Active Visits</p>
+                      <p className="text-slate-400 font-medium">Keep your companions healthy by scheduling a routine checkup.</p>
+                    </div>
+                    <Link to="/doctors" className="inline-flex items-center gap-2 bg-white text-emerald-500 px-6 py-3 rounded-2xl font-black text-sm border border-emerald-100 shadow-sm hover:bg-emerald-50 transition-all">
+                      Browse Specialists <ArrowRight className="w-4 h-4" />
+                    </Link>
                   </div>
-                  {report.description && (
-                    <p className="text-xs text-stone-500 leading-relaxed">{report.description}</p>
-                  )}
-                </motion.div>
-              ))
-            )}
-          </div>
-        </div>
+                )}
+              </div>
+
+              <div className="bg-slate-900 p-10 rounded-[3rem] text-white flex flex-col justify-between shadow-2xl shadow-slate-900/30">
+                <div>
+                  <h3 className="text-2xl font-black mb-8 flex items-center gap-3 text-emerald-400">
+                    <LayoutDashboard className="w-6 h-6" />
+                    Quick Pulse
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      { label: 'Register Pet', icon: Plus, tab: 'pets', color: 'text-emerald-400' },
+                      { label: 'Invoices', icon: FileText, tab: 'billing', color: 'text-amber-400' },
+                      { label: 'EMR Vault', icon: Clock, tab: 'records', color: 'text-indigo-400' },
+                      { label: 'Messages', icon: AlertCircle, tab: 'overview', color: 'text-rose-400' }
+                    ].map((action, i) => (
+                      <button 
+                        key={i}
+                        onClick={() => setActiveTab(action.tab as any)}
+                        className="bg-white/5 hover:bg-white/10 p-6 rounded-[2rem] transition-all text-left flex flex-col gap-4 group border border-white/5"
+                      >
+                        <action.icon className={`w-7 h-7 ${action.color} group-hover:scale-110 transition-transform`} />
+                        <span className="font-black text-xs uppercase tracking-widest">{action.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-8 pt-8 border-t border-white/5">
+                  <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Support ID</p>
+                  <p className="font-mono text-xs text-white/40">MP-USR-{user?.uid.slice(0, 8).toUpperCase()}</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'pets' && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-12"
+          >
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+              <div>
+                <h2 className="text-4xl font-black text-slate-900 flex items-center gap-4 tracking-tight">
+                  <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
+                    <User className="w-7 h-7" />
+                  </div>
+                  My Beloved Pets
+                </h2>
+                <p className="text-slate-500 mt-2 font-medium text-lg">Detailed clinical oversight for your companions.</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+              {pets.map(pet => (
+                <Link 
+                  key={pet.id} 
+                  to={`/pet/${pet.id}`}
+                  className="bg-white p-10 rounded-[3rem] border border-slate-100 hover:border-emerald-500/20 shadow-sm hover:shadow-2xl hover:shadow-emerald-900/5 transition-all group relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-bl-full -mr-16 -mt-16 transition-all group-hover:bg-emerald-50" />
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-6 mb-8">
+                      <div className="w-24 h-24 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white ring-1 ring-slate-100">
+                        <img 
+                          src={pet.imageUrl || `https://ui-avatars.com/api/?name=${pet.name}&background=10b981&color=fff`} 
+                          alt={pet.name} 
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="font-black text-3xl text-slate-900 group-hover:text-emerald-600 transition-colors leading-none">{pet.name}</h4>
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 bg-emerald-500 rounded-full" />
+                          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{pet.species} • {pet.breed}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-slate-50 p-5 rounded-[1.5rem] group-hover:bg-white transition-colors border border-transparent group-hover:border-slate-100">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Age</p>
+                        <p className="text-xl font-black text-slate-900">{pet.age} Years</p>
+                      </div>
+                      <div className="bg-slate-50 p-5 rounded-[1.5rem] group-hover:bg-white transition-colors border border-transparent group-hover:border-slate-100">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Weight</p>
+                        <p className="text-xl font-black text-slate-900">{pet.weight}kg</p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-8 flex items-center justify-between text-emerald-600 font-black text-sm uppercase tracking-widest">
+                      <span>Clinical Profile</span>
+                      <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                        <ArrowRight className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+              
+              <Link 
+                to="/add-pet"
+                className="bg-slate-50 border-4 border-dashed border-slate-200 rounded-[3rem] flex flex-col items-center justify-center p-12 text-slate-400 hover:text-emerald-500 hover:border-emerald-500/20 hover:bg-white transition-all group min-h-[300px]"
+              >
+                <div className="w-20 h-20 rounded-[2rem] bg-white flex items-center justify-center mb-6 shadow-xl shadow-slate-900/5 group-hover:scale-110 transition-transform">
+                  <Plus className="w-10 h-10" />
+                </div>
+                <p className="font-black text-lg uppercase tracking-widest">Register New Pet</p>
+                <p className="text-xs font-bold text-slate-400 mt-2">Clinical onboarding process</p>
+              </Link>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'appointments' && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-12"
+          >
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+              <div>
+                <h2 className="text-4xl font-black text-slate-900 flex items-center gap-4 tracking-tight">
+                  <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                    <Calendar className="w-7 h-7" />
+                  </div>
+                  Visit History
+                </h2>
+                <p className="text-slate-500 mt-2 font-medium text-lg">Full clinical audit of your hospital visits.</p>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
+              {appointments.length === 0 ? (
+                <div className="p-32 text-center space-y-6">
+                  <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                    <Calendar className="w-12 h-12 text-slate-200" />
+                  </div>
+                  <div>
+                    <p className="text-slate-900 text-xl font-black uppercase tracking-widest">Registry Clear</p>
+                    <p className="text-slate-400 font-medium">No appointments found in your clinical history.</p>
+                  </div>
+                  <Link to="/doctors" className="inline-flex items-center gap-2 bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-sm hover:scale-105 transition-all">
+                    Schedule Visit <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-50">
+                  {appointments.map((app) => (
+                    <div key={app.id} className="p-10 flex flex-col md:flex-row items-center justify-between hover:bg-slate-50/50 transition-colors group gap-8">
+                      <div className="flex items-center gap-10">
+                        <div className="w-20 h-20 bg-slate-900 rounded-[1.5rem] flex flex-col items-center justify-center text-white shadow-2xl shadow-slate-900/20 group-hover:scale-105 transition-transform">
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">
+                            {format(new Date(app.date), 'MMM')}
+                          </span>
+                          <span className="text-3xl font-black leading-none">
+                            {format(new Date(app.date), 'dd')}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-black text-2xl text-slate-900">{app.petName}'s Consultation</h4>
+                            <Badge variant="outline" className="rounded-lg text-[10px] font-black uppercase tracking-tighter border-slate-200">OPD</Badge>
+                          </div>
+                          <p className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">
+                            Dr. {app.doctorName} • <span className="text-slate-900">{app.time}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end">
+                        <div className={`px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] ${getStatusColor(app.status)} border border-current opacity-80`}>
+                          {app.status}
+                        </div>
+                        <button className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
+                          <ArrowRight className="w-6 h-6" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'billing' && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-12"
+          >
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+              <div>
+                <h2 className="text-4xl font-black text-slate-900 flex items-center gap-4 tracking-tight">
+                  <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600">
+                    <FileText className="w-7 h-7" />
+                  </div>
+                  Financial Records
+                </h2>
+                <p className="text-slate-500 mt-2 font-medium text-lg">Transparency in your pet's healthcare investments.</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
+              {invoices.length === 0 ? (
+                <div className="p-32 text-center text-slate-300 font-black uppercase tracking-widest">No financial history found.</div>
+              ) : (
+                <div className="divide-y divide-slate-50">
+                  {invoices.map((inv) => (
+                    <div key={inv.id} className="p-10 flex flex-col md:flex-row items-center justify-between hover:bg-rose-50/20 transition-colors group gap-8">
+                      <div className="flex items-center gap-10">
+                        <div className="w-20 h-20 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-slate-300 group-hover:text-rose-500 transition-all border border-slate-100 shadow-inner">
+                          <Download className="w-10 h-10" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-2xl text-slate-900">{inv.description}</h4>
+                          <p className="text-sm font-black text-slate-400 mt-1 uppercase tracking-[0.2em]">
+                            Patient: {inv.petName} • Due <span className="text-rose-500">{format(new Date(inv.dueDate), 'MMM dd, yyyy')}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center md:items-end gap-2">
+                        <p className="text-4xl font-black text-slate-900 tracking-tighter">${inv.amount.toFixed(2)}</p>
+                        <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${inv.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                          <div className={`w-2 h-2 rounded-full ${inv.status === 'paid' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
+                          {inv.status}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'records' && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-12"
+          >
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+              <div>
+                <h2 className="text-4xl font-black text-slate-900 flex items-center gap-4 tracking-tight">
+                  <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                    <FileText className="w-7 h-7" />
+                  </div>
+                  EMR Vault
+                </h2>
+                <p className="text-slate-500 mt-2 font-medium text-lg">Secure access to clinical summaries and diagnostic results.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              {reports.map((report) => (
+                <div key={report.id} className="bg-white p-10 rounded-[3rem] border border-slate-100 hover:border-indigo-500/20 transition-all shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 group flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-6 mb-8">
+                      <div className="w-20 h-20 bg-indigo-50 rounded-[1.5rem] flex items-center justify-center text-indigo-500 border border-indigo-100 shadow-inner group-hover:scale-105 transition-transform">
+                        <FileText className="w-10 h-10" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest mb-2">
+                          Clinical Report
+                        </div>
+                        <h4 className="font-black text-2xl text-slate-900 leading-tight">{report.title}</h4>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
+                          <Calendar className="w-3 h-3" />
+                          {format(new Date(report.date), 'MMMM dd, yyyy')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 p-6 rounded-2xl mb-10">
+                      <p className="text-slate-600 font-bold leading-relaxed line-clamp-3 italic">
+                        "{report.description}"
+                      </p>
+                    </div>
+                  </div>
+                  <button className="w-full bg-slate-900 hover:bg-slate-800 text-white py-5 rounded-2xl font-black text-sm flex items-center justify-center gap-3 transition-all shadow-xl shadow-slate-900/10">
+                    <Download className="w-5 h-5" /> Download Secure PDF
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </div>
-    </div>
+    </DashboardLayout>
+
   );
 }

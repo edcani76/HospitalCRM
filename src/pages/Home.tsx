@@ -1,169 +1,185 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Calendar, UserRound, Activity, ShieldCheck, ArrowRight, Clock, Star } from 'lucide-react';
-import { services } from '../data/services';
+import { Shield, Clock, Heart, Clipboard, Star, CheckCircle, ArrowRight, Activity, Users, Stethoscope, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+const features = [
+  {
+    title: 'Advanced Diagnostics',
+    desc: 'State-of-the-art laboratory and imaging services for accurate pet health assessment.',
+    icon: Activity,
+    color: 'bg-emerald-50 text-emerald-600'
+  },
+  {
+    title: 'Expert Specialists',
+    desc: 'A dedicated team of veterinary professionals with decades of combined experience.',
+    icon: Stethoscope,
+    color: 'bg-indigo-50 text-indigo-600'
+  },
+  {
+    title: '24/7 Monitoring',
+    desc: 'Round-the-clock patient tracking and emergency response systems.',
+    icon: Clock,
+    color: 'bg-rose-50 text-rose-600'
+  }
+];
+
+const services = [
+  { title: 'Cardiology', description: 'Advanced heart health monitoring.', icon: '❤️' },
+  { title: 'Oncology', description: 'Compassionate cancer care.', icon: '🎗️' },
+  { title: 'Orthopedics', description: 'Surgical bone and joint repair.', icon: '🦴' },
+  { title: 'Neurology', description: 'Expert nervous system care.', icon: '🧠' },
+];
 
 export default function Home() {
-  const features = [
-    { icon: <Calendar className="w-6 h-6" />, title: "Easy Booking", desc: "Book visits with your preferred veterinarian in seconds." },
-    { icon: <UserRound className="w-6 h-6" />, title: "Expert Veterinarians", desc: "Access experienced veterinarians across core pet specialties." },
-    { icon: <ShieldCheck className="w-6 h-6" />, title: "Secure Data", desc: "Your pet records and personal data are fully encrypted." },
-    { icon: <Activity className="w-6 h-6" />, title: "Real-time Updates", desc: "Get instant updates about visits, reminders, and care reports." },
-  ];
-
   return (
-    <div className="space-y-24">
-      {/* Hero Section - Video Background */}
-      <section className="relative overflow-hidden rounded-3xl bg-emerald-950 text-white py-20 px-8 md:px-16">
-        <div className="relative z-10 max-w-2xl space-y-8">
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-5xl md:text-7xl font-bold leading-tight"
-          >
-            Your Pet's Health, <br />
-            <span className="text-emerald-400">Our Priority.</span>
-          </motion.h1>
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-lg text-emerald-100/80 max-w-lg"
-          >
-            Experience modern veterinary care with MediPaws. Advanced facilities, skilled veterinarians, and compassionate support in one clinic platform.
-          </motion.p>
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="flex flex-wrap gap-4"
-          >
-            <Link to="/doctors" className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-full font-semibold flex items-center gap-2 transition-all">
-              Book Visit <ArrowRight className="w-5 h-5" />
-            </Link>
-            <Link to="/departments" className="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-full font-semibold backdrop-blur-sm transition-all">
-              Our Services
-            </Link>
-          </motion.div>
-        </div>
+    <div className="space-y-32 pb-32">
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 overflow-hidden">
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-emerald-500/5 rounded-full blur-[120px] -mr-96 -mt-96" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[120px] -ml-72 -mb-72" />
         
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-full md:w-1/2 h-full opacity-50 md:opacity-100">
-          <img 
-            src="/cat_dog_hero.png" 
-            alt="Puppy and kitten cuddling in a veterinary clinic" 
-            className="w-full h-full object-cover opacity-80"
-          />
-          <div className="absolute inset-0 bg-gradient-to-l from-emerald-950/0 to-emerald-950" />
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-        {features.map((feature, idx) => (
-          <motion.div 
-            key={idx}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: idx * 0.1 }}
-            className="p-8 bg-white rounded-3xl border border-stone-200 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-900/5 transition-all group"
-          >
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-              {feature.icon}
-            </div>
-            <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-            <p className="text-stone-500 text-sm leading-relaxed">{feature.desc}</p>
-          </motion.div>
-        ))}
-      </section>
-
-      {/* Departments Section */}
-      <section className="space-y-12">
-        <div className="flex justify-between items-end">
-          <div className="space-y-4">
-            <h2 className="text-4xl font-bold">Our Services</h2>
-            <p className="text-stone-500 max-w-xl">We offer specialized veterinary services to deliver complete care for pets at every life stage.</p>
-          </div>
-          <Link to="/departments" className="text-emerald-600 font-semibold flex items-center gap-2 hover:gap-3 transition-all">
-            View All <ArrowRight className="w-5 h-5" />
-          </Link>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
-          {services.map((service, idx) => (
-            <motion.div 
-              key={idx}
-              whileHover={{ y: -8 }}
-              className="p-7 bg-white rounded-3xl border border-stone-200 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-900/5 transition-all"
+        <div className="container mx-auto px-6 relative z-10 max-w-7xl">
+          <div className="max-w-4xl">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-50 rounded-full text-emerald-600 text-[10px] font-black uppercase tracking-[0.2em] mb-8 border border-emerald-100"
             >
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mb-6">
-                {service.icon}
-              </div>
-              <h3 className="text-xl font-bold mb-3">{service.name}</h3>
-              <p className="text-stone-500 text-sm leading-relaxed mb-6">{service.desc}</p>
-              <Link to={`/doctors?dept=${service.name}`} className="text-emerald-600 text-sm font-bold flex items-center gap-2">
-                Find Veterinarians <ArrowRight className="w-4 h-4" />
+              <ShieldCheck className="w-4 h-4" />
+              Advanced Clinical Care
+            </motion.div>
+            
+            <motion.h1 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="text-7xl md:text-8xl font-black text-slate-900 leading-[0.9] tracking-tighter mb-8"
+            >
+              Excellence in <br />
+              <span className="text-emerald-500">Pet Medicine.</span>
+            </motion.h1>
+            
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-xl md:text-2xl text-slate-500 font-medium max-w-2xl leading-relaxed mb-12"
+            >
+              MediPaws combines world-class clinical expertise with state-of-the-art technology to provide the highest standard of care for your family members.
+            </motion.p>
+            
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="flex flex-col sm:flex-row gap-6"
+            >
+              <Link 
+                to="/book-appointment" 
+                className="px-10 py-6 bg-slate-900 text-white rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 hover:bg-emerald-600 hover:scale-105 transition-all shadow-2xl shadow-slate-900/20"
+              >
+                Schedule Consultation <ArrowRight className="w-6 h-6" />
               </Link>
+              <Link 
+                to="/doctors" 
+                className="px-10 py-6 bg-white text-slate-900 border border-slate-100 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 hover:bg-slate-50 transition-all shadow-xl"
+              >
+                Meet Our Vets
+              </Link>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Grid */}
+      <section className="container mx-auto px-6 max-w-7xl">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+          {[
+            { icon: <Clock className="w-8 h-8" />, title: "24/7 Clinical", desc: "Always available emergency response unit for critical care." },
+            { icon: <Stethoscope className="w-8 h-8" />, title: "Specialized", desc: "From oncology to orthopedics, we cover every field of vet care." },
+            { icon: <ShieldCheck className="w-8 h-8" />, title: "Tech-Driven", desc: "Integrated digital health records and AI diagnostic tools." }
+          ].map((item, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="p-10 bg-white rounded-[3rem] border border-slate-50 shadow-2xl shadow-slate-200/40 group hover:border-emerald-100 transition-all"
+            >
+              <div className="w-16 h-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-emerald-500 mb-8 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-500">
+                {item.icon}
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 mb-4">{item.title}</h3>
+              <p className="text-slate-500 font-medium leading-relaxed">{item.desc}</p>
             </motion.div>
           ))}
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="bg-emerald-50 rounded-3xl p-12 md:p-20 grid grid-cols-2 lg:grid-cols-4 gap-12 text-center">
-        <div className="space-y-2">
-          <p className="text-4xl md:text-5xl font-bold text-emerald-900">15k+</p>
-          <p className="text-emerald-600 font-medium">Happy Pets</p>
-        </div>
-        <div className="space-y-2">
-          <p className="text-4xl md:text-5xl font-bold text-emerald-900">120+</p>
-          <p className="text-emerald-600 font-medium">Expert Veterinarians</p>
-        </div>
-        <div className="space-y-2">
-          <p className="text-4xl md:text-5xl font-bold text-emerald-900">25+</p>
-          <p className="text-emerald-600 font-medium">Services</p>
-        </div>
-        <div className="space-y-2">
-          <p className="text-4xl md:text-5xl font-bold text-emerald-900">15+</p>
-          <p className="text-emerald-600 font-medium">Years Experience</p>
+      {/* Services Section */}
+      <section className="py-32 bg-slate-50 rounded-[5rem] mx-4 relative overflow-hidden">
+        <div className="container mx-auto px-6 relative z-10 max-w-7xl">
+          <div className="flex flex-col lg:flex-row items-end justify-between gap-12 mb-20">
+            <div className="max-w-2xl space-y-6">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white rounded-full text-emerald-600 text-[10px] font-black uppercase tracking-[0.2em] shadow-sm border border-slate-100">
+                Clinical Excellence
+              </div>
+              <h2 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter leading-[0.9]">
+                Specialized <br />
+                <span className="text-emerald-500">Medical Ecosystem</span>
+              </h2>
+            </div>
+            <p className="text-slate-500 font-medium text-lg max-w-sm lg:text-right">
+              Explore our range of clinical departments equipped with the latest medical advancements.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {services.map((service, index) => (
+              <motion.div
+                key={service.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-white p-10 rounded-[3rem] shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group border border-slate-100"
+              >
+                <div className="text-4xl mb-8 group-hover:scale-125 transition-transform duration-500 inline-block">{service.icon}</div>
+                <h3 className="text-xl font-black text-slate-900 mb-3 uppercase tracking-tight">{service.title}</h3>
+                <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">{service.description}</p>
+                <Link to="/doctors" className="text-emerald-600 font-black text-xs uppercase tracking-widest flex items-center gap-2 group-hover:gap-4 transition-all">
+                  Meet Team <ArrowRight className="w-4 h-4" />
+                </Link>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="relative overflow-hidden rounded-3xl bg-stone-900 text-white p-12 md:p-20 flex flex-col md:flex-row items-center justify-between gap-12">
-        <div className="space-y-6 max-w-xl">
-          <h2 className="text-4xl font-bold">Ready to take care of your pet's health?</h2>
-          <p className="text-stone-400">Join thousands of pet owners who trust MediPaws for reliable veterinary care. Start your pet wellness journey today.</p>
-          <div className="flex gap-4">
-            <Link to="/login" className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-full font-semibold transition-all">
-              Get Started
-            </Link>
-            <Link to="/doctors" className="border border-stone-700 hover:bg-stone-800 text-white px-8 py-4 rounded-full font-semibold transition-all">
-              Find a Veterinarian
-            </Link>
-          </div>
-        </div>
-        <div className="relative">
-          <div className="w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl absolute -top-12 -right-12" />
-          <div className="bg-stone-800 p-8 rounded-3xl border border-stone-700 space-y-6 relative z-10">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center">
-                <Clock className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-stone-400">Emergency Support</p>
-                <p className="text-xl font-bold">24/7 Available</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
-                <Star className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-stone-400">Client Rating</p>
-                <p className="text-xl font-bold">4.9/5.0 Stars</p>
-              </div>
+      <section className="container mx-auto px-6 max-w-7xl">
+        <div className="bg-slate-900 rounded-[4rem] p-12 md:p-24 relative overflow-hidden text-center">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-transparent opacity-50" />
+          <div className="relative z-10 max-w-3xl mx-auto space-y-10">
+            <h2 className="text-5xl md:text-7xl font-black text-white leading-none tracking-tighter">
+              Ready to provide the <span className="text-emerald-400">best</span> care?
+            </h2>
+            <p className="text-slate-400 text-xl font-medium">Join the MediPaws family today and ensure a healthier future for your companions.</p>
+            <div className="flex flex-col sm:flex-row justify-center gap-6">
+              <Link 
+                to="/signup" 
+                className="px-12 py-6 bg-emerald-500 hover:bg-emerald-400 text-white rounded-[2rem] font-black text-lg transition-all shadow-2xl shadow-emerald-500/40"
+              >
+                Get Started
+              </Link>
+              <Link 
+                to="/contact" 
+                className="px-12 py-6 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md rounded-[2rem] font-black text-lg transition-all"
+              >
+                Contact Us
+              </Link>
             </div>
           </div>
         </div>

@@ -10,7 +10,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export default function Layout({ children, showFooter = true }: { children: React.ReactNode, showFooter?: boolean }) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -30,7 +30,7 @@ export default function Layout({ children, showFooter = true }: { children: Reac
             email: firebaseUser.email || '',
             displayName: firebaseUser.displayName || '',
             photoURL: firebaseUser.photoURL || '',
-            role: 'client',
+            role: 'patient',
             createdAt: new Date()
           });
         }
@@ -55,21 +55,14 @@ export default function Layout({ children, showFooter = true }: { children: Reac
   ];
 
   if (user) {
-    let dashboardPath = '/dashboard';
-    if (user.role === 'admin' || user.role === 'staff') dashboardPath = '/crm/admin-dashboard';
-    else if (user.role === 'lab') dashboardPath = '/crm/lab-dashboard';
-    else if (user.role === 'pharmacist') dashboardPath = '/crm/pharmacist-dashboard';
-    else if (user.role === 'doctor') dashboardPath = '/crm/doctor-dashboard';
-
-    navLinks.push({ name: 'Dashboard', path: dashboardPath });
-    
-    // Also update the profile image link to point to the correct dashboard
-    // instead of always /dashboard
-    const profileLink = dashboardPath;
+    navLinks.push({ name: 'Dashboard', path: '/dashboard' });
+    if (user.role === 'admin') {
+      navLinks.push({ name: 'Admin', path: '/admin' });
+    }
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 font-sans text-stone-900 flex flex-col">
+    <div className="min-h-screen bg-stone-50 font-sans text-stone-900">
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
@@ -103,7 +96,7 @@ export default function Layout({ children, showFooter = true }: { children: Reac
                     <LogOut className="w-4 h-4" />
                     Logout
                   </button>
-                  <Link to={user.role === 'client' ? '/dashboard' : '/crm/admin-dashboard'} className="w-8 h-8 rounded-full overflow-hidden border border-emerald-200">
+                  <Link to="/dashboard" className="w-8 h-8 rounded-full overflow-hidden border border-emerald-200">
                     <img 
                       src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=10b981&color=fff`} 
                       alt="Profile" 
@@ -166,51 +159,48 @@ export default function Layout({ children, showFooter = true }: { children: Reac
         )}
       </nav>
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
 
-      {showFooter && (
-        <footer className="bg-stone-900 text-stone-400 py-12 mt-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-white font-bold text-xl">
-                <Hospital className="w-8 h-8 text-emerald-500" />
-                <span>MediPaws</span>
-              </div>
-              <p className="text-sm">Providing trusted veterinary care with a focus on wellness, prevention, and compassionate support for pets and their families.</p>
+      <footer className="bg-stone-900 text-stone-400 py-12 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-white font-bold text-xl">
+              <Hospital className="w-8 h-8 text-emerald-500" />
+              <span>MediPaws</span>
             </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-sm">
-                <li><Link to="/" className="hover:text-emerald-500 transition-colors">Home</Link></li>
-                <li><Link to="/departments" className="hover:text-emerald-500 transition-colors">Services</Link></li>
-                <li><Link to="/doctors" className="hover:text-emerald-500 transition-colors">Veterinarians</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Contact</h4>
-              <ul className="space-y-2 text-sm">
-                <li>123 Pawcare Lane</li>
-                <li>Petville, PV 12345</li>
-                <li>Phone: (555) 123-4567</li>
-                <li>Email: info@medigreen.com</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Emergency</h4>
-              <div className="bg-red-900/30 border border-red-900/50 p-4 rounded-xl">
-                <p className="text-red-400 font-bold text-lg">911</p>
-                <p className="text-xs">Available 24/7 for urgent pet care needs</p>
-              </div>
+            <p className="text-sm">Providing trusted veterinary care with a focus on wellness, prevention, and compassionate support for pets and their families.</p>
+          </div>
+          <div>
+            <h4 className="text-white font-semibold mb-4">Quick Links</h4>
+            <ul className="space-y-2 text-sm">
+              <li><Link to="/" className="hover:text-emerald-500 transition-colors">Home</Link></li>
+              <li><Link to="/departments" className="hover:text-emerald-500 transition-colors">Services</Link></li>
+              <li><Link to="/doctors" className="hover:text-emerald-500 transition-colors">Veterinarians</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-white font-semibold mb-4">Contact</h4>
+            <ul className="space-y-2 text-sm">
+              <li>123 Pawcare Lane</li>
+              <li>Petville, PV 12345</li>
+              <li>Phone: (555) 123-4567</li>
+              <li>Email: info@medigreen.com</li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-white font-semibold mb-4">Emergency</h4>
+            <div className="bg-red-900/30 border border-red-900/50 p-4 rounded-xl">
+              <p className="text-red-400 font-bold text-lg">911</p>
+              <p className="text-xs">Available 24/7 for urgent pet care needs</p>
             </div>
           </div>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-8 border-t border-stone-800 text-center text-xs">
-            © 2026 MediPaws Veterinary. All rights reserved.
-          </div>
-        </footer>
-      )}
-
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-8 border-t border-stone-800 text-center text-xs">
+          © 2026 MediPaws Veterinary. All rights reserved.
+        </div>
+      </footer>
     </div>
   );
 }

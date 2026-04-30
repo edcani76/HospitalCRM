@@ -4,6 +4,7 @@ type Service = {
   name: string;
   icon: ReactNode;
   desc: string;
+  equipment?: string[];
 };
 
 const iconClassName = "w-10 h-10";
@@ -37,6 +38,7 @@ export const services: Service[] = [
       </ServiceIcon>
     ),
     desc: "Routine exams, vaccines, parasite prevention, and wellness planning that help keep pets healthier for longer.",
+    equipment: ["Digital Wellness Scanning", "Automated Vaccine Dispensers", "Electronic Health Trackers"],
   },
   {
     name: "Diagnostic Medicine",
@@ -50,6 +52,7 @@ export const services: Service[] = [
       </ServiceIcon>
     ),
     desc: "Clear answers through physical exams, laboratory testing, imaging, and other tools tailored to your pet's symptoms.",
+    equipment: ["High-Resolution MRI", "Multislice CT Scanner", "Automated Bio-Analyzers"],
   },
   {
     name: "Outpatient and Inpatient Hospital Care",
@@ -63,6 +66,7 @@ export const services: Service[] = [
       </ServiceIcon>
     ),
     desc: "Supportive treatment for stable visits and monitored hospital care when a condition needs closer attention.",
+    equipment: ["Continuous Vital Monitors", "Smart Infusion Pumps", "Oxygen Enrichment Cages"],
   },
   {
     name: "Surgery",
@@ -76,6 +80,7 @@ export const services: Service[] = [
       </ServiceIcon>
     ),
     desc: "Planned and referral surgical care with careful preparation, anesthesia monitoring, and recovery support.",
+    equipment: ["CO2 Laser Scalpels", "Laparoscopic Towers", "Advanced Anesthetic Stations"],
   },
   {
     name: "Avian and Exotic Pet Care",
@@ -89,6 +94,7 @@ export const services: Service[] = [
       </ServiceIcon>
     ),
     desc: "Thoughtful veterinary care for birds, reptiles, and other companion species beyond dogs and cats.",
+    equipment: ["Exotic Incubation Systems", "Microsurgical Instruments", "Species-Specific Nebulizers"],
   },
   {
     name: "After-Hours Emergency Care",
@@ -100,6 +106,7 @@ export const services: Service[] = [
       </ServiceIcon>
     ),
     desc: "Evening emergency support for urgent cases that cannot wait until the next regular clinic day.",
+    equipment: ["Rapid Point-of-Care Labs", "Emergency Ventilators", "Mobile Resuscitation Units"],
   },
   {
     name: "Therapy and Rehabilitation",
@@ -113,6 +120,7 @@ export const services: Service[] = [
       </ServiceIcon>
     ),
     desc: "Recovery programs that build strength, ease discomfort, and improve mobility after injury, surgery, or chronic illness.",
+    equipment: ["Underwater Treadmills", "Cold Laser Therapy Units", "Shockwave Therapy Systems"],
   },
   {
     name: "Pet Export Assistance",
@@ -126,6 +134,7 @@ export const services: Service[] = [
       </ServiceIcon>
     ),
     desc: "Guidance on travel paperwork, health requirements, and veterinary documentation for international pet relocation.",
+    equipment: ["Global Compliance Database", "IATA-Certified Scanning", "Digital Certification Portal"],
   },
   {
     name: "Grooming, Boarding and Retail",
@@ -141,6 +150,7 @@ export const services: Service[] = [
       </ServiceIcon>
     ),
     desc: "Convenient grooming, comfortable boarding options, and essential pet care products in one familiar place.",
+    equipment: ["Hydromassage Bath Systems", "Climate-Controlled Suites", "UV Sterilization Cabinets"],
   },
   {
     name: "Special Procedures",
@@ -154,5 +164,6 @@ export const services: Service[] = [
       </ServiceIcon>
     ),
     desc: "Advanced options such as specialty imaging, allergy testing, dental radiography, laser care, and regenerative therapies.",
+    equipment: ["3D Dental Radiography", "Regenerative Stem-Cell Lab", "High-Power Therapy Lasers"],
   },
 ];
