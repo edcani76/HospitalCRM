@@ -224,53 +224,50 @@ export default function PatientProfilePage() {
   const handlePhotoSave = async () => {
     if (tempPhoto && patient) {
       try {
-        // If tempPhoto is a data URL (from camera/upload), upload to Firebase Storage
-        if (tempPhoto.startsWith('data:')) {
-          // Convert data URL to File
-          const response = await fetch(tempPhoto);
-          const blob = await response.blob();
-          const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        let finalImageUrl = tempPhoto;
 
-          // Delete old photo if exists
-          if (patient.imageUrl && patient.imageUrl.includes('firebasestorage')) {
-            try { await deletePetPhoto(patient.imageUrl); } catch (e) { console.warn('Could not delete old photo:', e); }
+        // If tempPhoto is a data URL and it's small enough, save directly
+        if (tempPhoto.startsWith('data:')) {
+          // Check size (base64 is ~33% larger than binary)
+          const sizeInBytes = (tempPhoto.length * 3) / 4;
+          const maxSize = 700 * 1024; // 700KB limit for Firestore
+
+          if (sizeInBytes > maxSize) {
+            alert('Photo is too large. Please use a smaller image or enable Firebase Storage.');
+            return;
           }
 
-          // Upload new photo
-          const downloadURL = await uploadPetPhoto(patient.id, file);
-
-          // Update Firestore
-          await updateDoc(doc(db, 'pets', patient.id), {
-            imageUrl: downloadURL,
-            auditTrail: [
-              ...(patient.auditTrail || []),
-              {
-                id: Date.now().toString(),
-                event: 'Profile Photo Updated',
-                staff: 'Admin User',
-                timestamp: new Date().toLocaleString('en-US', { 
-                  year: 'numeric', 
-                  month: 'short', 
-                  day: 'numeric', 
-                  hour: '2-digit', 
-                  minute: '2-digit', 
-                  hour12: true 
-                })
-              }
-            ]
-          });
-
-          setPatient({ ...patient, imageUrl: downloadURL });
-        } else {
-          // Already a URL, just update
-          setPatient({ ...patient, imageUrl: tempPhoto });
+          // Save base64 directly to Firestore
+          finalImageUrl = tempPhoto;
         }
+
+        // Update Firestore with the image URL (base64 or actual URL)
+        await updateDoc(doc(db, 'pets', patient.id), {
+          imageUrl: finalImageUrl,
+          auditTrail: [
+            ...(patient.auditTrail || []),
+            {
+              id: Date.now().toString(),
+              event: 'Profile Photo Updated',
+              staff: 'Admin User',
+              timestamp: new Date().toLocaleString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                hour12: true 
+              })
+            }
+          ]
+        });
+
+        setPatient({ ...patient, imageUrl: finalImageUrl });
+        setIsPhotoActionModalOpen(false);
+        setTempPhoto(null);
       } catch (error) {
         console.error('Error saving photo:', error);
         alert('Failed to save photo. Please try again.');
-      } finally {
-        setIsPhotoActionModalOpen(false);
-        setTempPhoto(null);
       }
     }
   };
