@@ -32,7 +32,8 @@ import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
-import { db, doc, getDoc, collection, getDocs, query, where } from '../../firebase';
+import { db, doc, getDoc, collection, getDocs, query, where, updateDoc } from '../../firebase';
+import { uploadPetPhoto, deletePetPhoto } from '../../lib/storage';
 
 interface PatientProfile {
   id: string;
@@ -220,16 +221,82 @@ export default function PatientProfilePage() {
     }
   };
 
-  const handlePhotoSave = () => {
-    if (tempPhoto) {
-      const updatedPatient = {
-        ...patient,
-        photo: tempPhoto,
+  const handlePhotoSave = async () => {
+    if (tempPhoto && patient) {
+      try {
+        // If tempPhoto is a data URL (from camera/upload), upload to Firebase Storage
+        if (tempPhoto.startsWith('data:')) {
+          // Convert data URL to File
+          const response = await fetch(tempPhoto);
+          const blob = await response.blob();
+          const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+          // Delete old photo if exists
+          if (patient.imageUrl && patient.imageUrl.includes('firebasestorage')) {
+            try { await deletePetPhoto(patient.imageUrl); } catch (e) { console.warn('Could not delete old photo:', e); }
+          }
+
+          // Upload new photo
+          const downloadURL = await uploadPetPhoto(patient.id, file);
+
+          // Update Firestore
+          await updateDoc(doc(db, 'pets', patient.id), {
+            imageUrl: downloadURL,
+            auditTrail: [
+              ...(patient.auditTrail || []),
+              {
+                id: Date.now().toString(),
+                event: 'Profile Photo Updated',
+                staff: 'Admin User',
+                timestamp: new Date().toLocaleString('en-US', { 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric', 
+                  hour: '2-digit', 
+                  minute: '2-digit', 
+                  hour12: true 
+                })
+              }
+            ]
+          });
+
+          setPatient({ ...patient, imageUrl: downloadURL });
+        } else {
+          // Already a URL, just update
+          setPatient({ ...patient, imageUrl: tempPhoto });
+        }
+      } catch (error) {
+        console.error('Error saving photo:', error);
+        alert('Failed to save photo. Please try again.');
+      } finally {
+        setIsPhotoActionModalOpen(false);
+        setTempPhoto(null);
+      }
+    }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    try {
+      const updatedData = {
+        name: formData.get('name') as string,
+        owner: formData.get('owner') as string,
+        species: formData.get('species') as string,
+        breed: formData.get('breed') as string,
+        contact: formData.get('contact') as string,
+        email: formData.get('email') as string,
+        address: formData.get('address') as string,
+        dateOfBirth: formData.get('dob') as string,
+        gender: formData.get('gender') as string,
+        bloodType: formData.get('bloodType') as string,
+        imageUrl: tempPhoto || patient?.imageUrl || patient?.photo || '',
         auditTrail: [
-          ...(patient.auditTrail || []),
+          ...(patient?.auditTrail || []),
           {
             id: Date.now().toString(),
-            event: 'Profile Photo Updated',
+            event: 'Record Updated',
             staff: 'Admin User',
             timestamp: new Date().toLocaleString('en-US', { 
               year: 'numeric', 
@@ -242,46 +309,16 @@ export default function PatientProfilePage() {
           }
         ]
       };
-      setPatient(updatedPatient);
-      setIsPhotoActionModalOpen(false);
-    }
-  };
 
-  const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const updatedPatient = {
-      ...patient,
-      name: formData.get('name') as string,
-      owner: formData.get('owner') as string,
-      species: formData.get('species') as string,
-      breed: formData.get('breed') as string,
-      contact: formData.get('contact') as string,
-      email: formData.get('email') as string,
-      address: formData.get('address') as string,
-      dateOfBirth: formData.get('dob') as string,
-      gender: formData.get('gender') as string,
-      bloodType: formData.get('bloodType') as string,
-      photo: tempPhoto || patient.photo || patient.imageUrl,
-      auditTrail: [
-        ...(patient.auditTrail || []),
-        {
-          id: Date.now().toString(),
-          event: 'Record Updated',
-          staff: 'Admin User',
-          timestamp: new Date().toLocaleString('en-US', { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric', 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            hour12: true 
-          })
-        }
-      ]
-    };
-    setPatient(updatedPatient);
-    setIsEditModalOpen(false);
+      // Update Firestore
+      await updateDoc(doc(db, 'pets', patient!.id), updatedData);
+
+      setPatient({ ...patient!, ...updatedData });
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error('Error updating patient:', error);
+      alert('Failed to update patient. Please try again.');
+    }
   };
 
   return (
