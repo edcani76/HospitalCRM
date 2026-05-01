@@ -12,7 +12,7 @@ service cloud.firestore {
     //   - email: string (required)
     //   - displayName: string (optional)
     //   - photoURL: string (optional)
-    //   - role: string (required, ['patient', 'admin', 'doctor'])
+    //   - role: string (required, ['client', 'admin', 'doctor', 'staff', 'lab', 'pharmacist'])
     //   - createdAt: timestamp (required)
     //
     // Collection: doctors
@@ -27,12 +27,26 @@ service cloud.firestore {
     //   - image: string (optional)
     //   - bio: string (optional)
     //
+    // Collection: pets
+    // Document ID: {petId}
+    // Fields:
+    //   - ownerUid: string (required)
+    //   - name: string (required)
+    //   - species: string (required)
+    //   - breed: string (optional)
+    //   - age: number (optional)
+    //   - weight: number (optional)
+    //   - type: string (optional)
+    //   - imageUrl: string (optional)
+    //   - currentStatus: string (optional)
+    //
     // Collection: appointments
     // Document ID: {appointmentId}
     // Fields:
     //   - id: string (required)
-    //   - patientUid: string (required)
-    //   - patientName: string (required)
+    //   - clientUid: string (required)
+    //   - petId: string (required)
+    //   - petName: string (required)
     //   - doctorId: string (required)
     //   - doctorName: string (required)
     //   - date: string (required, ISO 8601)
@@ -40,6 +54,18 @@ service cloud.firestore {
     //   - status: string (required, ['pending', 'confirmed', 'cancelled', 'completed'])
     //   - notes: string (optional)
     //   - createdAt: timestamp (required)
+    //
+    // Collection: invoices
+    // Document ID: {invoiceId}
+    // Fields:
+    //   - clientUid: string (required)
+    //   - petId: string (required)
+    //   - petName: string (required)
+    //   - amount: number (required)
+    //   - status: string (required, ['paid', 'active'])
+    //   - date: string (required)
+    //   - dueDate: string (required)
+    //   - description: string (optional)
     //
     // Collection: reports
     // Document ID: {reportId}
@@ -75,6 +101,10 @@ service cloud.firestore {
       return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'doctor';
     }
 
+    function isStaff() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['staff', 'admin'];
+    }
+
     function hasRequiredFields(fields) {
       return request.resource.data.keys().hasAll(fields);
     }
@@ -99,7 +129,7 @@ service cloud.firestore {
       return hasRequiredFields(['uid', 'email', 'role']) &&
              data.uid == request.auth.uid &&
              isValidEmail(data.email) &&
-             data.role in ['patient', 'admin', 'doctor'] &&
+             data.role in ['client', 'admin', 'doctor', 'staff', 'lab', 'pharmacist'] &&
              data.uid is string && data.uid.size() < 128 &&
              data.email.size() < 256;
     }
@@ -111,12 +141,25 @@ service cloud.firestore {
              data.department is string && data.department.size() < 100;
     }
 
+    function isValidPet(data) {
+      return hasRequiredFields(['ownerUid', 'name', 'species']) &&
+             data.ownerUid is string && data.name is string &&
+             data.species is string && data.name.size() < 100;
+    }
+
     function isValidAppointment(data) {
-      return hasRequiredFields(['patientUid', 'doctorId', 'date', 'time', 'status']) &&
-             data.patientUid is string && data.doctorId is string &&
+      return hasRequiredFields(['clientUid', 'doctorId', 'date', 'time', 'status']) &&
+             data.clientUid is string && data.doctorId is string &&
              data.status in ['pending', 'confirmed', 'cancelled', 'completed'] &&
              data.date is string && data.date.size() < 20 &&
              data.time is string && data.time.size() < 10;
+    }
+
+    function isValidInvoice(data) {
+      return hasRequiredFields(['clientUid', 'petId', 'amount', 'status', 'date', 'dueDate']) &&
+             data.clientUid is string && data.petId is string &&
+             data.status in ['paid', 'active'] &&
+             data.amount is number;
     }
 
     function isValidReport(data) {
@@ -132,7 +175,7 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
-      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (request.resource.data.role == 'patient' || isAdmin());
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (request.resource.data.role == 'client' || isAdmin());
       allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(uid) || isAdmin()) && (request.resource.data.role == resource.data.role || isAdmin());
     }
 
@@ -141,18 +184,38 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /pets/{petId} {
+      allow read: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin() || isDoctor());
+      allow create: if isAuthenticated() && isValidPet(request.resource.data) && (request.auth.uid == request.resource.data.ownerUid || isAdmin());
+      allow update: if isAuthenticated() && isValidPet(request.resource.data) && (resource.data.ownerUid == request.auth.uid || isAdmin() || isDoctor());
+      allow delete: if isAdmin();
+    }
+
     match /appointments/{appointmentId} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.patientUid || isAdmin() || isDoctor());
-      allow create: if isAuthenticated() && isValidAppointment(request.resource.data) && (request.auth.uid == request.resource.data.patientUid || isAdmin());
-      allow update: if isAuthenticated() && isValidAppointment(request.resource.data) && (request.auth.uid == resource.data.patientUid || isAdmin() || isDoctor());
+      allow read: if isAuthenticated() && (resource.data.clientUid == request.auth.uid || isAdmin() || isDoctor() || isStaff());
+      allow create: if isAuthenticated() && isValidAppointment(request.resource.data) && (request.auth.uid == request.resource.data.clientUid || isAdmin());
+      allow update: if isAuthenticated() && isValidAppointment(request.resource.data) && (resource.data.clientUid == request.auth.uid || isAdmin() || isDoctor() || isStaff());
+      allow delete: if isAdmin();
+    }
+
+    match /invoices/{invoiceId} {
+      allow read: if isAuthenticated() && (resource.data.clientUid == request.auth.uid || isAdmin() || isStaff());
+      allow create: if isAdmin();
+      allow update: if isAuthenticated() && isValidInvoice(request.resource.data) && (isAdmin() || isStaff());
       allow delete: if isAdmin();
     }
 
     match /reports/{reportId} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.patientUid || isAdmin() || isDoctor());
-      allow create: if isAuthenticated() && isValidReport(request.resource.data) && (request.auth.uid == request.resource.data.patientUid || isAdmin());
-      allow update: if isAuthenticated() && isValidReport(request.resource.data) && (request.auth.uid == resource.data.patientUid || isAdmin());
+      allow read: if isAuthenticated() && (resource.data.patientUid == request.auth.uid || isAdmin() || isDoctor());
+      allow create: if isAuthenticated() && isValidReport(request.resource.data) && (request.auth.uid == resource.data.patientUid || isAdmin());
+      allow update: if isAuthenticated() && isValidReport(request.resource.data) && (resource.data.patientUid == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
+    }
+
+    // Allow authenticated users to read their own notifications
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if isAdmin();
     }
 
     match /{path=**} {
