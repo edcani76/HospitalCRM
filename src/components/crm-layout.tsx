@@ -26,7 +26,8 @@ import {
 import { signOut, auth } from '../firebase'
 import { useState } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
-import { patients, owners } from '../data/crm-data'
+import { useState, useEffect } from 'react'
+import { fetchPets, fetchUsers } from '../lib/firestore-helpers'
 
 interface CRMLayoutProps {
   children: React.ReactNode
@@ -126,6 +127,25 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
     await signOut(auth)
   }
 
+  const [pets, setPets] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [petsData, usersData] = await Promise.all([
+          fetchPets(),
+          fetchUsers()
+        ])
+        setPets(petsData)
+        setUsers(usersData)
+      } catch (error) {
+        console.error('Error loading layout data:', error)
+      }
+    }
+    loadData()
+  }, [])
+
   const getBreadcrumbs = () => {
     const pathname = location.pathname
     const segments = pathname.split('/').filter(Boolean)
@@ -161,11 +181,10 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
       if (!parent) return [];
       return [...resolveHierarchy(parent.parent), { name: parent.name, path: parent.path }];
     };
-
+    
     if (state?.breadcrumbParent) {
       const hierarchy = resolveHierarchy(state.breadcrumbParent);
       
-      // Determine the root for the hierarchy
       if (hierarchy.length > 0) {
         if (hierarchy[0].path.includes('/crm/owners')) {
           breadcrumbs.push({ name: 'Pet Owners', path: '/crm/owners' });
@@ -176,11 +195,10 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
       
       breadcrumbs.push(...hierarchy);
       
-      // Add current page
       const lastSegment = segments[segments.length - 1];
-      const patient = patients.find(p => p.patientId === lastSegment || p.id === lastSegment);
-      const owner = owners.find(o => o.id === lastSegment);
-      const entityName = patient?.name || owner?.name || (lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1));
+      const pet = pets.find(p => p.id === lastSegment);
+      const owner = users.find(u => u.id === lastSegment);
+      const entityName = pet?.name || owner?.displayName || (lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1));
       
       breadcrumbs.push({ name: entityName, path: pathname });
       return breadcrumbs;
@@ -192,10 +210,9 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
       
       let name = pageNames[segment];
       if (!name) {
-        // Try looking up in data for dynamic names
-        const patient = patients.find(p => p.patientId === segment || p.id === segment);
-        const owner = owners.find(o => o.id === segment);
-        name = patient?.name || owner?.name || (segment.charAt(0).toUpperCase() + segment.slice(1));
+        const pet = pets.find(p => p.id === segment);
+        const owner = users.find(u => u.id === segment);
+        name = pet?.name || owner?.displayName || (segment.charAt(0).toUpperCase() + segment.slice(1));
       }
       
       if (!breadcrumbs.find(b => b.path === path)) {

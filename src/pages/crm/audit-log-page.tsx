@@ -1,27 +1,15 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
-  RefreshCw, 
-  Search, 
-  Filter, 
-  Calendar, 
-  User, 
-  Clock, 
-  ShieldCheck,
-  ArrowUpDown,
-  Download,
-  FileText,
-  Activity,
-  History,
-  AlertCircle,
-  PlusCircle,
-  Camera
+  Search, Filter, Calendar, User, Clock, ShieldCheck,
+  ArrowUpDown, Download, RefreshCw, Activity, History, 
+  AlertCircle, PlusCircle, Camera, Loader2
 } from 'lucide-react'
-import { patients as allPatients } from '../../data/crm-data'
 import { PageHeader } from '../../components/ui/page-header'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Badge } from '../../components/ui/badge'
 import { cn } from '../../lib/utils'
+import { fetchAuditLogs } from '../../lib/firestore-helpers'
 
 interface AuditEntry {
   id: string
@@ -36,17 +24,30 @@ interface AuditEntry {
 export default function AuditLogPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<string>('all')
+  const [allLogs, setAllLogs] = useState<AuditEntry[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Aggregate all audit logs from all patients
-  const allLogs: AuditEntry[] = allPatients.flatMap(patient => 
-    (patient.auditTrail || []).map(log => ({
-      ...log,
-      patientName: patient.name,
-      patientId: patient.patientId,
-      type: log.event.toLowerCase().includes('emr') || log.event.toLowerCase().includes('medication') || log.event.toLowerCase().includes('medical') 
-        ? 'emr' : 'patient'
-    })) as AuditEntry[]
-  ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+  useEffect(() => {
+    async function loadLogs() {
+      try {
+        const data = await fetchAuditLogs()
+        setAllLogs(data as AuditEntry[])
+      } catch (error) {
+        console.error('Error loading audit logs:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadLogs()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   const filteredLogs = allLogs.filter(log => {
     const matchesSearch = 
@@ -102,123 +103,92 @@ export default function AuditLogPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-card p-4 rounded-3xl border border-border shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search by event, staff, or patient..." 
-            className="pl-10 rounded-2xl border-border bg-muted/30 focus:bg-background h-11"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-2 w-full md:w-auto">
-          <Button 
-            variant={filterType === 'all' ? 'default' : 'outline'} 
-            className="rounded-2xl h-11 px-6 font-semibold"
-            onClick={() => setFilterType('all')}
-          >
-            All
-          </Button>
-          <Button 
-            variant={filterType === 'emr' ? 'default' : 'outline'} 
-            className="rounded-2xl h-11 px-6 font-semibold"
-            onClick={() => setFilterType('emr')}
-          >
-            Clinical
-          </Button>
-          <Button 
-            variant={filterType === 'patient' ? 'default' : 'outline'} 
-            className="rounded-2xl h-11 px-6 font-semibold"
-            onClick={() => setFilterType('patient')}
-          >
-            Administrative
-          </Button>
+      <div className="bg-white dark:bg-card rounded-3xl border border-border shadow-sm p-6 mb-8">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input 
+              placeholder="Search by event, staff, or patient..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-12 py-6 text-lg rounded-2xl"
+            />
+          </div>
+          <div className="flex gap-2">
+            {['all', 'patient', 'emr', 'system'].map(type => (
+              <Button
+                key={type}
+                variant={filterType === type ? "default" : "outline"}
+                onClick={() => setFilterType(type)}
+                className={filterType === type ? "bg-indigo-600 hover:bg-indigo-700" : "border-indigo-200 text-indigo-600"}
+              >
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Logs Table */}
-      <div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-muted/50 border-b border-border">
-                <th className="text-left p-4 font-bold text-xs uppercase tracking-widest text-muted-foreground">Timestamp</th>
-                <th className="text-left p-4 font-bold text-xs uppercase tracking-widest text-muted-foreground">Event & Description</th>
-                <th className="text-left p-4 font-bold text-xs uppercase tracking-widest text-muted-foreground">Target Patient</th>
-                <th className="text-left p-4 font-bold text-xs uppercase tracking-widest text-muted-foreground">Performed By</th>
-                <th className="text-left p-4 font-bold text-xs uppercase tracking-widest text-muted-foreground">Category</th>
+      {/* Audit Table */}
+      <div className="bg-white dark:bg-card rounded-3xl border border-border shadow-sm overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-slate-900 text-white">
+              <th className="text-left p-4 font-bold text-sm uppercase tracking-wider">Event</th>
+              <th className="text-left p-4 font-bold text-sm uppercase tracking-wider">Staff</th>
+              <th className="text-left p-4 font-bold text-sm uppercase tracking-wider">Patient</th>
+              <th className="text-left p-4 font-bold text-sm uppercase tracking-wider">Type</th>
+              <th className="text-left p-4 font-bold text-sm uppercase tracking-wider">Timestamp</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredLogs.map((log) => (
+              <tr key={log.id} className="border-b border-slate-50 hover:bg-indigo-50/30 transition-colors">
+                <td className="p-4">
+                  <div className="flex items-center gap-2">
+                    {getEventIcon(log.event)}
+                    <span className="font-bold text-slate-900">{log.event}</span>
+                  </div>
+                </td>
+                <td className="p-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                      <User className="w-4 h-4 text-slate-500" />
+                    </div>
+                    <span className="font-medium text-slate-700">{log.staff}</span>
+                  </div>
+                </td>
+                <td className="p-4">
+                  <span className="font-medium text-slate-700">{log.patientName}</span>
+                </td>
+                <td className="p-4">
+                  <Badge variant={log.type === 'emr' ? 'default' : 'secondary'}>
+                    {log.type}
+                  </Badge>
+                </td>
+                <td className="p-4">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-slate-900">
+                      {log.timestamp?.split(',')?.[0] || log.timestamp}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {log.timestamp?.includes(',') ? log.timestamp.split(',')[1].trim() : ''}
+                    </span>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-muted/20 transition-colors group">
-                  <td className="p-4">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-foreground">{log.timestamp.split(',')[0]}</span>
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">
-                        {log.timestamp.includes(',') ? log.timestamp.split(',')[1].trim() : log.timestamp}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                        {getEventIcon(log.event)}
-                      </div>
-                      <span className="text-sm font-bold text-foreground">{log.event}</span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                        <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-foreground">{log.patientName}</span>
-                        <span className="text-[10px] font-bold text-muted-foreground">{log.patientId}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                        <User className="w-4 h-4 text-slate-500" />
-                      </div>
-                      <span className="text-sm font-semibold text-foreground">{log.staff}</span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <Badge variant={log.type === 'emr' ? 'default' : 'secondary'} className="rounded-lg px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                      {log.type === 'emr' ? 'Clinical' : 'Admin'}
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
-              {filteredLogs.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="p-12 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <History className="w-12 h-12 text-muted-foreground/30" />
-                      <p className="text-muted-foreground font-medium">No audit logs match your search criteria</p>
-                      <Button variant="link" onClick={() => {setSearchTerm(''); setFilterType('all')}}>Clear all filters</Button>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      <div className="mt-6 flex items-center justify-center gap-3 text-xs text-muted-foreground bg-muted/20 py-3 rounded-2xl border border-border border-dashed">
-        <ShieldCheck className="w-4 h-4 text-emerald-500" />
-        <span>All records are cryptographically signed and immutable for compliance purposes.</span>
-        <RefreshCw className="w-3 h-3 animate-spin-slow" />
-        <span>Syncing...</span>
+            ))}
+            {filteredLogs.length === 0 && (
+              <tr>
+                <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                  <History className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>No audit logs found matching your filters.</p>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   )
 }
-
-

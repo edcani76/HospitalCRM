@@ -459,6 +459,128 @@ async function seedDatabase() {
   }
   console.log(`   ✅ Created ${MORE_INVOICES.length} additional invoices\n`);
 
+  // Create medications for pharmacy
+  console.log('💊 Creating medications...');
+  const MEDICATIONS_DATA = [
+    { name: 'Amoxicillin', stock: 250, minStock: 100, category: 'Antibiotic', unit: 'tablets' },
+    { name: 'Insulin', stock: 45, minStock: 50, category: 'Hormone', unit: 'vials' },
+    { name: 'Carprofen', stock: 120, minStock: 60, category: 'Analgesic', unit: 'tablets' },
+    { name: 'Heartgard Plus', stock: 80, minStock: 40, category: 'Preventive', unit: 'chewables' },
+    { name: 'Pain Relievers', stock: 30, minStock: 60, category: 'Analgesic', unit: 'tablets' },
+    { name: 'Antibiotics', stock: 20, minStock: 80, category: 'Antibiotic', unit: 'bottles' },
+    { name: 'Vitamins', stock: 15, minStock: 50, category: 'Supplement', unit: 'bottles' },
+    { name: 'Apoquel', stock: 65, minStock: 30, category: 'Antihistamine', unit: 'tablets' },
+  ];
+
+  for (const med of MEDICATIONS_DATA) {
+    try {
+      await addDoc(collection(db, 'medications'), {
+        ...med,
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error(`   Error creating medication ${med.name}:`, error);
+    }
+  }
+  console.log(`   ✅ Created ${MEDICATIONS_DATA.length} medications\n`);
+
+  // Create EMR records for pets
+  console.log('📋 Creating EMR records...');
+  const EMR_DATA = [
+    {
+      petId: createdPets['Buddy'],
+      medications: [
+        { prescribedId: 'RX24014', medication: 'Carprofen', start: '2026-04-15', end: '2026-04-22', instructions: 'Give 1 tablet daily with food' },
+        { prescribedId: 'RX24015', medication: 'Heartgard Plus', start: '2026-04-01', end: '2026-05-01', instructions: 'Give 1 chewable tablet monthly' },
+      ],
+      medicalHistory: [
+        { date: '2024-03-12', diagnosis: 'Hip Dysplasia', doctor: 'Dr. Sarah Johnson', notes: 'X-rays confirm mild hip dysplasia, manage with NSAIDs' },
+        { date: '2025-10-14', diagnosis: 'Arthritis', doctor: 'Dr. Michael Chen', notes: 'Mild arthritis in senior joints, supplements recommended' },
+      ],
+      dentalHistory: [
+        { date: '2024-06-02', procedure: 'Dental Cleaning', doctor: 'Dr. Michael Chen', notes: 'Routine dental cleaning, 1 tooth extracted' },
+      ],
+      familyHistory: [
+        { relation: 'Mother', condition: 'Hip Dysplasia', ageDiagnosed: '5' },
+      ],
+      socialHistory: [
+        { habit: 'Diet', status: 'Premium kibble', details: 'Feeding premium hip & joint formula' },
+      ],
+    },
+    {
+      petId: createdPets['Whiskers'],
+      medications: [
+        { prescribedId: 'RX24016', medication: 'Antibiotics', start: '2026-04-10', end: '2026-04-17', instructions: 'Give 1 tablet twice daily' },
+      ],
+      medicalHistory: [
+        { date: '2025-02-20', diagnosis: 'Dental Issues', doctor: 'Dr. Michael Chen', notes: 'Periodontal disease, resolved with cleaning' },
+      ],
+      dentalHistory: [
+        { date: '2026-04-10', procedure: 'Dental Cleaning', doctor: 'Dr. Michael Chen', notes: 'Full dental prophylaxis, one premolar extracted' },
+      ],
+      familyHistory: [],
+      socialHistory: [
+        { habit: 'Diet', status: 'Premium wet food', details: 'Feeding dental care formula' },
+      ],
+    },
+    {
+      petId: createdPets['Max'],
+      medications: [
+        { prescribedId: 'RX24017', medication: 'Apoquel', start: '2026-04-18', end: '2026-05-18', instructions: 'Give 1 tablet daily for allergy control' },
+      ],
+      medicalHistory: [
+        { date: '2025-06-15', diagnosis: 'Atopic Dermatitis', doctor: 'Dr. Sarah Johnson', notes: 'Seasonal allergies, managed with medication' },
+      ],
+      dentalHistory: [],
+      familyHistory: [
+        { relation: 'Father', condition: 'Skin Allergies', ageDiagnosed: '3' },
+      ],
+      socialHistory: [
+        { habit: 'Diet', status: 'Hypoallergenic kibble', details: 'Limited ingredient diet' },
+      ],
+    },
+  ];
+
+  for (const emr of EMR_DATA) {
+    try {
+      if (!emr.petId) continue;
+      await addDoc(collection(db, 'emrRecords'), {
+        ...emr,
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error(`   Error creating EMR record:`, error);
+    }
+  }
+  console.log(`   ✅ Created ${EMR_DATA.length} EMR records\n`);
+
+  // Create audit logs
+  console.log('📝 Creating audit logs...');
+  const AUDIT_LOGS_DATA = [
+    { petId: createdPets['Buddy'], patientName: 'Buddy (Golden Retriever)', event: 'Record Created', staff: 'Admin User', timestamp: '2026-01-15 09:30 AM', type: 'patient' },
+    { petId: createdPets['Buddy'], patientName: 'Buddy (Golden Retriever)', event: 'Contact Info Updated', staff: 'Sarah Johnson', timestamp: '2026-03-10 02:15 PM', type: 'patient' },
+    { petId: createdPets['Buddy'], patientName: 'Buddy (Golden Retriever)', event: 'Profile Photo Uploaded', staff: 'Admin User', timestamp: '2026-04-20 11:00 AM', type: 'patient' },
+    { petId: createdPets['Buddy'], patientName: 'Buddy (Golden Retriever)', event: 'EMR Record Updated', staff: 'Dr. Sarah Johnson', timestamp: '2026-04-15 10:45 AM', type: 'emr' },
+    { petId: createdPets['Whiskers'], patientName: 'Whiskers (Siamese Cat)', event: 'Record Created', staff: 'Admin User', timestamp: '2026-02-01 10:00 AM', type: 'patient' },
+    { petId: createdPets['Whiskers'], patientName: 'Whiskers (Siamese Cat)', event: 'Status Changed to Active', staff: 'Dr. Michael Chen', timestamp: '2026-02-15 03:45 PM', type: 'patient' },
+    { petId: createdPets['Whiskers'], patientName: 'Whiskers (Siamese Cat)', event: 'Dental Record Added', staff: 'Dr. Michael Chen', timestamp: '2026-04-10 02:30 PM', type: 'emr' },
+    { petId: createdPets['Max'], patientName: 'Max (German Shepherd)', event: 'Record Created', staff: 'Admin User', timestamp: '2026-01-20 08:30 AM', type: 'patient' },
+    { petId: createdPets['Max'], patientName: 'Max (German Shepherd)', event: 'Emergency Contact Added', staff: 'Sarah Johnson', timestamp: '2026-03-05 01:20 PM', type: 'patient' },
+    { petId: createdPets['Max'], patientName: 'Max (German Shepherd)', event: 'Allergy Info Updated', staff: 'Dr. Sarah Johnson', timestamp: '2026-04-18 11:15 AM', type: 'emr' },
+  ];
+
+  for (const log of AUDIT_LOGS_DATA) {
+    try {
+      await addDoc(collection(db, 'auditLogs'), {
+        ...log,
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error(`   Error creating audit log:`, error);
+    }
+  }
+  console.log(`   ✅ Created ${AUDIT_LOGS_DATA.length} audit logs\n`);
+
   console.log('🎉 Seeding complete!\n');
   console.log('📋 Summary:');
   console.log(`   - ${MOCK_USERS.length} users created`);
@@ -466,7 +588,10 @@ async function seedDatabase() {
   console.log(`   - ${PETS_DATA.length} pets created`);
   console.log(`   - ${appointments.length} appointments created (past, today, future)`);
   console.log(`   - ${invoices.length + MORE_INVOICES.length} invoices created (paid, partial, outstanding)`);
-  console.log(`   - ${REPORTS_DATA.length} reports created (lab, imaging)\n`);
+  console.log(`   - ${REPORTS_DATA.length} reports created (lab, imaging)`);
+  console.log(`   - ${MEDICATIONS_DATA.length} medications created`);
+  console.log(`   - ${EMR_DATA.length} EMR records created`);
+  console.log(`   - ${AUDIT_LOGS_DATA.length} audit logs created\n`);
 
   console.log('🔐 Login credentials:');
   MOCK_USERS.forEach(u => console.log(`   ${u.role.toUpperCase()}: ${u.email} / ${u.password}`));

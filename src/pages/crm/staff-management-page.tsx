@@ -1,18 +1,37 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { PageHeader } from '../../components/ui/page-header'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table'
 import { Badge } from '../../components/ui/badge'
-import { Plus, Users } from 'lucide-react'
-import { doctors } from '../../data/crm-data'
+import { Plus, Users, Loader2 } from 'lucide-react'
+import { fetchDoctors } from '../../lib/firestore-helpers'
 
 export default function StaffManagementPage() {
-  const staff = [
-    ...doctors,
-    { id: '4', name: 'James Wilson', speciality: 'Lab Technician', department: 'Lab', contact: '(555) 444-5555', email: 'james.w@vitacare.com' },
-    { id: '5', name: 'Maria Garcia', speciality: 'Pharmacist', department: 'Pharmacy', contact: '(555) 555-6666', email: 'maria.g@vitacare.com' },
-  ]
+  const [doctors, setDoctors] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadDoctors() {
+      try {
+        const data = await fetchDoctors()
+        setDoctors(data)
+      } catch (error) {
+        console.error('Error loading doctors:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadDoctors()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <>
@@ -26,8 +45,8 @@ export default function StaffManagementPage() {
                 <Users className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{staff.length}</p>
-                <p className="text-sm text-muted-foreground">Total Staff</p>
+                <p className="text-2xl font-bold">{doctors.length}</p>
+                <p className="text-sm text-muted-foreground">Total Doctors</p>
               </div>
             </div>
           </CardContent>
@@ -40,23 +59,21 @@ export default function StaffManagementPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead>Specialization</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead>Experience</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {staff.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell className="font-medium">{member.name}</TableCell>
+              {doctors.map((doctor) => (
+                <TableRow key={doctor.id}>
+                  <TableCell className="font-medium">{doctor.name}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{member.speciality}</Badge>
+                    <Badge variant="secondary">{doctor.specialization}</Badge>
                   </TableCell>
-                  <TableCell>{member.department}</TableCell>
-                  <TableCell>{member.contact}</TableCell>
-                  <TableCell>{member.email}</TableCell>
+                  <TableCell>{doctor.department}</TableCell>
+                  <TableCell>{doctor.experience} years</TableCell>
                   <TableCell>
                     <button className="text-primary hover:underline text-sm">Edit</button>
                   </TableCell>

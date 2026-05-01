@@ -1,17 +1,39 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { PageHeader } from '../../components/ui/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
-import { TestTube, Clock, CheckCircle, FileText } from 'lucide-react'
-
-const labReports = [
-  { id: '1', patient: 'Buddy (Golden Retriever)', test: 'Blood Test', status: 'Pending', date: '2026-04-28' },
-  { id: '2', patient: 'Whiskers (Siamese Cat)', test: 'X-Ray', status: 'Completed', date: '2026-04-27' },
-  { id: '3', patient: 'Max (German Shepherd)', test: 'Allergy Test', status: 'Pending', date: '2026-04-28' },
-  { id: '4', patient: 'Luna (Persian Cat)', test: 'Urinalysis', status: 'Completed', date: '2026-04-26' },
-]
+import { TestTube, Clock, CheckCircle, FileText, Loader2 } from 'lucide-react'
+import { fetchReports } from '../../lib/firestore-helpers'
 
 export default function LabReportsPage() {
+  const [reports, setReports] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadReports() {
+      try {
+        const data = await fetchReports()
+        setReports(data)
+      } catch (error) {
+        console.error('Error loading reports:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadReports()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  const pendingCount = reports.filter(r => r.status === 'pending' || r.status === 'in_progress').length
+  const completedCount = reports.filter(r => r.status === 'completed').length
+
   return (
     <>
       <PageHeader title="Lab Reports" subtitle="Manage laboratory tests and reports" />
@@ -26,7 +48,7 @@ export default function LabReportsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-yellow-600">
-              {labReports.filter(r => r.status === 'Pending').length}
+              {pendingCount}
             </p>
           </CardContent>
         </Card>
@@ -39,7 +61,7 @@ export default function LabReportsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {labReports.filter(r => r.status === 'Completed').length}
+              {completedCount}
             </p>
           </CardContent>
         </Card>
@@ -51,7 +73,7 @@ export default function LabReportsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{labReports.length}</p>
+            <p className="text-3xl font-bold">{reports.length}</p>
           </CardContent>
         </Card>
       </div>
@@ -59,19 +81,19 @@ export default function LabReportsPage() {
       <Card>
         <CardContent className="p-6">
           <div className="space-y-3">
-            {labReports.map((report) => (
+            {reports.map((report) => (
               <div key={report.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-4">
                   <TestTube className="w-5 h-5 text-muted-foreground" />
                   <div>
-                    <p className="font-medium">{report.patient}</p>
-                    <p className="text-sm text-muted-foreground">{report.test}</p>
+                    <p className="font-medium">{report.petName}</p>
+                    <p className="text-sm text-muted-foreground">{report.category || report.type}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">{report.date}</p>
-                  <Badge variant={report.status === 'Completed' ? 'success' : 'warning'}>
-                    {report.status}
+                  <Badge variant={report.status === 'completed' ? 'success' : 'warning'}>
+                    {report.status === 'in_progress' ? 'In Progress' : report.status}
                   </Badge>
                 </div>
               </div>

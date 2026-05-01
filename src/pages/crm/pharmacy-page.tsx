@@ -1,17 +1,39 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { PageHeader } from '../../components/ui/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
-import { Pill, AlertTriangle, Package, TrendingUp } from 'lucide-react'
-
-const medications = [
-  { id: '1', name: 'Amoxicillin', stock: 250, minStock: 100, category: 'Antibiotic' },
-  { id: '2', name: 'Insulin', stock: 45, minStock: 50, category: 'Hormone' },
-  { id: '3', name: 'Pain Relievers', stock: 30, minStock: 60, category: 'Analgesic' },
-  { id: '4', name: 'Antibiotics', stock: 20, minStock: 80, category: 'Antibiotic' },
-  { id: '5', name: 'Vitamins', stock: 15, minStock: 50, category: 'Supplement' },
-]
+import { Badge } from '../../components/ui/badge'
+import { Pill, AlertTriangle, Package, TrendingUp, Loader2 } from 'lucide-react'
+import { fetchMedications } from '../../lib/firestore-helpers'
 
 export default function PharmacyPage() {
+  const [medications, setMedications] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadMedications() {
+      try {
+        const data = await fetchMedications()
+        setMedications(data)
+      } catch (error) {
+        console.error('Error loading medications:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadMedications()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  const lowStockCount = medications.filter(m => m.stock <= m.minStock).length
+  const totalStock = medications.reduce((sum, m) => sum + m.stock, 0)
+
   return (
     <>
       <PageHeader title="Pharmacy" subtitle="Manage medications and prescriptions" />
@@ -25,7 +47,7 @@ export default function PharmacyPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">248</p>
+            <p className="text-3xl font-bold">{medications.length}</p>
           </CardContent>
         </Card>
         <Card>
@@ -36,29 +58,29 @@ export default function PharmacyPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-red-600">5</p>
+            <p className="text-3xl font-bold text-red-600">{lowStockCount}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Package className="w-5 h-5 text-green-600" />
-              Dispensed Today
+              Total Units
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">32</p>
+            <p className="text-3xl font-bold">{totalStock}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <TrendingUp className="w-5 h-5 text-purple-600" />
-              Monthly Total
+              Categories
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">856</p>
+            <p className="text-3xl font-bold">{new Set(medications.map(m => m.category)).size}</p>
           </CardContent>
         </Card>
       </div>
@@ -75,7 +97,7 @@ export default function PharmacyPage() {
                 </div>
                 <div className="text-right">
                   <p className={`font-bold ${med.stock <= med.minStock ? 'text-red-600' : 'text-green-600'}`}>
-                    {med.stock} units
+                    {med.stock} {med.unit || 'units'}
                   </p>
                   {med.stock <= med.minStock && (
                     <p className="text-xs text-red-600">Below minimum</p>

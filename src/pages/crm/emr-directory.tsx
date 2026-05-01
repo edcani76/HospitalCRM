@@ -1,28 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, User, Clock, ArrowRight, Filter, ChevronRight } from 'lucide-react';
+import { Search, User, Clock, ArrowRight, Filter, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { PageHeader } from '../../components/ui/page-header';
-import { patients as allPatients } from '../../data/crm-data';
+import { fetchPets } from '../../lib/firestore-helpers';
 
 export default function EMRDirectory() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
+  const [pets, setPets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadPets() {
+      try {
+        const data = await fetchPets();
+        setPets(data);
+      } catch (error) {
+        console.error('Error loading pets:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadPets();
+  }, []);
 
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-
-  const filteredPatients = allPatients.filter(patient => {
-    const matchesSearch = patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         patient.patientId.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesLetter = selectedLetter ? patient.name.startsWith(selectedLetter) : true;
+  
+  const filteredPatients = pets.filter(patient => {
+    const fullName = `${patient.name} (${patient.species})`;
+    const matchesSearch = fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         patient.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesLetter = selectedLetter ? fullName.toUpperCase().startsWith(selectedLetter) : true;
     return matchesSearch && matchesLetter;
   });
 
-  const recentPatients = allPatients.slice(0, 3); // Mocking recent patients
+  const recentPatients = pets.slice(0, 3);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto pb-12">
@@ -32,7 +56,7 @@ export default function EMRDirectory() {
           <div className="flex items-center gap-3">
             <span>Access and manage comprehensive medical histories for all patients.</span>
             <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 border-indigo-100 rounded-lg px-3 py-1 font-bold shadow-sm">
-              {allPatients.length} Total Records
+              {pets.length} Total Records
             </Badge>
           </div>
         }
@@ -81,11 +105,14 @@ export default function EMRDirectory() {
                   "text-[10px] font-bold mt-0.5",
                   !selectedLetter ? "text-blue-100" : "text-blue-600"
                 )}>
-                  {allPatients.length}
+                  {pets.length}
                 </span>
               </button>
               {alphabet.map(letter => {
-                const count = allPatients.filter(p => p.name.startsWith(letter)).length;
+                const count = pets.filter(p => {
+                  const fullName = `${p.name} (${p.species})`;
+                  return fullName.toUpperCase().startsWith(letter);
+                }).length;
                 return (
                   <button
                     key={letter}
@@ -101,120 +128,99 @@ export default function EMRDirectory() {
                     disabled={count === 0}
                   >
                     {letter}
-                    <span className={cn(
-                      "text-[9px] font-bold mt-0.5",
-                      selectedLetter === letter 
-                        ? "text-blue-100" 
-                        : count > 0 ? "text-blue-600" : "text-gray-300"
-                    )}>
-                      {count}
-                    </span>
+                    {count > 0 && (
+                      <span className={cn(
+                        "text-[10px] font-bold mt-0.5",
+                        selectedLetter === letter ? "text-blue-100" : "text-blue-600"
+                      )}>
+                        {count}
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
-
-            <div className="mt-8 pt-8 border-t border-gray-100">
-              <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-4">Quick Stats</h4>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">Total Records</span>
-                  <span className="font-bold text-gray-900">{allPatients.length}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">Updates Today</span>
-                  <span className="font-bold text-green-600">12</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* Main Content: Results & Recent */}
-        <div className="lg:col-span-3 space-y-10">
-          {/* Recently Viewed (Only show if no search/filter) */}
-          {!searchQuery && !selectedLetter && (
-            <section>
-              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-500" />
-                Recently Viewed
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {recentPatients.map(patient => (
-                  <div 
-                    key={patient.id}
-                    onClick={() => navigate(`/crm/emr/${patient.patientId}`, {
-                      state: { from: '/crm/emr' }
-                    })}
-                    className="group bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer relative overflow-hidden"
-                  >
-                    <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -mr-8 -mt-8 group-hover:scale-150 transition-transform duration-500"></div>
-                    <div className="relative z-10">
-                      <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xl mb-4">
-                        {patient.name[0]}
-                      </div>
-                      <h4 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{patient.name}</h4>
-                      <p className="text-xs text-gray-500 mb-2">{patient.species} • {patient.breed}</p>
-                      <Badge variant="outline" className="text-[10px] bg-blue-50/50 border-blue-100">{patient.patientId}</Badge>
+        {/* Main Content: Patient List */}
+        <div className="lg:col-span-3 space-y-6">
+          {/* Recent Patients */}
+          <div>
+            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-indigo-500" />
+              Recent Patients
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {recentPatients.map((patient) => (
+                <div 
+                  key={patient.id}
+                  onClick={() => navigate(`/crm/emr/${patient.id}`)}
+                  className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:shadow-md hover:border-blue-200 transition-all group"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                      {patient.name.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{patient.name}</p>
+                      <p className="text-xs text-gray-500">{patient.species} • {patient.breed}</p>
                     </div>
                   </div>
-                ))}
-              </div>
-            </section>
-          )}
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <span>ID: {patient.id}</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-          {/* Patient List */}
-          <section>
-            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <User className="w-5 h-5 text-blue-500" />
-              Patient List {selectedLetter && `— Starting with "${selectedLetter}"`}
+          {/* All Patients */}
+          <div>
+            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <User className="w-5 h-5 text-indigo-500" />
+              All Patients ({filteredPatients.length})
             </h3>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              {filteredPatients.length > 0 ? (
-                <div className="divide-y divide-gray-50">
-                  {filteredPatients.map(patient => (
-                    <div 
-                      key={patient.id}
-                      onClick={() => navigate(`/crm/emr/${patient.patientId}`, {
-                        state: { from: '/crm/emr' }
-                      })}
-                      className="flex items-center justify-between p-5 hover:bg-blue-50/50 transition-all cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                          {patient.name[0]}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-gray-900">{patient.name}</h4>
-                          <p className="text-sm text-gray-500">{patient.patientId} • Owner: {patient.owner}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-6">
-                        <div className="text-right hidden sm:block">
-                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</p>
-                          <Badge className={cn(
-                            "mt-1",
-                            patient.status === 'Active' ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
-                          )}>
-                            {patient.status}
-                          </Badge>
-                        </div>
-                        <ChevronRight className="w-6 h-6 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
-                      </div>
+              {filteredPatients.map((patient, idx) => (
+                <div 
+                  key={patient.id}
+                  onClick={() => navigate(`/crm/emr/${patient.id}`)}
+                  className={cn(
+                    "p-5 flex items-center justify-between cursor-pointer hover:bg-blue-50/30 transition-all group",
+                    idx !== filteredPatients.length - 1 && "border-b border-gray-50"
+                  )}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center text-white font-bold">
+                      {patient.name.charAt(0)}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-12 text-center">
-                  <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <User className="w-10 h-10 text-gray-200" />
+                    <div>
+                      <p className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                        {patient.name} ({patient.species})
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {patient.breed} • Owner: {patient.ownerName || 'N/A'}
+                      </p>
+                    </div>
                   </div>
-                  <h4 className="font-bold text-gray-900 mb-2">No records found</h4>
-                  <p className="text-gray-500">Try adjusting your search or filter settings.</p>
+                  <div className="flex items-center gap-4">
+                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                      {patient.currentStatus || 'Active'}
+                    </Badge>
+                    <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                  </div>
+                </div>
+              ))}
+              {filteredPatients.length === 0 && (
+                <div className="p-8 text-center text-gray-400">
+                  <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>No patients found matching your search.</p>
                 </div>
               )}
             </div>
-          </section>
+          </div>
         </div>
       </div>
     </div>
