@@ -302,6 +302,15 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
           </nav>
 
           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-muted/50">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                <User size={16} className="text-emerald-600" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-foreground">{user?.displayName || user?.email}</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{user?.role}</span>
+              </div>
+            </div>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-foreground"
