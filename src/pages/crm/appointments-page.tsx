@@ -164,27 +164,28 @@ export default function AppointmentsPage() {
             onClick={() => navigate('/crm/appointments/create')}
           >
             <Plus className="w-4 h-4 mr-2" />
-            New Appointment
+            <span className="hidden sm:inline">New Appointment</span>
+            <span className="sm:hidden">New</span>
           </Button>
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+        <div className="lg:col-span-4 space-y-4 lg:space-y-6">
           <Calendar
             selectedDate={selectedDate}
             onDateSelect={setSelectedDate}
             appointments={appointmentDates}
           />
 
-          <Card className="mt-6">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-4">
+          <Card>
+            <CardContent className="p-4 lg:p-6">
+              <div className="flex items-center gap-2 mb-3 lg:mb-4">
                 <Filter className="w-4 h-4 text-stone-500" />
-                <h3 className="font-bold">Filter by Doctor</h3>
+                <h3 className="font-bold text-sm lg:text-base">Filter by Doctor</h3>
               </div>
               <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11">
                   <SelectValue placeholder="All Doctors" />
                 </SelectTrigger>
                 <SelectContent>
@@ -199,16 +200,16 @@ export default function AppointmentsPage() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-2 gap-4 mt-6">
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground">Selected Date</p>
-              <p className="text-xl font-bold mt-1">
+          <div className="grid grid-cols-2 gap-3 lg:gap-4">
+            <div className="p-3 lg:p-4 bg-muted/50 rounded-lg">
+              <p className="text-xs lg:text-sm text-muted-foreground">Selected Date</p>
+              <p className="text-lg lg:text-xl font-bold mt-1">
                 {format(selectedDate, 'MMM d')}
               </p>
             </div>
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground">Appointments</p>
-              <p className="text-xl font-bold mt-1">
+            <div className="p-3 lg:p-4 bg-muted/50 rounded-lg">
+              <p className="text-xs lg:text-sm text-muted-foreground">Appointments</p>
+              <p className="text-lg lg:text-xl font-bold mt-1">
                 {appointments.length}
               </p>
             </div>
@@ -217,15 +218,15 @@ export default function AppointmentsPage() {
 
         <div className="lg:col-span-8">
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-lg flex items-center gap-2">
-                  <CalendarClock className="w-5 h-5 text-emerald-600" />
+            <CardContent className="p-4 lg:p-6">
+              <div className="flex items-center justify-between mb-4 lg:mb-6">
+                <h3 className="font-bold text-base lg:text-lg flex items-center gap-2">
+                  <CalendarClock className="w-4 h-4 lg:w-5 lg:h-5 text-emerald-600" />
                   Appointments for {format(selectedDate, 'MMMM d, yyyy')}
                 </h3>
               </div>
 
-              <div className="mb-6">
+              <div className="mb-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                   <Input
@@ -247,88 +248,90 @@ export default function AppointmentsPage() {
                   <p>No appointments scheduled for this date</p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Pet</TableHead>
-                      <TableHead>Doctor</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Notes</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {appointments.map((appointment) => {
-                      const pet = pets.find(p => p.id === appointment.petId);
-                      const ownerName = pet ? (users[pet.ownerUid] || '') : '';
-                      return (
-                      <TableRow key={appointment.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-3 h-3 text-stone-400" />
-                            {appointment.time}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <User className="w-3 h-3 text-stone-400" />
-                            <span>{appointment.petName}</span>
-                            {ownerName && <span className="text-stone-500 text-sm">({ownerName})</span>}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Stethoscope className="w-3 h-3 text-stone-400" />
-                            {appointment.doctorName}
-                          </div>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(appointment.status)}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">
-                          {appointment.notes || '-'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {appointment.status === 'pending' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleStatusChange(appointment.id, 'confirmed')}
-                                title="Confirm"
-                                className="hover:bg-emerald-50 hover:text-emerald-700"
-                              >
-                                <CheckCircle className="w-4 h-4 text-emerald-600" />
-                              </Button>
-                            )}
-                            {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleStatusChange(appointment.id, 'cancelled')}
-                                title="Cancel"
-                                className="hover:bg-red-50 hover:text-red-700"
-                              >
-                                <XCircle className="w-4 h-4 text-red-600" />
-                              </Button>
-                            )}
-                            {appointment.status === 'confirmed' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleStatusChange(appointment.id, 'completed')}
-                                title="Mark Complete"
-                                className="hover:bg-blue-50 hover:text-blue-700"
-                              >
-                                <CheckCircle className="w-4 h-4 text-blue-600" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs lg:text-sm">Time</TableHead>
+                        <TableHead className="text-xs lg:text-sm">Pet</TableHead>
+                        <TableHead className="text-xs lg:text-sm">Doctor</TableHead>
+                        <TableHead className="text-xs lg:text-sm">Status</TableHead>
+                        <TableHead className="text-xs lg:text-sm">Notes</TableHead>
+                        <TableHead className="text-xs lg:text-sm">Actions</TableHead>
                       </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {appointments.map((appointment) => {
+                        const pet = pets.find(p => p.id === appointment.petId);
+                        const ownerName = pet ? (users[pet.ownerUid] || '') : '';
+                        return (
+                          <TableRow key={appointment.id}>
+                            <TableCell className="text-xs lg:text-sm">
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-3 h-3 text-stone-400" />
+                                {appointment.time}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <User className="w-3 h-3 text-stone-400" />
+                                <span className="text-xs lg:text-sm">{appointment.petName}</span>
+                                {ownerName && <span className="text-stone-500 text-xs">({ownerName})</span>}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Stethoscope className="w-3 h-3 text-stone-400" />
+                                <span className="text-xs lg:text-sm">{appointment.doctorName}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>{getStatusBadge(appointment.status)}</TableCell>
+                            <TableCell className="max-w-[200px] truncate text-xs lg:text-sm">
+                              {appointment.notes || '-'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                {appointment.status === 'pending' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleStatusChange(appointment.id, 'confirmed')}
+                                    title="Confirm"
+                                    className="hover:bg-emerald-50 hover:text-emerald-700"
+                                  >
+                                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                                  </Button>
+                                )}
+                                {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleStatusChange(appointment.id, 'cancelled')}
+                                    title="Cancel"
+                                    className="hover:bg-red-50 hover:text-red-700"
+                                  >
+                                    <XCircle className="w-4 h-4 text-red-600" />
+                                  </Button>
+                                )}
+                                {appointment.status === 'confirmed' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleStatusChange(appointment.id, 'completed')}
+                                    title="Mark Complete"
+                                    className="hover:bg-blue-50 hover:text-blue-700"
+                                  >
+                                    <CheckCircle className="w-4 h-4 text-blue-600" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
