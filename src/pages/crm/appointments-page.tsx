@@ -8,7 +8,7 @@ import { Badge } from '../../components/ui/badge';
 import { Calendar } from '../../components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Input } from '../../components/ui/input';
-import { Plus, CalendarClock, Filter, Clock, User, Stethoscope, Search, CheckCircle, XCircle, Info, RefreshCw } from 'lucide-react';
+import { Plus, CalendarClock, Filter, Clock, User, Stethoscope, Search, CheckCircle, XCircle, Info, Pencil } from 'lucide-react';
 import { format, startOfToday } from 'date-fns';
 import { db, collection, getDocs, doc, updateDoc } from '../../firebase';
 import { arrayUnion } from 'firebase/firestore';
@@ -143,26 +143,21 @@ export default function AppointmentsPage() {
     }
   };
 
-  const handleReschedule = async (appointment: Appointment) => {
-    // Mark as rescheduled and log audit
+  const handleEdit = async (appointment: Appointment) => {
+    // Navigate to create page with prefill data for editing
     try {
-      const aptRef = doc(db, 'appointments', appointment.id);
-      const userUid = auth.currentUser?.uid || 'unknown';
-      const auditEntry = { action: 'rescheduled', userId: userUid, timestamp: new Date().toISOString() };
-      await updateDoc(aptRef, { status: 'rescheduled', audit: arrayUnion(auditEntry) });
       // Find doctor details to pass in prefill
       const doctor = doctors.find(d => d.id === appointment.doctorId);
       const prefillData = {
         ...appointment,
-        status: 'rescheduled',
         originalId: appointment.id,
         doctorName: doctor?.name || appointment.doctorName,
         doctorDepartment: doctor?.department || '',
         doctorExperience: doctor?.experience || 0,
       };
-      navigate('/crm/appointments/create', { state: { prefill: prefillData } });
+      navigate('/crm/appointments/create', { state: { prefill: prefillData, isEdit: true } });
     } catch (error) {
-      console.error('Error rescheduling:', error);
+      console.error('Error editing:', error);
     }
   };
 
@@ -176,8 +171,6 @@ export default function AppointmentsPage() {
         return <Badge variant="destructive">Cancelled</Badge>;
       case 'completed':
         return <Badge>Completed</Badge>;
-      case 'rescheduled':
-        return <Badge variant="outline" className="border-orange-500 text-orange-600">Rescheduled</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -362,10 +355,10 @@ export default function AppointmentsPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleReschedule(appointment)}
-                                  title="Reschedule"
+                                  onClick={() => handleEdit(appointment)}
+                                  title="Edit"
                                 >
-                                  <RefreshCw className="w-4 h-4" />
+                                  <Pencil className="w-4 h-4" />
                                 </Button>
                               </div>
                             </TableCell>

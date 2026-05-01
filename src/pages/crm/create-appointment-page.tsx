@@ -17,7 +17,7 @@ export default function CreateAppointmentPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const prefill = (location.state as any)?.prefill as (Appointment & { originalId?: string }) | undefined;
-  const isReschedule = prefill?.status === 'rescheduled';
+  const isEdit = (location.state as any)?.isEdit || false;
 
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
@@ -116,12 +116,12 @@ export default function CreateAppointmentPage() {
     fetchExistingAppointments();
   }, [selectedDoctor, selectedDate]);
 
-  // Get time slot status – treat cancelled/rescheduled as available
+  // Get time slot status – treat cancelled as available
   const getSlotStatus = (time: string) => {
     const existing = existingAppointments.find(apt => apt.time === time);
     if (!existing) return 'available';
     // Only pending and confirmed block the slot
-    if (existing.status === 'cancelled' || existing.status === 'rescheduled') return 'available';
+    if (existing.status === 'cancelled') return 'available';
     return existing.status;
   };
 
@@ -192,17 +192,19 @@ export default function CreateAppointmentPage() {
         clientUid = pet?.ownerUid || '';
       }
 
-      if (isReschedule && prefill?.originalId) {
-        // Update the original appointment instead of creating a new one
+      if (isEdit && prefill?.originalId) {
+        // Update the original appointment
         const aptRef = doc(db, 'appointments', prefill.originalId);
+        const userUid = auth.currentUser?.uid || 'unknown';
+        const auditEntry = { action: 'edited', userId: userUid, timestamp: new Date().toISOString() };
         await updateDoc(aptRef, {
           doctorId: selectedDoctor,
           doctorName: selectedDoctorData?.name || '',
           date: selectedDate,
           time: selectedTime,
           notes,
-          status: 'pending', // or 'confirmed' as preferred
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
+          audit: arrayUnion(auditEntry)
         });
       } else {
         await addDoc(collection(db, 'appointments'), {
@@ -232,7 +234,7 @@ export default function CreateAppointmentPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-4 md:space-y-6 px-2 sm:px-0">
       <PageHeader
-        title={isReschedule ? 'Reschedule Appointment' : 'Create New Appointment'}
+        title={isEdit ? 'Edit Appointment' : 'Create New Appointment'}
         actions={
           <Button variant="ghost" onClick={() => navigate('/crm/appointments')} className="text-sm md:text-base">
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -246,18 +248,50 @@ export default function CreateAppointmentPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Left Column - Doctor & Time */}
           <div className="lg:col-span-1 space-y-4 lg:space-y-6">
-            {isReschedule ? (
+            {isEdit ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Stethoscope className="w-5 h-5 text-emerald-600" />
-                    Doctor (Locked)
+                    Edit Doctor
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-4 bg-emerald-50 rounded-lg space-y-1">
-                  <p className="font-medium">{prefill?.doctorName || selectedDoctorData?.name || 'Unknown'}</p>
-                  <p className="text-xs text-emerald-600">{prefill?.doctorDepartment || selectedDoctorData?.department}</p>
-                  <p className="text-xs text-emerald-600">{(prefill as any)?.doctorExperience || selectedDoctorData?.experience} years experience</p>
+                <CardContent className="space-y-4">
+                  <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Choose a doctor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {doctors.map(doc => (
+                        <SelectItem key={doc.id} value={doc.id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{doc.name}</span>
+                            <span className="text-xs text-muted-foreground">{doc.specialization}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {selectedDoctorData && (
+                    <div className="p-4 bg-emerald-50 rounded-lg space-y-2">
+                      <p className="text-sm font-bold text-emerald-800">{selectedDoctorData.name}</p>
+                      <p className="text-xs text-emerald-600">{selectedDoctorData.department}</p>
+                      <p className="text-xs text-emerald-600">{selectedDoctorData.experience} years experience</p>
+                      {selectedDoctorData.availability && (
+                        <div className="mt-2">
+                          <p className="text-xs font-medium text-emerald-700 mb-1">Available slots:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedDoctorData.availability.map(time => (
+                              <Badge key={time} variant="outline" className="text-xs border-emerald-300 text-emerald-700">
+                                {time}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ) : (
@@ -518,8 +552,8 @@ export default function CreateAppointmentPage() {
               </Card>
             )}
 
-            {/* When rescheduling, show locked pet info */}
-            {isReschedule && selectedPetData && (
+            {/* When editing, show locked pet info */}
+            {(isEdit) && selectedPetData && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -586,10 +620,10 @@ export default function CreateAppointmentPage() {
                 {loading ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                    {isReschedule ? 'Updating...' : 'Creating...'}
+                    {isEdit ? 'Updating...' : 'Creating...'}
                   </>
                 ) : (
-                  isReschedule ? 'Update Appointment' : 'Create Appointment'
+                  isEdit ? 'Update Appointment' : 'Create Appointment'
                 )}
               </Button>
             </div>
