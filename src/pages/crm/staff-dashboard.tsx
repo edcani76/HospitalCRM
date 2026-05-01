@@ -22,7 +22,7 @@ export default function StaffDashboard() {
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [doctors, setDoctors] = useState<{ id: string; name: string }[]>([]);
-  const [stats, setStats] = useState({ newPatients: 0, pendingBills: 0, recordsUpdated: 0 });
+  const [stats, setStats] = useState({ newPatients: 0, pendingBills: 0, totalPets: 0 });
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -56,10 +56,10 @@ export default function StaffDashboard() {
       // Pending Bills: invoices not marked as paid
       const pendingBillsCount = invoices.filter(inv => inv.status !== 'paid').length;
 
-      // Records Updated: using total number of pets as a placeholder
-      const recordsUpdatedCount = pets.length;
+      // Total Pets registered
+      const totalPetsCount = pets.length;
 
-      setStats({ newPatients: newPatientsCount, pendingBills: pendingBillsCount, recordsUpdated: recordsUpdatedCount });
+      setStats({ newPatients: newPatientsCount, pendingBills: pendingBillsCount, totalPets: totalPetsCount });
     } catch (error) {
       console.error('Error fetching staff dashboard data:', error);
     } finally {
@@ -90,25 +90,21 @@ export default function StaffDashboard() {
           title="Today's Appointments"
           value={todayAppointments.length}
           icon={Calendar}
-          trend={{ value: 5, isPositive: true }}
         />
         <StatsCard
-          title="New Patients"
+          title="New Patients (30 days)"
           value={stats.newPatients}
           icon={Users}
-          trend={{ value: 12, isPositive: true }}
         />
         <StatsCard
           title="Pending Bills"
           value={stats.pendingBills}
           icon={CreditCard}
-          trend={{ value: 3, isPositive: false }}
         />
         <StatsCard
-          title="Records Updated"
-          value={stats.recordsUpdated}
+          title="Total Pets"
+          value={stats.totalPets}
           icon={FileText}
-          trend={{ value: 8, isPositive: true }}
         />
       </div>
 
