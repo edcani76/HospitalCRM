@@ -198,21 +198,22 @@ export default function CreateAppointmentPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-4 md:space-y-6 px-2 sm:px-0">
       <PageHeader
         title="Create New Appointment"
         actions={
-          <Button variant="ghost" onClick={() => navigate('/crm/appointments')}>
+          <Button variant="ghost" onClick={() => navigate('/crm/appointments')} className="text-sm md:text-base">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Appointments
+            <span className="hidden sm:inline">Back to Appointments</span>
+            <span className="sm:hidden">Back</span>
           </Button>
         }
       />
 
       <form onSubmit={handleCreateAppointment}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Left Column - Doctor & Time */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-1 space-y-4 lg:space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -222,7 +223,7 @@ export default function CreateAppointmentPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11">
                     <SelectValue placeholder="Choose a doctor" />
                   </SelectTrigger>
                   <SelectContent>
@@ -279,7 +280,7 @@ export default function CreateAppointmentPage() {
 
                 <div>
                   <Label>Available Time Slots</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 max-h-48 overflow-y-auto sm:max-h-none">
                     {getDoctorAvailability(selectedDoctor).map(time => {
                       const slotStatus = getSlotStatus(time);
                       const isConfirmed = slotStatus === 'confirmed';
@@ -292,7 +293,7 @@ export default function CreateAppointmentPage() {
                           type="button"
                           onClick={() => !isConfirmed && setSelectedTime(time)}
                           disabled={isConfirmed}
-                          className={`p-2 rounded-lg border text-sm font-medium transition-all relative ${
+                          className={`p-2 sm:p-3 rounded-lg border text-sm font-medium transition-all relative min-h-[44px] ${
                             isConfirmed
                               ? 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed'
                               : isPending
@@ -333,7 +334,7 @@ export default function CreateAppointmentPage() {
           </div>
 
           {/* Right Column - Pet Selection */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 lg:space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -497,18 +498,6 @@ export default function CreateAppointmentPage() {
                 </CardContent>
               </Card>
             )}
-
-            <Button
-              type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-lg py-6"
-              disabled={loading || !selectedDoctor || !selectedTime || (!selectedPet && !showNewPetForm)}
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>Create Appointment</>
-              )}
-            </Button>
           </div>
         </div>
       </form>
