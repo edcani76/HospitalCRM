@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -15,6 +15,8 @@ import { Doctor, Pet, Appointment } from '../../types';
 
 export default function CreateAppointmentPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefill = (location.state as any)?.prefill as Appointment | undefined;
 
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
@@ -27,6 +29,17 @@ export default function CreateAppointmentPage() {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [existingAppointments, setExistingAppointments] = useState<Appointment[]>([]);
+
+  // Prefill when rescheduling
+  useEffect(() => {
+    if (prefill) {
+      setSelectedDoctor(prefill.doctorId || '');
+      setSelectedPet(prefill.petId || '');
+      setSelectedDate(prefill.date || format(startOfToday(), 'yyyy-MM-dd'));
+      setSelectedTime(prefill.time || '');
+      setNotes(prefill.notes || '');
+    }
+  }, [prefill]);
 
   // Pet selection mode
   const [petSearchTerm, setPetSearchTerm] = useState('');

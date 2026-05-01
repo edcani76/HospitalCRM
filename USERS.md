@@ -8,7 +8,7 @@ The following users are created by the `scripts/seed.ts` script.  They are usefu
 | doctor.sarah@medipaws.com | Password123! | doctor | Dr. Sarah Johnson |
 | doctor.michael@medipaws.com | Password123! | doctor | Dr. Michael Chen |
 | doctor.emily@medipaws.com | Password123! | doctor | Dr. Emily Rodriguez |
-| staff@medipaws.com | Password123! | staff | Staff Member |
+| Sh | Password123! | staff | Staff Member |
 | lab@medipaws.com | Password123! | lab | Lab Technician |
 | pharmacist@medipaws.com | Password123! | pharmacist | Head Pharmacist |
 | john@medipaws.com | Password123! | client | John Smith |

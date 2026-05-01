@@ -8,9 +8,12 @@ import { Badge } from '../../components/ui/badge';
 import { Calendar } from '../../components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Input } from '../../components/ui/input';
-import { Plus, CalendarClock, Filter, Clock, User, Stethoscope, Search, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, CalendarClock, Filter, Clock, User, Stethoscope, Search, CheckCircle, XCircle, Info, RefreshCw } from 'lucide-react';
 import { format, startOfToday } from 'date-fns';
 import { db, collection, getDocs, doc, updateDoc } from '../../firebase';
+import { arrayUnion } from 'firebase/firestore';
+import { auth } from '../../firebase';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import { Appointment, Doctor, Pet } from '../../types';
 
 export default function AppointmentsPage() {
@@ -24,6 +27,9 @@ export default function AppointmentsPage() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [users, setUsers] = useState<{ [uid: string]: string }>({});
   const navigate = useNavigate();
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [selectedAuditAppointment, setSelectedAuditAppointment] = useState<Appointment | null>(null);
+  const [rescheduleAppt, setRescheduleAppt] = useState<Appointment | null>(null);
 
   useEffect(() => {
     fetchDoctors();
@@ -128,11 +134,17 @@ export default function AppointmentsPage() {
   const handleStatusChange = async (appointmentId: string, newStatus: 'confirmed' | 'cancelled' | 'completed') => {
     try {
       const aptRef = doc(db, 'appointments', appointmentId);
-      await updateDoc(aptRef, { status: newStatus });
+      const userUid = auth.currentUser?.uid || 'unknown';
+      const auditEntry = { action: newStatus, userId: userUid, timestamp: new Date().toISOString() };
+      await updateDoc(aptRef, { status: newStatus, audit: arrayUnion(auditEntry) });
       fetchAllAppointments();
     } catch (error) {
       console.error('Error updating appointment:', error);
     }
+  };
+
+  const handleReschedule = (appointment: Appointment) => {
+    navigate('/crm/appointments/create', { state: { prefill: appointment } });
   };
 
   const getStatusBadge = (status: string) => {
@@ -258,6 +270,7 @@ export default function AppointmentsPage() {
                         <TableHead className="text-xs lg:text-sm">Status</TableHead>
                         <TableHead className="text-xs lg:text-sm">Notes</TableHead>
                         <TableHead className="text-xs lg:text-sm">Actions</TableHead>
+                        <TableHead className="text-xs lg:text-sm">Audit</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -289,6 +302,7 @@ export default function AppointmentsPage() {
                             <TableCell className="max-w-[200px] truncate text-xs lg:text-sm">
                               {appointment.notes || '-'}
                             </TableCell>
+                            {/* ---------- ACTIONS CELL ---------- */}
                             <TableCell>
                               <div className="flex items-center gap-1">
                                 {appointment.status === 'pending' && (
@@ -324,7 +338,29 @@ export default function AppointmentsPage() {
                                     <CheckCircle className="w-4 h-4 text-blue-600" />
                                   </Button>
                                 )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleReschedule(appointment)}
+                                  title="Reschedule"
+                                >
+                                  <RefreshCw className="w-4 h-4" />
+                                </Button>
                               </div>
+                            </TableCell>
+                            {/* ---------- AUDIT CELL ---------- */}
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedAuditAppointment(appointment);
+                                  setAuditOpen(true);
+                                }}
+                                title="View Audit"
+                              >
+                                <Info className="w-4 h-4" />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         );
@@ -337,6 +373,52 @@ export default function AppointmentsPage() {
           </Card>
         </div>
       </div>
+
+      {/* Single Audit Dialog */}
+      <Dialog open={auditOpen} onOpenChange={setAuditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Appointment Audit Trail</DialogTitle>
+            <DialogDescription>
+              Audit trail for appointment {selectedAuditAppointment?.petName || ''}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedAuditAppointment && (
+            <div className="mt-4 space-y-2 text-sm">
+              <div>
+                <strong>Created by:</strong> {' '}
+                {users[selectedAuditAppointment.clientUid] ||
+                  selectedAuditAppointment.clientUid}{' '}
+                at{' '}
+                {selectedAuditAppointment.createdAt
+                  ? new Date(selectedAuditAppointment.createdAt).toLocaleString()
+                  : 'N/A'}
+              </div>
+              {(selectedAuditAppointment as any).audit && (selectedAuditAppointment as any).audit.length > 0 ? (
+                <div>
+                  <strong>History:</strong>
+                  <ul className="list-disc list-inside">
+                    {(selectedAuditAppointment as any).audit.map((entry: any, idx: number) => {
+                      const userName = users[entry.userId] || entry.userId;
+                      const ts = new Date(entry.timestamp).toLocaleString();
+                      return (
+                        <li key={idx}>
+                          {entry.action} by {userName} at {ts}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : (
+                <div>No audit entries.</div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setAuditOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
