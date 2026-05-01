@@ -80,6 +80,7 @@ export default function PatientProfilePage() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [tempPhoto, setTempPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPatient = async () => {
@@ -171,8 +172,6 @@ export default function PatientProfilePage() {
   const auditStats = getAuditStats();
   // Premium harmonic colors for the chart
   const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
-
-  const [tempPhoto, setTempPhoto] = useState<string | null>(patient.photo || patient.imageUrl || patient.imageUrl || null);
 
   const startCamera = async () => {
     try {
