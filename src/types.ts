@@ -44,7 +44,7 @@ export interface Appointment {
   doctorName: string;
   date: string;
   time: string;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no-show';
   workflowStatus?: PatientStatus; // Link to active workflow status
   notes?: string;
   createdAt: any;
@@ -77,7 +77,7 @@ export interface Notification {
   id?: string;
   userId: string;
   userRole?: string;
-  type: 'appointment_cancelled' | 'appointment_updated' | 'appointment_created' | 'appointment_confirmed';
+  type: 'appointment_cancelled' | 'appointment_updated' | 'appointment_created' | 'appointment_confirmed' | 'appointment_no_show';
   title: string;
   message: string;
   appointmentId?: string;

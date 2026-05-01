@@ -45,6 +45,13 @@ export default function AppointmentsPage() {
     }
   }, []);
 
+  // Auto-tag past confirmed appointments as no-show
+  useEffect(() => {
+    if (allAppointments.length > 0 && auth.currentUser) {
+      autoTagNoShow();
+    }
+  }, [allAppointments, auth.currentUser]);
+
   useEffect(() => {
     filterAppointments();
   }, [selectedDate, selectedDoctor, allAppointments, searchTerm, pets, users, doctors]);
@@ -147,7 +154,42 @@ export default function AppointmentsPage() {
     }
   };
 
-  const handleStatusChange = async (appointmentId: string, newStatus: 'confirmed' | 'cancelled' | 'completed', reason?: string) => {
+  // Auto-tag past confirmed appointments as no-show
+  const autoTagNoShow = async () => {
+    try {
+      const today = format(startOfToday(), 'yyyy-MM-dd');
+      const pastConfirmed = allAppointments.filter(apt => 
+        apt.status === 'confirmed' && apt.date < today
+      );
+      
+      for (const apt of pastConfirmed) {
+        const aptRef = doc(db, 'appointments', apt.id);
+        const userUid = auth.currentUser?.uid || 'system';
+        const auditEntry = { action: 'no-show', userId: userUid, timestamp: new Date().toISOString(), reason: 'Auto-tagged: past date' };
+        await updateDoc(aptRef, { 
+          status: 'no-show', 
+          audit: arrayUnion(auditEntry),
+          autoNoShow: true 
+        });
+        
+        // Notify doctor and client
+        await notifyDoctor(apt.doctorId, 'appointment_updated', 'Appointment No-Show (Auto)', 
+          `Appointment for ${apt.petName} on ${apt.date} was automatically marked as No-Show`);
+        if (apt.clientUid) {
+          await notifyClient(apt.clientUid, 'appointment_updated', 'Appointment No-Show (Auto)', 
+            `Your appointment for ${apt.petName} on ${apt.date} was marked as No-Show`);
+        }
+      }
+      
+      if (pastConfirmed.length > 0) {
+        fetchAllAppointments();
+      }
+    } catch (error) {
+      console.error('Error auto-tagging no-show:', error);
+    }
+  };
+
+  const handleStatusChange = async (appointmentId: string, newStatus: 'confirmed' | 'cancelled' | 'completed' | 'no-show', reason?: string) => {
     try {
       const aptRef = doc(db, 'appointments', appointmentId);
       const userUid = auth.currentUser?.uid || 'unknown';
@@ -211,6 +253,8 @@ export default function AppointmentsPage() {
         return <Badge variant="destructive">Cancelled</Badge>;
       case 'completed':
         return <Badge>Completed</Badge>;
+      case 'no-show':
+        return <Badge variant="outline" className="border-yellow-500 text-yellow-600">No-Show</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -393,6 +437,17 @@ export default function AppointmentsPage() {
                                     className="hover:bg-blue-50 hover:text-blue-700"
                                   >
                                     <CheckCircle className="w-4 h-4 text-blue-600" />
+                                  </Button>
+                                )}
+                                {appointment.status === 'confirmed' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleStatusChange(appointment.id, 'no-show')}
+                                    title="Mark No-Show"
+                                    className="hover:bg-yellow-50 hover:text-yellow-700"
+                                  >
+                                    <XCircle className="w-4 h-4 text-yellow-600" />
                                   </Button>
                                 )}
                                 <Button

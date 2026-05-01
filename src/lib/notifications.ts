@@ -5,7 +5,7 @@ export interface Notification {
   id?: string;
   userId: string; // recipient
   userRole?: string; // 'doctor', 'staff', 'admin', 'client'
-  type: 'appointment_cancelled' | 'appointment_updated' | 'appointment_created' | 'appointment_confirmed';
+  type: 'appointment_cancelled' | 'appointment_updated' | 'appointment_created' | 'appointment_confirmed' | 'appointment_no_show';
   title: string;
   message: string;
   appointmentId?: string;
