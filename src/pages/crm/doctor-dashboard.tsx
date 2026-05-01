@@ -1,17 +1,89 @@
-import React from 'react'
-import { useAuth } from '../../contexts/AuthContext'
-import { PageHeader } from '../../components/ui/page-header'
-import { StatsCard } from '../../components/ui/stats-card'
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
-import { Users, Calendar, FileText, Pill } from 'lucide-react'
-import { dashboardStats, patients, appointments } from '../../data/crm-data'
+import React, { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { PageHeader } from '../../components/ui/page-header';
+import { StatsCard } from '../../components/ui/stats-card';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Users, Calendar, FileText, Pill } from 'lucide-react';
+import { db, collection, getDocs } from '../../firebase';
+
+interface Pet {
+  id: string;
+  name: string;
+  ownerUid: string;
+  currentStatus: string;
+  [key: string]: any;
+}
+interface User {
+  uid: string;
+  displayName: string;
+  [key: string]: any;
+}
+interface Appointment {
+  id: string;
+  date: string;
+  time: string;
+  petId?: string;
+  petName?: string;
+  doctorId?: string;
+  doctorName?: string;
+  status: string;
+  notes?: string;
+  [key: string]: any;
+}
+interface Patient {
+  id: string;
+  name: string;
+  owner: string;
+  status: string;
+}
 
 export default function DoctorDashboard() {
-  const { user } = useAuth()
+  const { user } = useAuth();
 
-  const today = new Date().toISOString().split('T')[0]
-  const todayAppointments = appointments.filter(app => app.date === today)
-  const myAppointments = todayAppointments // In real app, filter by doctor ID
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [petsSnap, usersSnap, apptsSnap] = await Promise.all([
+        getDocs(collection(db, 'pets')),
+        getDocs(collection(db, 'users')),
+        getDocs(collection(db, 'appointments')),
+      ]);
+
+      const pets = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pet));
+      const users = usersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as User));
+      const appts = apptsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
+
+      // Build patient list for display
+      const patientList = pets.map(pet => {
+        const owner = users.find(u => u.uid === pet.ownerUid);
+        return {
+          id: pet.id,
+          name: pet.name,
+          owner: owner?.displayName || 'Owner',
+          status: pet.currentStatus === 'discharged' || pet.currentStatus === 'active' ? 'Active' : 'Inactive',
+        } as Patient;
+      });
+
+      setPatients(patientList);
+      setAppointments(appts);
+    } catch (error) {
+      console.error('Error fetching doctor dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading doctor dashboard...</div>;
+  }
 
   return (
     <>
@@ -22,14 +94,14 @@ export default function DoctorDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <StatsCard
-          title="Today's Appointments"
-          value={todayAppointments.length}
+          title="All Appointments"
+          value={appointments.length}
           icon={Calendar}
           trend={{ value: 5, isPositive: true }}
         />
         <StatsCard
           title="My Patients"
-          value="48"
+          value={patients.length}
           icon={Users}
           trend={{ value: 3, isPositive: true }}
         />
@@ -50,33 +122,30 @@ export default function DoctorDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Today's Schedule</CardTitle>
+            <CardTitle>All Appointments</CardTitle>
           </CardHeader>
           <CardContent>
-            {myAppointments.length > 0 ? (
+            {appointments.length > 0 ? (
               <div className="space-y-3">
-                {myAppointments.map((appointment) => {
-                  const patient = patients.find(p => p.id === appointment.patientId)
-                  return (
-                    <div key={appointment.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                      <div>
-                        <p className="font-medium">{patient?.name}</p>
-                        <p className="text-sm text-muted-foreground">{appointment.reason}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium">{appointment.time}</p>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          appointment.status === 'Scheduled' ? 'bg-green-100 text-green-800' : 'bg-gray-100'
-                        }`}>
-                          {appointment.status}
-                        </span>
-                      </div>
+                {appointments.map(appointment => (
+                  <div key={appointment.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div>
+                      <p className="font-medium">{appointment.petName || 'Patient'}</p>
+                      <p className="text-sm text-muted-foreground">{appointment.notes}</p>
                     </div>
-                  )
-                })}
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{appointment.time}</p>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        appointment.status === 'Scheduled' ? 'bg-green-100 text-green-800' : 'bg-gray-100'
+                      }`}>
+                        {appointment.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
-              <p className="text-center py-6 text-muted-foreground">No appointments today</p>
+              <p className="text-center py-6 text-muted-foreground">No appointments</p>
             )}
           </CardContent>
         </Card>
@@ -87,7 +156,7 @@ export default function DoctorDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {patients.slice(0, 4).map((patient) => (
+              {patients.slice(0, 4).map(patient => (
                 <div key={patient.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
                     <Users className="w-5 h-5 text-primary" />
@@ -108,5 +177,5 @@ export default function DoctorDashboard() {
         </Card>
       </div>
     </>
-  )
+  );
 }

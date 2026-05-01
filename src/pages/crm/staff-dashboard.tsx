@@ -1,16 +1,77 @@
-import React from 'react'
-import { useAuth } from '../../contexts/AuthContext'
-import { PageHeader } from '../../components/ui/page-header'
-import { StatsCard } from '../../components/ui/stats-card'
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
-import { Users, Calendar, CreditCard, FileText } from 'lucide-react'
-import { dashboardStats, appointments } from '../../data/crm-data'
+import React, { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { PageHeader } from '../../components/ui/page-header';
+import { StatsCard } from '../../components/ui/stats-card';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Users, Calendar, CreditCard, FileText } from 'lucide-react';
+import { db, collection, getDocs } from '../../firebase';
+
+interface Appointment {
+  id: string;
+  date: string;
+  time: string;
+  patientId?: string;
+  doctorId?: string;
+  reason?: string;
+  status: string;
+  [key: string]: any;
+}
 
 export default function StaffDashboard() {
-  const { user } = useAuth()
+  const { user } = useAuth();
 
-  const today = new Date().toISOString().split('T')[0]
-  const todayAppointments = appointments.filter(app => app.date === today)
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [stats, setStats] = useState({ newPatients: 0, pendingBills: 0, recordsUpdated: 0 });
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [aptSnap, petsSnap, invoicesSnap] = await Promise.all([
+        getDocs(collection(db, 'appointments')),
+        getDocs(collection(db, 'pets')),
+        getDocs(collection(db, 'invoices')),
+      ]);
+
+      const appointmentsData = aptSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
+      setAppointments(appointmentsData);
+
+      const pets = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const invoices = invoicesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // New Patients: created in last 30 days (based on createdAt field)
+      const now = new Date();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(now.getDate() - 30);
+      const newPatientsCount = pets.filter(p => {
+        if (!p.createdAt) return false;
+        const created = new Date(p.createdAt);
+        return created >= thirtyDaysAgo;
+      }).length;
+
+      // Pending Bills: invoices not marked as paid
+      const pendingBillsCount = invoices.filter(inv => inv.status !== 'paid').length;
+
+      // Records Updated: using total number of pets as a placeholder
+      const recordsUpdatedCount = pets.length;
+
+      setStats({ newPatients: newPatientsCount, pendingBills: pendingBillsCount, recordsUpdated: recordsUpdatedCount });
+    } catch (error) {
+      console.error('Error fetching staff dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const today = new Date().toISOString().split('T')[0];
+  const todayAppointments = appointments.filter(app => app.date === today);
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading staff dashboard...</div>;
+  }
 
   return (
     <>
@@ -28,19 +89,19 @@ export default function StaffDashboard() {
         />
         <StatsCard
           title="New Patients"
-          value="8"
+          value={stats.newPatients}
           icon={Users}
           trend={{ value: 12, isPositive: true }}
         />
         <StatsCard
           title="Pending Bills"
-          value="15"
+          value={stats.pendingBills}
           icon={CreditCard}
           trend={{ value: 3, isPositive: false }}
         />
         <StatsCard
           title="Records Updated"
-          value="24"
+          value={stats.recordsUpdated}
           icon={FileText}
           trend={{ value: 8, isPositive: true }}
         />
@@ -84,5 +145,5 @@ export default function StaffDashboard() {
         </CardContent>
       </Card>
     </>
-  )
+  );
 }
