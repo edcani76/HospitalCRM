@@ -11,6 +11,7 @@ export interface UserProfile {
 
 export interface Doctor {
   id: string;
+  uid?: string; // Links to Firebase Auth user ID
   name: string;
   specialization: string;
   department: string;

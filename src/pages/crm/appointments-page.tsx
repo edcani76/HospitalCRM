@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -18,6 +19,7 @@ import { createNotification, notifyDoctor, notifyClient, getNotifications, markA
 import { Appointment, Doctor, Pet, Notification } from '../../types';
 
 export default function AppointmentsPage() {
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date>(startOfToday());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
@@ -32,6 +34,11 @@ export default function AppointmentsPage() {
   const [cancelAppointment, setCancelAppointment] = useState<Appointment | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  // For doctors, find their doctor record
+  const currentDoctor = user?.role === 'doctor'
+    ? doctors.find(d => d.uid === user.uid)
+    : null;
 
   useEffect(() => {
     fetchDoctors();
@@ -115,8 +122,10 @@ export default function AppointmentsPage() {
       // Filter by date
       data = data.filter(apt => apt.date === format(selectedDate, 'yyyy-MM-dd'));
 
-      // Filter by doctor
-      if (selectedDoctor !== 'all') {
+      // Filter by doctor - if doctor role, only show their appointments
+      if (user?.role === 'doctor' && currentDoctor) {
+        data = data.filter(apt => apt.doctorId === currentDoctor.id);
+      } else if (selectedDoctor !== 'all') {
         data = data.filter(apt => apt.doctorId === selectedDoctor);
       }
 
@@ -290,14 +299,16 @@ export default function AppointmentsPage() {
       <PageHeader
         title="Appointments"
         actions={
-          <Button
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            onClick={() => navigate('/crm/appointments/create')}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">New Appointment</span>
-            <span className="sm:hidden">New</span>
-          </Button>
+          (user?.role === 'admin' || user?.role === 'staff') && (
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => navigate('/crm/appointments/create')}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">New Appointment</span>
+              <span className="sm:hidden">New</span>
+            </Button>
+          )
         }
       />
 
@@ -309,27 +320,29 @@ export default function AppointmentsPage() {
             appointments={appointmentDates}
           />
 
-          <Card>
-            <CardContent className="p-4 lg:p-6">
-              <div className="flex items-center gap-2 mb-3 lg:mb-4">
-                <Filter className="w-4 h-4 text-stone-500" />
-                <h3 className="font-bold text-sm lg:text-base">Filter by Doctor</h3>
-              </div>
-              <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
-                <SelectTrigger className="h-11">
-                  <SelectValue placeholder="All Doctors" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Doctors</SelectItem>
-                  {doctors.map(doc => (
-                    <SelectItem key={doc.id} value={doc.id}>
-                      {doc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
+          {(user?.role === 'admin' || user?.role === 'staff') && (
+            <Card>
+              <CardContent className="p-4 lg:p-6">
+                <div className="flex items-center gap-2 mb-3 lg:mb-4">
+                  <Filter className="w-4 h-4 text-stone-500" />
+                  <h3 className="font-bold text-sm lg:text-base">Filter by Doctor</h3>
+                </div>
+                <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="All Doctors" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Doctors</SelectItem>
+                    {doctors.map(doc => (
+                      <SelectItem key={doc.id} value={doc.id}>
+                        {doc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid grid-cols-2 gap-3 lg:gap-4">
             <div className="p-3 lg:p-4 bg-muted/50 rounded-lg">

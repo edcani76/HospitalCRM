@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -12,7 +13,7 @@ import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion } from '../../f
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
 import { format } from 'date-fns';
 import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft } from 'lucide-react';
-import { Appointment } from '../../types';
+import { Appointment, Doctor } from '../../types';
 
 type AppointmentType = 'consultation' | 'grooming' | 'vaccination' | 'procedure' | 'others';
 
@@ -20,14 +21,20 @@ export default function AppointmentDetailsPage() {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  
+  const { user } = useAuth();
+
+  // Check if current user is the assigned doctor
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const currentDoctor = user?.role === 'doctor'
+    ? doctors.find(d => d.uid === user.uid)
+    : null;
+  const isOwnAppointment = currentDoctor && appointment && appointment.doctorId === currentDoctor.id;
+  const canEdit = user?.role !== 'doctor' || isOwnAppointment;
+
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  
-  // View mode data
-  const [doctors, setDoctors] = useState<{ id: string; name: string }[]>([]);
   
   // Edit mode fields
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
@@ -234,52 +241,54 @@ export default function AppointmentDetailsPage() {
         subtitle={`${appointment.petName} - ${format(new Date(appointment.date), 'MMM dd, yyyy')} at ${appointment.time}`}
         onBack={() => navigate('/crm/appointments')}
         actions={
-          <div className="flex gap-2">
-            {!isEditMode ? (
-              <>
-                <Button 
-                  variant="outline"
-                  onClick={() => setIsEditMode(true)}
-                >
-                  <Pencil className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
-                {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
-                <Button 
-                  className="bg-red-600 hover:bg-red-700 text-white"
-                  onClick={() => setShowCancelDialog(true)}
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Cancel Appointment
-                </Button>
-                )}
-              </>
-            ) : (
-              <>
-                <Button 
-                  variant="outline"
-                  onClick={() => setIsEditMode(false)}
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Cancel Edit
-                </Button>
-                <Button 
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={handleSave}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <span className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Saving...
-                    </span>
-                  ) : (
-                    'Save Changes'
+          canEdit && (
+            <div className="flex gap-2">
+              {!isEditMode ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditMode(true)}
+                  >
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                  {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                  <Button
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    onClick={() => setShowCancelDialog(true)}
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Cancel Appointment
+                  </Button>
                   )}
-                </Button>
-              </>
-            )}
-          </div>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditMode(false)}
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Cancel Edit
+                  </Button>
+                  <Button
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={handleSave}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Saving...
+                      </span>
+                    ) : (
+                      'Save Changes'
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
+          )
         }
       />
 
@@ -346,16 +355,20 @@ export default function AppointmentDetailsPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm font-medium">Doctor</label>
-                    <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select doctor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {doctors.map(doc => (
-                          <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {user?.role === 'doctor' ? (
+                      <p className="mt-1 p-2 bg-muted rounded-md">{appointment.doctorName}</p>
+                    ) : (
+                      <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select doctor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {doctors.map(doc => (
+                            <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
