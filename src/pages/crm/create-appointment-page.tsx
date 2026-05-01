@@ -13,6 +13,7 @@ import { format, startOfToday } from 'date-fns';
 import { db, auth, collection, getDocs, addDoc, serverTimestamp, doc, updateDoc, getDoc, arrayUnion } from '../../firebase';
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
 import { Doctor, Pet, Appointment } from '../../types';
+import PetDialog from '../../components/crm/pet-dialog';
 
 export default function CreateAppointmentPage() {
   const navigate = useNavigate();
@@ -38,6 +39,7 @@ export default function CreateAppointmentPage() {
   const [petSearchTerm, setPetSearchTerm] = useState('');
   const [showNewPetForm, setShowNewPetForm] = useState(false);
   const [newPet, setNewPet] = useState({ name: '', species: 'Dog', breed: '', ownerUid: '' });
+  const [isPetDialogOpen, setIsPetDialogOpen] = useState(false);
 
   const timeSlots = [
     '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM',
@@ -178,6 +180,35 @@ export default function CreateAppointmentPage() {
       availability: []
     } as Doctor : null
   );
+
+  // Handle new pet creation from PetDialog
+  const handleNewPetFromDialog = async (formData: any) => {
+    try {
+      const petDoc = await addDoc(collection(db, 'pets'), {
+        name: formData.name,
+        species: formData.species,
+        breed: formData.breed,
+        ownerUid: formData.ownerUid,
+        weight: formData.weight || 0,
+        dateOfBirth: formData.dateOfBirth || '',
+        gender: formData.gender || '',
+        bloodType: formData.bloodType || 'Unknown',
+        color: formData.color || '',
+        imageUrl: formData.imageUrl || '',
+        currentStatus: 'active',
+        createdAt: new Date().toISOString()
+      });
+      // Refresh pets list
+      fetchPets();
+      // Auto-select the new pet
+      setSelectedPet(petDoc.id);
+      setShowNewPetForm(false);
+      setIsPetDialogOpen(false);
+    } catch (error) {
+      console.error('Error creating pet from dialog:', error);
+      alert('Failed to create pet. Please try again.');
+    }
+  };
 
   const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -497,59 +528,19 @@ export default function CreateAppointmentPage() {
 
                   {showNewPetForm ? (
                     <div className="space-y-4 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                      <h4 className="font-bold text-emerald-800">Create New Pet</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Pet Name</Label>
-                          <Input
-                            value={newPet.name}
-                            onChange={(e) => setNewPet({ ...newPet, name: e.target.value })}
-                            placeholder="Enter pet name"
-                          />
-                        </div>
-                        <div>
-                          <Label>Species</Label>
-                          <Select
-                            value={newPet.species}
-                            onValueChange={(val) => setNewPet({ ...newPet, species: val })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Dog">Dog</SelectItem>
-                              <SelectItem value="Cat">Cat</SelectItem>
-                              <SelectItem value="Bird">Bird</SelectItem>
-                              <SelectItem value="Rabbit">Rabbit</SelectItem>
-                              <SelectItem value="Other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="col-span-2">
-                          <Label>Breed</Label>
-                          <Input
-                            value={newPet.breed}
-                            onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })}
-                            placeholder="Enter breed"
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <Label>Owner</Label>
-                          <Select
-                            value={newPet.ownerUid}
-                            onValueChange={(val) => setNewPet({ ...newPet, ownerUid: val })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select owner" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(users).map(([uid, name]) => (
-                                <SelectItem key={uid} value={uid}>{name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-bold text-emerald-800">Create New Pet</h4>
+                        <Button
+                          type="button"
+                          onClick={() => setIsPetDialogOpen(true)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                          size="sm"
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Use Dialog
+                        </Button>
                       </div>
+                      <p className="text-sm text-emerald-600">Click "Use Dialog" above to use the enhanced pet creation form.</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -725,6 +716,16 @@ export default function CreateAppointmentPage() {
             </div>
           </div>
         </div>
+
+        {/* Pet Dialog for creating new pets */}
+        <PetDialog
+          open={isPetDialogOpen}
+          onOpenChange={setIsPetDialogOpen}
+          mode="add"
+          users={users}
+          onSubmit={handleNewPetFromDialog}
+          onCancel={() => setIsPetDialogOpen(false)}
+        />
       </form>
     </div>
   );

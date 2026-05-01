@@ -33,6 +33,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import { db, doc, getDoc, collection, getDocs, query, where, updateDoc } from '../../firebase';
+import PetDialog from '../../components/crm/pet-dialog';
 import { uploadPetPhoto, deletePetPhoto } from '../../lib/storage';
 
 interface PatientProfile {
@@ -69,6 +70,7 @@ export default function PatientProfilePage() {
   const location = useLocation();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [users, setUsers] = useState<{ [uid: string]: any }>({});
   const [isPhotoActionModalOpen, setIsPhotoActionModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isTriageModalOpen, setIsTriageModalOpen] = useState(false);
@@ -139,6 +141,14 @@ export default function PatientProfilePage() {
             setPatient(pets[0]);
           }
         }
+
+        // Fetch users for PetDialog
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const usersData: { [uid: string]: any } = {};
+        usersSnapshot.docs.forEach(doc => {
+          usersData[doc.id] = doc.data();
+        });
+        setUsers(usersData);
       } catch (error) {
         console.error('Error fetching patient:', error);
       } finally {
@@ -272,45 +282,43 @@ export default function PatientProfilePage() {
     }
   };
 
-  const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  const handleEditSubmit = async (formData: any) => {
+    if (!patient) return;
 
     try {
       const updatedData = {
-        name: formData.get('name') as string,
-        owner: formData.get('owner') as string,
-        species: formData.get('species') as string,
-        breed: formData.get('breed') as string,
-        contact: formData.get('contact') as string,
-        email: formData.get('email') as string,
-        address: formData.get('address') as string,
-        dateOfBirth: formData.get('dob') as string,
-        gender: formData.get('gender') as string,
-        bloodType: formData.get('bloodType') as string,
-        imageUrl: tempPhoto || patient?.imageUrl || patient?.photo || '',
+        name: formData.name,
+        species: formData.species,
+        breed: formData.breed,
+        ownerUid: formData.ownerUid || patient.ownerUid,
+        weight: formData.weight || patient.weight,
+        dateOfBirth: formData.dateOfBirth || patient.dateOfBirth,
+        gender: formData.gender || patient.gender,
+        bloodType: formData.bloodType || patient.bloodType,
+        color: formData.color || patient.color,
+        imageUrl: formData.imageUrl || patient.imageUrl || patient.photo || '',
         auditTrail: [
-          ...(patient?.auditTrail || []),
+          ...(patient.auditTrail || []),
           {
             id: Date.now().toString(),
             event: 'Record Updated',
             staff: 'Admin User',
-            timestamp: new Date().toLocaleString('en-US', { 
-              year: 'numeric', 
-              month: 'short', 
-              day: 'numeric', 
-              hour: '2-digit', 
-              minute: '2-digit', 
-              hour12: true 
+            timestamp: new Date().toLocaleString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
             })
           }
         ]
       };
 
       // Update Firestore
-      await updateDoc(doc(db, 'pets', patient!.id), updatedData);
+      await updateDoc(doc(db, 'pets', patient.id), updatedData);
 
-      setPatient({ ...patient!, ...updatedData });
+      setPatient({ ...patient, ...updatedData });
       setIsEditModalOpen(false);
     } catch (error) {
       console.error('Error updating patient:', error);
@@ -807,142 +815,16 @@ export default function PatientProfilePage() {
         </div>
       </div>
 
-      {/* Edit Patient Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-2xl rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Edit Patient Profile</DialogTitle>
-            <DialogDescription>Update the demographics and administrative details for this record.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleEditSubmit} className="space-y-8 py-4">
-            {/* Group 1: Pet Information */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                  <Activity className="w-4 h-4 text-blue-600" />
-                </div>
-                <h3 className="font-bold text-gray-900">Pet Information</h3>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="font-bold text-gray-700">Pet Name</Label>
-                  <Input id="name" name="name" defaultValue={patient.name} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="species" className="font-bold text-gray-700">Species</Label>
-                  <Input id="species" name="species" defaultValue={patient.species} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" required />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="breed" className="font-bold text-gray-700">Breed</Label>
-                  <Input id="breed" name="breed" defaultValue={patient.breed} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="gender" className="font-bold text-gray-700">Gender</Label>
-                    <Input id="gender" name="gender" defaultValue={patient.gender} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bloodType" className="font-bold text-gray-700">Blood Type</Label>
-                    <Input id="bloodType" name="bloodType" defaultValue={patient.bloodType} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="dob" className="font-bold text-gray-700">Date of Birth</Label>
-                  <Input id="dob" name="dob" type="date" defaultValue={patient.dateOfBirth} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
-                </div>
-                <div className="space-y-2">
-                  {/* Photo Section */}
-                  <Label className="font-bold text-gray-700">Patient Photo</Label>
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-white border border-gray-100 shrink-0 shadow-sm">
-                      {tempPhoto ? (
-                        <img src={tempPhoto} alt="Preview" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-300">
-                          <Camera className="w-5 h-5" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2 flex-1">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        className="rounded-xl border-blue-200 text-blue-600 hover:bg-blue-50 h-10 w-full"
-                        onClick={() => {
-                          setIsCameraModalOpen(true);
-                          startCamera();
-                        }}
-                      >
-                        <Camera className="w-4 h-4 mr-2" />
-                        Camera
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        className="rounded-xl border-gray-200 text-gray-600 hover:bg-gray-50 h-10 w-full"
-                        onClick={() => document.getElementById('photo-upload')?.click()}
-                      >
-                        <Upload className="w-4 h-4 mr-2" />
-                        Upload
-                      </Button>
-                      <input 
-                        id="photo-upload" 
-                        type="file" 
-                        accept="image/*" 
-                        className="hidden" 
-                        onChange={handleFileUpload}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Group 2: Owner Information */}
-            <div className="space-y-6 pt-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
-                <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
-                  <User className="w-4 h-4 text-orange-600" />
-                </div>
-                <h3 className="font-bold text-gray-900">Owner & Contact Details</h3>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="owner" className="font-bold text-gray-700">Owner Name</Label>
-                  <Input id="owner" name="owner" defaultValue={patient.ownerName} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" required disabled />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="contact" className="font-bold text-gray-700">Phone Number</Label>
-                  <Input id="contact" name="contact" defaultValue={patient.contact} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" required />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email" className="font-bold text-gray-700">Email Address</Label>
-                <Input id="email" name="email" type="email" defaultValue={patient.email} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="address" className="font-bold text-gray-700">Home Address</Label>
-                <Input id="address" name="address" defaultValue={patient.address} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
-              </div>
-            </div>
-
-            <DialogFooter className="pt-8 flex gap-3 border-t border-gray-50 mt-4">
-              <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-blue-100">Save Changes</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Reusable Pet Dialog for Edit */}
+      <PetDialog
+        open={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        mode="edit"
+        pet={patient}
+        users={users}
+        onSubmit={handleEditSubmit}
+        onCancel={() => setIsEditModalOpen(false)}
+      />
 
       {/* Camera Capture Modal */}
       <Dialog open={isCameraModalOpen} onOpenChange={(open) => {
