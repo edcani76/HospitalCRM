@@ -245,13 +245,13 @@ export default function AppointmentDetailsPage() {
                   Edit
                 </Button>
                 {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
-                  <Button 
-                    variant="destructive" 
-                    onClick={() => setShowCancelDialog(true)}
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Cancel Appointment
-                  </Button>
+                <Button 
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => setShowCancelDialog(true)}
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Cancel Appointment
+                </Button>
                 )}
               </>
             ) : (
@@ -580,7 +580,7 @@ export default function AppointmentDetailsPage() {
               Back
             </Button>
             <Button
-              variant="destructive"
+              className="bg-red-600 hover:bg-red-700 text-white"
               onClick={handleCancel}
               disabled={saving}
             >
