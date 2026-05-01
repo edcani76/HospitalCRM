@@ -383,13 +383,18 @@ export default function AppointmentsPage() {
                                 {appointment.time}
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <User className="w-3 h-3 text-stone-400" />
-                                <span className="text-xs lg:text-sm">{appointment.petName}</span>
-                                {ownerName && <span className="text-stone-500 text-xs">({ownerName})</span>}
-                              </div>
-                            </TableCell>
+                             <TableCell>
+                               <div className="flex items-center gap-2">
+                                 <User className="w-3 h-3 text-stone-400" />
+                                 <button
+                                   onClick={() => navigate(`/crm/patient/${appointment.petId}`)}
+                                   className="text-xs lg:text-sm text-emerald-600 hover:underline font-medium"
+                                 >
+                                   {appointment.petName}
+                                 </button>
+                                 {ownerName && <span className="text-stone-500 text-xs">({ownerName})</span>}
+                               </div>
+                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <Stethoscope className="w-3 h-3 text-stone-400" />
