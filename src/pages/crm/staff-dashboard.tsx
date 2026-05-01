@@ -21,19 +21,24 @@ export default function StaffDashboard() {
   const { user } = useAuth();
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [doctors, setDoctors] = useState<{ id: string; name: string }[]>([]);
   const [stats, setStats] = useState({ newPatients: 0, pendingBills: 0, recordsUpdated: 0 });
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
-      const [aptSnap, petsSnap, invoicesSnap] = await Promise.all([
+      const [aptSnap, petsSnap, invoicesSnap, doctorsSnap] = await Promise.all([
         getDocs(collection(db, 'appointments')),
         getDocs(collection(db, 'pets')),
         getDocs(collection(db, 'invoices')),
+        getDocs(collection(db, 'doctors')),
       ]);
 
       const appointmentsData = aptSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
       setAppointments(appointmentsData);
+
+      const doctorsData = doctorsSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name || 'Unknown' }));
+      setDoctors(doctorsData);
 
       const pets = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const invoices = invoicesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -124,21 +129,28 @@ export default function StaffDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {todayAppointments.map((appointment) => (
-                  <tr key={appointment.id} className="border-b hover:bg-muted/50">
-                    <td className="p-2">{appointment.time}</td>
-                    <td className="p-2">Patient #{appointment.patientId}</td>
-                    <td className="p-2">Dr. #{appointment.doctorId}</td>
-                    <td className="p-2">{appointment.reason}</td>
-                    <td className="p-2">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        appointment.status === 'Scheduled' ? 'bg-green-100 text-green-800' : 'bg-gray-100'
-                      }`}>
-                        {appointment.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {todayAppointments.map((appointment) => {
+                  const doctor = doctors.find(d => d.id === appointment.doctorId);
+                  return (
+                    <tr key={appointment.id} className="border-b hover:bg-muted/50">
+                      <td className="p-2">{appointment.time}</td>
+                      <td className="p-2">{appointment.petName || 'Unknown Pet'}</td>
+                      <td className="p-2">{doctor?.name || 'Unknown Doctor'}</td>
+                      <td className="p-2">{appointment.notes || '-'}</td>
+                      <td className="p-2">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                          appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          appointment.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                          appointment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100'
+                        }`}>
+                          {appointment.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
