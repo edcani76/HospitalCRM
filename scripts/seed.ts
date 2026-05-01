@@ -93,18 +93,18 @@ const DOCTORS_DATA = [
 ];
 
 const PETS_DATA = [
-  { ownerEmail: 'john@medipaws.com', name: 'Buddy', species: 'Dog', breed: 'Golden Retriever', age: 4, weight: 32, type: 'Large' },
-  { ownerEmail: 'john@medipaws.com', name: 'Lucy', species: 'Dog', breed: 'Labrador', age: 2, weight: 28, type: 'Large' },
-  { ownerEmail: 'jane@medipaws.com', name: 'Whiskers', species: 'Cat', breed: 'Siamese', age: 3, weight: 4.5, type: 'Small' },
-  { ownerEmail: 'robert@medipaws.com', name: 'Max', species: 'Dog', breed: 'German Shepherd', age: 5, weight: 34, type: 'Large' },
-  { ownerEmail: 'robert@medipaws.com', name: 'Rocky', species: 'Dog', breed: 'Bulldog', age: 3, weight: 25, type: 'Medium' },
-  { ownerEmail: 'emily@medipaws.com', name: 'Luna', species: 'Cat', breed: 'Persian', age: 2, weight: 3.8, type: 'Small' },
-  { ownerEmail: 'emily@medipaws.com', name: 'Simba', species: 'Cat', breed: 'Maine Coon', age: 3, weight: 6.5, type: 'Medium' },
-  { ownerEmail: 'jane@medipaws.com', name: 'Kiwi', species: 'Bird', breed: 'Parrot', age: 2, weight: 0.5, type: 'Small' },
-  { ownerEmail: 'michael@medipaws.com', name: 'Charlie', species: 'Dog', breed: 'Labrador Retriever', age: 4, weight: 30, type: 'Large' },
-  { ownerEmail: 'michael@medipaws.com', name: 'Bella', species: 'Dog', breed: 'Beagle', age: 3, weight: 11, type: 'Medium' },
-  { ownerEmail: 'sarah@medipaws.com', name: 'Oliver', species: 'Cat', breed: 'Tabby', age: 1, weight: 4.2, type: 'Small' },
-  { ownerEmail: 'sarah@medipaws.com', name: 'Milo', species: 'Dog', breed: 'Poodle', age: 2, weight: 8, type: 'Small' },
+  { ownerEmail: 'john@medipaws.com', name: 'Buddy', species: 'Dog', breed: 'Golden Retriever', age: 4, weight: 32, type: 'Large', imageUrl: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'john@medipaws.com', name: 'Lucy', species: 'Dog', breed: 'Labrador', age: 2, weight: 28, type: 'Large', imageUrl: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'jane@medipaws.com', name: 'Whiskers', species: 'Cat', breed: 'Siamese', age: 3, weight: 4.5, type: 'Small', imageUrl: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'robert@medipaws.com', name: 'Max', species: 'Dog', breed: 'German Shepherd', age: 5, weight: 34, type: 'Large', imageUrl: 'https://images.unsplash.com/photo-1589941013453-ec214d290a5b?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'robert@medipaws.com', name: 'Rocky', species: 'Dog', breed: 'Bulldog', age: 3, weight: 25, type: 'Medium', imageUrl: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'emily@medipaws.com', name: 'Luna', species: 'Cat', breed: 'Persian', age: 2, weight: 3.8, type: 'Small', imageUrl: 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'emily@medipaws.com', name: 'Simba', species: 'Cat', breed: 'Maine Coon', age: 3, weight: 6.5, type: 'Medium', imageUrl: 'https://images.unsplash.com/photo-1573865526739-10659fecf129?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'jane@medipaws.com', name: 'Kiwi', species: 'Bird', breed: 'Parrot', age: 2, weight: 0.5, type: 'Small', imageUrl: 'https://images.unsplash.com/photo-1551085254-e7c225f12f4a?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'michael@medipaws.com', name: 'Charlie', species: 'Dog', breed: 'Labrador Retriever', age: 4, weight: 30, type: 'Large', imageUrl: 'https://images.unsplash.com/photo-1537151625747-088f5dd5eb3a?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'michael@medipaws.com', name: 'Bella', species: 'Dog', breed: 'Beagle', age: 3, weight: 11, type: 'Medium', imageUrl: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'sarah@medipaws.com', name: 'Oliver', species: 'Cat', breed: 'Tabby', age: 1, weight: 4.2, type: 'Small', imageUrl: 'https://images.unsplash.com/photo-1495360010541-f48722b34f7d?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'sarah@medipaws.com', name: 'Milo', species: 'Dog', breed: 'Poodle', age: 2, weight: 8, type: 'Small', imageUrl: 'https://images.unsplash.com/photo-1517849845537-4d557ef76a8f?auto=format&fit=crop&q=80&w=400' },
 ];
 
 // Store created data
@@ -200,7 +200,7 @@ async function seedDatabase() {
         age: petData.age,
         weight: petData.weight,
         type: petData.type,
-        imageUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(petData.name)}&background=fcd34d&color=fff`,
+        imageUrl: petData.imageUrl,
         currentStatus: 'discharged',
         createdAt: new Date().toISOString()
       });

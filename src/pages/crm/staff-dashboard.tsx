@@ -5,6 +5,7 @@ import { StatsCard } from '../../components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Users, Calendar, CreditCard, FileText } from 'lucide-react';
 import { db, collection, getDocs } from '../../firebase';
+import { format } from 'date-fns';
 
 interface Appointment {
   id: string;
@@ -110,7 +111,7 @@ export default function StaffDashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Today's Schedule</CardTitle>
+          <CardTitle>Today's Schedule - {format(new Date(), 'MMMM dd, yyyy')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

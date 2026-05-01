@@ -423,7 +423,15 @@ export default function AppointmentsPage() {
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
-                                <User className="w-3 h-3 text-stone-400" />
+                                {pet?.imageUrl ? (
+                                  <img
+                                    src={pet.imageUrl}
+                                    alt={appointment.petName}
+                                    className="w-6 h-6 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <User className="w-3 h-3 text-stone-400" />
+                                )}
                                 <span className="text-xs lg:text-sm text-emerald-600 font-medium">
                                   {appointment.petName}
                                 </span>
