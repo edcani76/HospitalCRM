@@ -22,16 +22,19 @@ export const createNotification = async (
   userRole?: string
 ) => {
   try {
-    await addDoc(collection(db, 'notifications'), {
+    const data: any = {
       userId,
       userRole,
       type,
       title,
       message,
-      appointmentId,
       read: false,
       createdAt: serverTimestamp()
-    });
+    };
+    if (appointmentId) {
+      data.appointmentId = appointmentId;
+    }
+    await addDoc(collection(db, 'notifications'), data);
   } catch (error) {
     console.error('Error creating notification:', error);
   }
