@@ -11,6 +11,7 @@ import { Badge } from '../../components/ui/badge';
 import { ArrowLeft, User, Stethoscope, Calendar, Clock, Plus, Search } from 'lucide-react';
 import { format, startOfToday } from 'date-fns';
 import { db, auth, collection, getDocs, addDoc, serverTimestamp, doc, updateDoc, getDoc, arrayUnion } from '../../firebase';
+import { notifyDoctor, notifyClient } from '../../lib/notifications';
 import { Doctor, Pet, Appointment } from '../../types';
 
 export default function CreateAppointmentPage() {
@@ -217,6 +218,16 @@ export default function CreateAppointmentPage() {
           updatedAt: serverTimestamp(),
           audit: arrayUnion(auditEntry)
         });
+        
+        // Notify doctor about the update
+        await notifyDoctor(selectedDoctor, 'appointment_updated', 'Appointment Updated', 
+          `Appointment for ${petName} has been updated to ${selectedDate} at ${selectedTime}`);
+        
+        // Notify client about the update
+        if (clientUid) {
+          await notifyClient(clientUid, 'appointment_updated', 'Appointment Updated', 
+            `Your appointment for ${petName} has been updated to ${selectedDate} at ${selectedTime}`);
+        }
       } else {
         await addDoc(collection(db, 'appointments'), {
           clientUid,

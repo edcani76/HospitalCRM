@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
-import { Card, CardContent } from '../../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table';
 import { Badge } from '../../components/ui/badge';
 import { Calendar } from '../../components/ui/calendar';
@@ -14,7 +14,8 @@ import { db, collection, getDocs, doc, updateDoc } from '../../firebase';
 import { arrayUnion } from 'firebase/firestore';
 import { auth } from '../../firebase';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
-import { Appointment, Doctor, Pet } from '../../types';
+import { createNotification, notifyDoctor, notifyClient, getNotifications, markAsRead } from '../../lib/notifications';
+import { Appointment, Doctor, Pet, Notification } from '../../types';
 
 export default function AppointmentsPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(startOfToday());
@@ -29,12 +30,19 @@ export default function AppointmentsPage() {
   const navigate = useNavigate();
   const [auditOpen, setAuditOpen] = useState(false);
   const [selectedAuditAppointment, setSelectedAuditAppointment] = useState<Appointment | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelAppointment, setCancelAppointment] = useState<Appointment | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
     fetchDoctors();
     fetchPets();
     fetchUsers();
     fetchAllAppointments();
+    if (auth.currentUser) {
+      fetchNotifications(auth.currentUser.uid);
+    }
   }, []);
 
   useEffect(() => {
@@ -85,6 +93,15 @@ export default function AppointmentsPage() {
     }
   };
 
+  const fetchNotifications = async (userId: string) => {
+    try {
+      const notifs = await getNotifications(userId);
+      setNotifications(notifs);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
   const filterAppointments = () => {
     setLoading(true);
     try {
@@ -130,12 +147,36 @@ export default function AppointmentsPage() {
     }
   };
 
-  const handleStatusChange = async (appointmentId: string, newStatus: 'confirmed' | 'cancelled' | 'completed') => {
+  const handleStatusChange = async (appointmentId: string, newStatus: 'confirmed' | 'cancelled' | 'completed', reason?: string) => {
     try {
       const aptRef = doc(db, 'appointments', appointmentId);
       const userUid = auth.currentUser?.uid || 'unknown';
-      const auditEntry = { action: newStatus, userId: userUid, timestamp: new Date().toISOString() };
-      await updateDoc(aptRef, { status: newStatus, audit: arrayUnion(auditEntry) });
+      const auditEntry = { action: newStatus, userId: userUid, timestamp: new Date().toISOString(), reason };
+      const updateData: any = { status: newStatus, audit: arrayUnion(auditEntry) };
+      if (newStatus === 'cancelled' && reason) {
+        updateData.cancelReason = reason;
+      }
+      await updateDoc(aptRef, updateData);
+      
+      // Get appointment details for notification
+      const aptSnap = await getDoc(aptRef);
+      const aptData = aptSnap.data();
+      if (aptData) {
+        if (newStatus === 'cancelled') {
+          // Notify doctor
+          await notifyDoctor(aptData.doctorId, 'appointment_cancelled', 'Appointment Cancelled', 
+            `Appointment for ${aptData.petName} on ${aptData.date} at ${aptData.time} was cancelled. Reason: ${reason || 'Not specified'}`);
+          // Notify client
+          if (aptData.clientUid) {
+            await notifyClient(aptData.clientUid, 'appointment_cancelled', 'Appointment Cancelled', 
+              `Your appointment for ${aptData.petName} on ${aptData.date} at ${aptData.time} has been cancelled.`);
+          }
+        } else if (newStatus === 'confirmed') {
+          await notifyDoctor(aptData.doctorId, 'appointment_confirmed', 'Appointment Confirmed', 
+            `Appointment for ${aptData.petName} on ${aptData.date} at ${aptData.time} is confirmed.`);
+        }
+      }
+      
       fetchAllAppointments();
     } catch (error) {
       console.error('Error updating appointment:', error);
@@ -333,7 +374,10 @@ export default function AppointmentsPage() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleStatusChange(appointment.id, 'cancelled')}
+                                    onClick={() => {
+                                      setCancelAppointment(appointment);
+                                      setCancelDialogOpen(true);
+                                    }}
                                     title="Cancel"
                                     className="hover:bg-red-50 hover:text-red-700"
                                   >
@@ -417,6 +461,7 @@ export default function AppointmentsPage() {
                       return (
                         <li key={idx}>
                           {entry.action} by {userName} at {ts}
+                          {entry.reason && ` (Reason: ${entry.reason})`}
                         </li>
                       );
                     })}
@@ -432,6 +477,93 @@ export default function AppointmentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Confirmation Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Appointment</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel this appointment for {cancelAppointment?.petName}?
+              This action will notify the doctor and client.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium">Reason for cancellation</label>
+            <textarea
+              className="w-full mt-2 p-2 border rounded-md"
+              rows={3}
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Enter reason for cancellation..."
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setCancelDialogOpen(false);
+              setCancelReason('');
+              setCancelAppointment(null);
+            }}>
+              Back
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (cancelAppointment) {
+                  await handleStatusChange(cancelAppointment.id, 'cancelled', cancelReason);
+                  setCancelDialogOpen(false);
+                  setCancelReason('');
+                  setCancelAppointment(null);
+                }
+              }}
+            >
+              Confirm Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Activity Feed */}
+      {notifications.length > 0 && (
+        <div className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Activity Feed</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {notifications.slice(0, 20).map((notif) => (
+                  <div
+                    key={notif.id}
+                    className={`p-3 rounded-lg border ${notif.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'}`}
+                    onClick={async () => {
+                      if (!notif.read && notif.id) {
+                        await markAsRead(notif.id);
+                        if (auth.currentUser) {
+                          fetchNotifications(auth.currentUser.uid);
+                        }
+                      }
+                    }}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-sm">{notif.title}</p>
+                        <p className="text-xs text-gray-600 mt-1">{notif.message}</p>
+                      </div>
+                      {!notif.read && (
+                        <Badge variant="default" className="text-xs">New</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {notif.createdAt?.toDate?.()?.toLocaleString() || 'Just now'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </>
   );
 }

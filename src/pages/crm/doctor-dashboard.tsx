@@ -5,6 +5,8 @@ import { StatsCard } from '../../components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Users, Calendar, FileText, Pill } from 'lucide-react';
 import { db, collection, getDocs } from '../../firebase';
+import { getNotifications, markAsRead, Notification } from '../../lib/notifications';
+import { Badge } from '../../components/ui/badge';
 
 interface Pet {
   id: string;
@@ -39,10 +41,11 @@ interface Patient {
 
 export default function DoctorDashboard() {
   const { user } = useAuth();
-
+  
   const [patients, setPatients] = useState<Patient[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -51,6 +54,12 @@ export default function DoctorDashboard() {
         getDocs(collection(db, 'users')),
         getDocs(collection(db, 'appointments')),
       ]);
+
+      // Fetch notifications for doctor
+      if (user?.uid) {
+        const notifs = await getNotifications(user.uid);
+        setNotifications(notifs);
+      }
 
       const pets = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pet));
       const users = usersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as User));
@@ -176,6 +185,49 @@ export default function DoctorDashboard() {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Activity Feed */}
+      {notifications.length > 0 && (
+        <div className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Activity Feed</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {notifications.slice(0, 20).map((notif) => (
+                  <div
+                    key={notif.id}
+                    className={`p-3 rounded-lg border ${notif.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'}`}
+                    onClick={async () => {
+                      if (!notif.read && notif.id) {
+                        await markAsRead(notif.id);
+                        if (user?.uid) {
+                          const notifs = await getNotifications(user.uid);
+                          setNotifications(notifs);
+                        }
+                      }
+                    }}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-sm">{notif.title}</p>
+                        <p className="text-xs text-gray-600 mt-1">{notif.message}</p>
+                      </div>
+                      {!notif.read && (
+                        <Badge variant="default" className="text-xs">New</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {notif.createdAt?.toDate?.()?.toLocaleString() || 'Just now'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </>
   );
 }

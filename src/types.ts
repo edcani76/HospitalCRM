@@ -72,3 +72,15 @@ export interface Invoice {
   dueDate: string;
   description: string;
 }
+
+export interface Notification {
+  id?: string;
+  userId: string;
+  userRole?: string;
+  type: 'appointment_cancelled' | 'appointment_updated' | 'appointment_created' | 'appointment_confirmed';
+  title: string;
+  message: string;
+  appointmentId?: string;
+  read: boolean;
+  createdAt: any;
+}
