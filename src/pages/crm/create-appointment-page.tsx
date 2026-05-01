@@ -29,6 +29,8 @@ export default function CreateAppointmentPage() {
   const [selectedPet, setSelectedPet] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState(format(startOfToday(), 'yyyy-MM-dd'));
   const [selectedTime, setSelectedTime] = useState<string>('');
+  const [appointmentType, setAppointmentType] = useState<string>('consultation');
+  const [appointmentMode, setAppointmentMode] = useState<string>('scheduled'); // 'walk-in' or 'scheduled'
   const [notes, setNotes] = useState('');
   const [existingAppointments, setExistingAppointments] = useState<Appointment[]>([]);
 
@@ -57,7 +59,21 @@ export default function CreateAppointmentPage() {
       setSelectedPet(prefill.petId || '');
       setSelectedDate(prefill.date || format(startOfToday(), 'yyyy-MM-dd'));
       setSelectedTime(prefill.time || '');
-      setNotes(prefill.notes || '');
+
+      // Parse type and mode from notes
+      const notesText = prefill.notes || '';
+      const typeMatch = notesText.match(/Type:\s*(\w+)/i);
+      const modeMatch = notesText.match(/Mode:\s*(\w+)/i);
+
+      if (typeMatch) setAppointmentType(typeMatch[1].toLowerCase());
+      if (modeMatch) setAppointmentMode(modeMatch[1].toLowerCase());
+
+      // Remove Type and Mode lines from notes for display
+      const cleanNotes = notesText
+        .replace(/Type:\s*\w+/i, '')
+        .replace(/Mode:\s*\w+/i, '')
+        .trim();
+      setNotes(cleanNotes);
     }
   }, [prefill, doctors, pets]);
 
@@ -214,7 +230,7 @@ export default function CreateAppointmentPage() {
           doctorName: displayDoctorData?.name || prefill?.doctorName || '',
           date: selectedDate,
           time: selectedTime,
-          notes,
+          notes: `Type: ${appointmentType}\nMode: ${appointmentMode}\n${notes}`.trim(),
           updatedAt: serverTimestamp(),
           audit: arrayUnion(auditEntry)
         });
@@ -238,7 +254,7 @@ export default function CreateAppointmentPage() {
           date: selectedDate,
           time: selectedTime,
           status: 'confirmed',
-          notes,
+          notes: `Type: ${appointmentType}\nMode: ${appointmentMode}\n${notes}`.trim(),
           createdAt: serverTimestamp()
         });
       }
@@ -601,6 +617,54 @@ export default function CreateAppointmentPage() {
               </Card>
             )}
 
+            {/* Appointment Type & Mode */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Appointment Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Appointment Type</Label>
+                  <Select value={appointmentType} onValueChange={setAppointmentType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="consultation">Consultation</SelectItem>
+                      <SelectItem value="grooming">Grooming</SelectItem>
+                      <SelectItem value="vaccination">Vaccination</SelectItem>
+                      <SelectItem value="procedure">Procedure</SelectItem>
+                      <SelectItem value="laboratory">Laboratory</SelectItem>
+                      <SelectItem value="emergency">Emergency</SelectItem>
+                      <SelectItem value="follow-up">Follow-up</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Appointment Mode</Label>
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      type="button"
+                      variant={appointmentMode === 'scheduled' ? 'default' : 'outline'}
+                      onClick={() => setAppointmentMode('scheduled')}
+                      className={appointmentMode === 'scheduled' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+                    >
+                      Scheduled
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={appointmentMode === 'walk-in' ? 'default' : 'outline'}
+                      onClick={() => setAppointmentMode('walk-in')}
+                      className={appointmentMode === 'walk-in' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+                    >
+                      Walk-in
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Notes */}
             <Card>
               <CardHeader>
@@ -627,6 +691,8 @@ export default function CreateAppointmentPage() {
                     <p><strong>Doctor:</strong> {selectedDoctorData.name}</p>
                     <p><strong>Date:</strong> {selectedDate}</p>
                     <p><strong>Time:</strong> {selectedTime}</p>
+                    <p><strong>Type:</strong> {appointmentType}</p>
+                    <p><strong>Mode:</strong> {appointmentMode === 'walk-in' ? 'Walk-in' : 'Scheduled'}</p>
                   </div>
                 </CardContent>
               </Card>
