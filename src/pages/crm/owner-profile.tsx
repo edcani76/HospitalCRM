@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { 
-  User, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Calendar, 
-  Activity, 
-  CreditCard, 
+import {
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  Activity,
+  CreditCard,
   ChevronRight,
   Clock,
   CheckCircle,
@@ -22,31 +22,72 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { PageHeader } from '../../components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { 
-  owners as allOwners, 
-  patients as allPatients, 
-  appointments as allAppointments,
-  bills as allBills 
-} from '../../data/crm-data';
+import { db, doc, getDoc, collection, getDocs, query, where } from '../../firebase';
+
+interface OwnerProfile {
+  id: string;
+  displayName?: string;
+  name?: string;
+  email?: string;
+  phoneNumber?: string;
+  address?: string;
+  role?: string;
+  status?: string;
+  photo?: string;
+  photoURL?: string;
+}
 
 export default function OwnerProfilePage() {
   const { ownerId } = useParams();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
-  // Find the selected owner
-  const owner = allOwners.find(o => o.id === ownerId) || allOwners[0];
+  // Find the selected owner from Firebase
+  const [owner, setOwner] = useState<OwnerProfile | null>(null);
+  const [ownerPets, setOwnerPets] = useState<any[]>([]);
+  const [ownerBills, setOwnerBills] = useState<any[]>([]);
+  const [ownerAppointments, setOwnerAppointments] = useState<any[]>([]);
 
-  // Find associated pets (patients)
-  const ownerPets = allPatients.filter(p => p.ownerId === owner.id);
+  useEffect(() => {
+    const fetchOwner = async () => {
+      try {
+        // Fetch owner from Firebase
+        const ownerDoc = await getDoc(doc(db, 'users', ownerId || ''));
+        if (ownerDoc.exists()) {
+          setOwner({ id: ownerDoc.id, ...ownerDoc.data() } as OwnerProfile);
+        }
 
-  // Find associated bills
-  // @ts-ignore - allBills might not be typed in crm-data.ts if it was just added
-  const ownerBills = (allBills || []).filter(b => b.ownerId === owner.id);
+        // Fetch owner's pets
+        const petsQuery = query(collection(db, 'pets'), where('ownerUid', '==', ownerId));
+        const petsSnapshot = await getDocs(petsQuery);
+        const petsData = petsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setOwnerPets(petsData);
 
-  // Find associated appointments
-  const ownerAppointments = allAppointments.filter(app => 
-    ownerPets.some(pet => pet.id === app.patientId)
-  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        // Fetch owner's invoices
+        const invQuery = query(collection(db, 'invoices'), where('clientUid', '==', ownerId));
+        const invSnapshot = await getDocs(invQuery);
+        setOwnerBills(invSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+        // Fetch owner's appointments (via pets)
+        const appQuery = query(collection(db, 'appointments'), where('clientUid', '==', ownerId));
+        const appSnapshot = await getDocs(appQuery);
+        const apps = appSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return { id: doc.id, date: data.date || '', petName: data.petName || 'Unknown', ...data } as any;
+        });
+        apps.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setOwnerAppointments(apps);
+      } catch (error) {
+        console.error('Error fetching owner:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (ownerId) {
+      fetchOwner();
+    }
+  }, [ownerId]);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -70,11 +111,19 @@ export default function OwnerProfilePage() {
     .filter(b => b.status === 'Pending')
     .reduce((sum, b) => sum + (b.amount || 0), 0);
 
+  if (loading) {
+    return <div className="p-8 text-center">Loading owner profile...</div>;
+  }
+
+  if (!owner) {
+    return <div className="p-8 text-center">Owner not found</div>;
+  }
+
   return (
     <div className="max-w-7xl mx-auto pb-12 animate-in fade-in duration-500">
       <PageHeader 
         title="Owner Profile" 
-        subtitle={`Client Management: ${owner.name}`}
+        subtitle={`Client Management: ${owner.displayName || owner.name}`}
         onBack={() => navigate('/crm/owners')}
         actions={
           <div className="flex gap-3">
@@ -99,12 +148,12 @@ export default function OwnerProfilePage() {
               <div className="flex flex-col items-center text-center">
                 <div className="w-24 h-24 rounded-[2rem] border-4 border-white shadow-xl overflow-hidden bg-white mb-4">
                   <img 
-                    src={owner.photo || `https://ui-avatars.com/api/?name=${owner.name}&background=10b981&color=fff&size=256`} 
-                    alt={owner.name} 
+                    src={owner.photo || `https://ui-avatars.com/api/?name=${owner.displayName || owner.name}&background=10b981&color=fff&size=256`} 
+                    alt={owner.displayName || owner.name} 
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h2 className="text-2xl font-bold text-slate-900">{owner.name}</h2>
+                <h2 className="text-2xl font-bold text-slate-900">{owner.displayName || owner.name}</h2>
                 <p className="text-slate-500 font-medium mb-4">{owner.id}</p>
                 <Badge className={cn("px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-wider", getStatusColor(owner.status))}>
                   {owner.status}
@@ -123,7 +172,7 @@ export default function OwnerProfilePage() {
                   <Phone className="w-5 h-5 text-emerald-500" />
                   <div className="flex flex-col">
                     <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Phone Number</span>
-                    <span className="text-sm font-medium">{owner.contact}</span>
+                    <span className="text-sm font-medium">{owner.phoneNumber || 'N/A'}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-2xl">
@@ -170,7 +219,7 @@ export default function OwnerProfilePage() {
                   onClick={() => navigate(`/crm/patients/${pet.patientId}`, { 
                     state: { 
                       from: `/crm/owners/${owner.id}`,
-                      breadcrumbParent: { name: owner.name, path: `/crm/owners/${owner.id}` }
+                      breadcrumbParent: { name: owner.displayName || owner.name, path: `/crm/owners/${owner.id}` }
                     } 
                   })}
                 >
@@ -278,7 +327,7 @@ export default function OwnerProfilePage() {
                           </div>
                           <p className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-1">
                             <Clock className="w-3 h-3 text-emerald-400" />
-                            {app.time} • Patient: {allPatients.find(p => p.id === app.patientId)?.name}
+                            {app.time} • Patient: {app.petName || 'Unknown'}
                           </p>
                         </div>
                         <Button variant="ghost" size="icon" className="rounded-xl hover:bg-emerald-100 hover:text-emerald-600">

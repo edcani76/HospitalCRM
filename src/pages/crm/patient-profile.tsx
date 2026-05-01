@@ -1,16 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  User, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Calendar, 
-  Activity, 
-  Heart, 
-  ShieldAlert, 
-  Edit, 
-  FileText, 
+import {
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  Activity,
+  Heart,
+  ShieldAlert,
+  Edit,
+  FileText,
   Clock,
   ExternalLink,
   ChevronRight,
@@ -32,7 +32,35 @@ import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
-import { patients as allPatients } from '../../data/crm-data';
+import { db, doc, getDoc, collection, getDocs, query, where } from '../../firebase';
+
+interface PatientProfile {
+  id: string;
+  name: string;
+  ownerUid?: string;
+  ownerName?: string;
+  species: string;
+  breed: string;
+  color?: string;
+  gender?: string;
+  weight: number;
+  weightHistory?: any[];
+  currentStatus: string;
+  dateOfBirth?: string;
+  bloodType?: string;
+  photo?: string;
+  imageUrl?: string;
+  medicalHistory?: string;
+  auditTrail?: any[];
+  recentVisits?: any[];
+  patientId?: string;
+  status?: string;
+  size?: string;
+  microchipId?: string;
+  contact?: string;
+  email?: string;
+  address?: string;
+}
 
 export default function PatientProfilePage() {
   const { patientId } = useParams();
@@ -45,11 +73,87 @@ export default function PatientProfilePage() {
   const [isTriageModalOpen, setIsTriageModalOpen] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Find the selected patient
-  const [patient, setPatient] = useState(() => 
-    allPatients.find(p => p.patientId === patientId) || allPatients[0]
-  );
+  // Find the selected patient from Firebase
+  const [patient, setPatient] = useState<PatientProfile | null>(null);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchPatient = async () => {
+      try {
+        // Find pet by patientId (format: P-${doc.id.slice(0, 8)})
+        const petsSnapshot = await getDocs(collection(db, 'pets'));
+        const pets = petsSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            patientId: `P-${doc.id.slice(0, 8)}`,
+            ownerUid: data.ownerUid || '',
+            weight: data.weight || 0,
+            currentStatus: data.currentStatus || 'active',
+          } as PatientProfile;
+        });
+
+        const foundPet = pets.find(p => p.patientId === patientId);
+
+        if (foundPet) {
+          // Fetch owner details
+          if (foundPet.ownerUid) {
+            const ownerDoc = await getDoc(doc(db, 'users', foundPet.ownerUid));
+            const ownerData = ownerDoc.data();
+            foundPet.ownerName = ownerData?.displayName || 'Unknown';
+            foundPet.contact = ownerData?.phoneNumber || '';
+            foundPet.email = ownerData?.email || '';
+            foundPet.address = ownerData?.address || '';
+          }
+
+          // Map Firebase fields to UI fields
+          foundPet.status = foundPet.currentStatus;
+          foundPet.size = foundPet.weight > 25 ? 'Large' : foundPet.weight > 10 ? 'Medium' : 'Small';
+
+          setPatient(foundPet);
+
+          // Fetch related data
+          const appQuery = query(collection(db, 'appointments'), where('petId', '==', foundPet.id));
+          const appSnapshot = await getDocs(appQuery);
+          setAppointments(appSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+          const repQuery = query(collection(db, 'reports'), where('petId', '==', foundPet.id));
+          const repSnapshot = await getDocs(repQuery);
+          setReports(repSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+          const invQuery = query(collection(db, 'invoices'), where('petId', '==', foundPet.id));
+          const invSnapshot = await getDocs(invQuery);
+          setInvoices(invSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } else {
+          // Fallback to first pet
+          if (pets.length > 0) {
+            pets[0].status = pets[0].currentStatus;
+            pets[0].size = pets[0].weight > 25 ? 'Large' : pets[0].weight > 10 ? 'Medium' : 'Small';
+            setPatient(pets[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching patient:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPatient();
+  }, [patientId]);
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading patient profile...</div>;
+  }
+
+  if (!patient) {
+    return <div className="p-8 text-center">Patient not found</div>;
+  }
 
   // Sort weight history chronologically (early dates on left)
   const sortedWeightHistory = [...(patient.weightHistory || [])].sort((a: any, b: any) => 
@@ -68,7 +172,7 @@ export default function PatientProfilePage() {
   // Premium harmonic colors for the chart
   const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
 
-  const [tempPhoto, setTempPhoto] = useState<string | null>(patient.photo || null);
+  const [tempPhoto, setTempPhoto] = useState<string | null>(patient.photo || patient.imageUrl || patient.imageUrl || null);
 
   const startCamera = async () => {
     try {
@@ -159,7 +263,7 @@ export default function PatientProfilePage() {
       dateOfBirth: formData.get('dob') as string,
       gender: formData.get('gender') as string,
       bloodType: formData.get('bloodType') as string,
-      photo: tempPhoto || patient.photo,
+      photo: tempPhoto || patient.photo || patient.imageUrl,
       auditTrail: [
         ...(patient.auditTrail || []),
         {
@@ -214,9 +318,9 @@ export default function PatientProfilePage() {
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col items-center text-center">
             <div className="relative mb-6 group">
               <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-xl relative cursor-pointer group">
-                {patient.photo ? (
+                {patient.photo || patient.imageUrl ? (
                   <img 
-                    src={patient.photo} 
+                    src={patient.photo || patient.imageUrl} 
                     alt={patient.name} 
                     className="w-full h-full object-cover transition-transform group-hover:scale-110" 
                     onClick={() => setIsLightboxOpen(true)}
@@ -233,7 +337,7 @@ export default function PatientProfilePage() {
                   className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setTempPhoto(patient.photo || null);
+                    setTempPhoto(patient.photo || patient.imageUrl || null);
                     setIsPhotoActionModalOpen(true);
                   }}
                 >
@@ -374,7 +478,7 @@ export default function PatientProfilePage() {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-gray-400 uppercase">Primary Owner</p>
-                    <p className="text-lg font-bold text-gray-900">{patient.owner}</p>
+                    <p className="text-lg font-bold text-gray-900">{patient.ownerName}</p>
                     <Button 
                       variant="link" 
                       className="p-0 h-auto text-blue-600 text-xs hover:text-blue-800 transition-colors"
@@ -772,7 +876,7 @@ export default function PatientProfilePage() {
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="owner" className="font-bold text-gray-700">Owner Name</Label>
-                  <Input id="owner" name="owner" defaultValue={patient.owner} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" required />
+                  <Input id="owner" name="owner" defaultValue={patient.ownerName} className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" required disabled />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="contact" className="font-bold text-gray-700">Phone Number</Label>
@@ -857,9 +961,9 @@ export default function PatientProfilePage() {
       <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none flex items-center justify-center">
           <div className="relative group">
-            {patient.photo ? (
+            {patient.photo || patient.imageUrl ? (
               <img 
-                src={patient.photo} 
+                src={patient.photo || patient.imageUrl} 
                 alt={patient.name} 
                 className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl" 
               />
@@ -938,7 +1042,7 @@ export default function PatientProfilePage() {
           <DialogFooter className="pt-4 flex gap-3 border-t border-gray-50">
             <Button variant="ghost" onClick={() => setIsPhotoActionModalOpen(false)} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
             <Button 
-              disabled={!tempPhoto || tempPhoto === patient.photo}
+              disabled={!tempPhoto || tempPhoto === (patient.photo || patient.imageUrl)}
               onClick={handlePhotoSave}
               className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-blue-100 flex-1"
             >
@@ -963,7 +1067,7 @@ export default function PatientProfilePage() {
           </DialogHeader>
           <form onSubmit={(e: React.FormEvent) => {
             e.preventDefault();
-            const formData = new FormData(e.currentTarget);
+            const formData = new FormData(e.currentTarget as HTMLFormElement);
             const newWeight = parseFloat(formData.get('triage-weight') as string);
             const temperature = formData.get('temperature') as string;
             const heartRate = formData.get('heart-rate') as string;

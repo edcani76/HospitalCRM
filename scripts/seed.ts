@@ -99,6 +99,8 @@ const PETS_DATA = [
   { ownerEmail: 'robert@medipaws.com', name: 'Max', species: 'Dog', breed: 'German Shepherd', age: 5, weight: 34, type: 'Large' },
   { ownerEmail: 'robert@medipaws.com', name: 'Rocky', species: 'Dog', breed: 'Bulldog', age: 3, weight: 25, type: 'Medium' },
   { ownerEmail: 'emily@medipaws.com', name: 'Luna', species: 'Cat', breed: 'Persian', age: 2, weight: 3.8, type: 'Small' },
+  { ownerEmail: 'emily@medipaws.com', name: 'Simba', species: 'Cat', breed: 'Maine Coon', age: 3, weight: 6.5, type: 'Medium' },
+  { ownerEmail: 'jane@medipaws.com', name: 'Kiwi', species: 'Bird', breed: 'Parrot', age: 2, weight: 0.5, type: 'Small' },
   { ownerEmail: 'michael@medipaws.com', name: 'Charlie', species: 'Dog', breed: 'Labrador Retriever', age: 4, weight: 30, type: 'Large' },
   { ownerEmail: 'michael@medipaws.com', name: 'Bella', species: 'Dog', breed: 'Beagle', age: 3, weight: 11, type: 'Medium' },
   { ownerEmail: 'sarah@medipaws.com', name: 'Oliver', species: 'Cat', breed: 'Tabby', age: 1, weight: 4.2, type: 'Small' },
@@ -349,13 +351,122 @@ async function seedDatabase() {
   }
   console.log(`   ✅ Created ${invoices.length} invoices\n`);
 
+  // Create reports (lab, imaging, etc.)
+  const REPORTS_DATA = [
+    // Completed lab reports (past)
+    { petName: 'Buddy', doctorId: '1', type: 'lab', category: 'Complete Blood Count (CBC)', status: 'completed', result: 'normal', cost: 85.00, date: offsetDate(today, -30), notes: 'Routine blood work for annual checkup' },
+    { petName: 'Buddy', doctorId: '1', type: 'lab', category: 'Urinalysis', status: 'completed', result: 'normal', cost: 45.00, date: offsetDate(today, -30), notes: 'Routine urine test' },
+    { petName: 'Lucy', doctorId: '2', type: 'lab', category: 'Ear Swab Culture', status: 'completed', result: 'abnormal', cost: 120.00, date: offsetDate(today, -25), notes: 'Testing for ear infection pathogens' },
+    { petName: 'Whiskers', doctorId: '3', type: 'lab', category: 'Dental Panel', status: 'completed', result: 'normal', cost: 95.00, date: offsetDate(today, -20), notes: 'Pre-dental cleaning blood work' },
+    { petName: 'Max', doctorId: '1', type: 'lab', category: 'Allergy Test', status: 'completed', result: 'abnormal', cost: 180.00, date: offsetDate(today, -18), notes: 'Environmental allergy panel' },
+    { petName: 'Rocky', doctorId: '4', type: 'imaging', category: 'X-Ray (Hip)', status: 'completed', result: 'abnormal', cost: 250.00, date: offsetDate(today, -15), notes: 'Post-surgery hip check' },
+    { petName: 'Luna', doctorId: '3', type: 'lab', category: 'Feline Leukemia Test', status: 'completed', result: 'normal', cost: 65.00, date: offsetDate(today, -12), notes: 'Routine wellness test' },
+    { petName: 'Charlie', doctorId: '3', type: 'lab', category: 'Thyroid Function Test', status: 'completed', result: 'abnormal', cost: 110.00, date: offsetDate(today, -10), notes: 'Obesity-related thyroid check' },
+    { petName: 'Bella', doctorId: '1', type: 'lab', category: 'Vaccine Titer Test', status: 'completed', result: 'normal', cost: 75.00, date: offsetDate(today, -8), notes: 'Annual vaccine effectiveness check' },
+    { petName: 'Oliver', doctorId: '2', type: 'lab', category: 'Ear Cytology', status: 'completed', result: 'abnormal', cost: 55.00, date: offsetDate(today, -6), notes: 'Follow-up ear infection test' },
+    { petName: 'Milo', doctorId: '5', type: 'lab', category: 'Fecal Exam', status: 'completed', result: 'normal', cost: 40.00, date: offsetDate(today, -5), notes: 'Routine parasite check' },
+    { petName: 'Simba', doctorId: '4', type: 'lab', category: 'Complete Blood Count', status: 'completed', result: 'normal', cost: 85.00, date: offsetDate(today, -10), notes: 'Routine checkup for Simba' },
+    { petName: 'Kiwi', doctorId: '5', type: 'lab', category: 'Avian Wellness Panel', status: 'completed', result: 'normal', cost: 120.00, date: offsetDate(today, -7), notes: 'Routine wellness for Kiwi' },
+    { petName: 'Bella', doctorId: '6', type: 'lab', category: 'Poodle Wellness Panel', status: 'completed', result: 'normal', cost: 90.00, date: offsetDate(today, -5), notes: 'Routine checkup for Bella' },
+
+    // Pending/in-progress reports
+    { petName: 'Buddy', doctorId: '1', type: 'lab', category: 'Hip Dysplasia Follow-up', status: 'pending', result: 'pending', cost: 150.00, date: todayStr, notes: 'Follow-up blood work for hip dysplasia' },
+    { petName: 'Max', doctorId: '1', type: 'lab', category: 'Allergy Follow-up', status: 'in_progress', result: 'pending', cost: 180.00, date: offsetDate(today, 2), notes: 'Follow-up allergy test' },
+    { petName: 'Charlie', doctorId: '3', type: 'lab', category: 'Weight Check Blood Work', status: 'pending', result: 'pending', cost: 90.00, date: offsetDate(today, 3), notes: 'Obesity management blood work' },
+    { petName: 'Oliver', doctorId: '2', type: 'imaging', category: 'Dental X-Ray', status: 'pending', result: 'pending', cost: 200.00, date: offsetDate(today, 4), notes: 'Pre-dental cleaning imaging' },
+    { petName: 'Whiskers', doctorId: '3', type: 'lab', category: 'Dental Follow-up', status: 'pending', result: 'pending', cost: 85.00, date: offsetDate(today, 2), notes: 'Post-dental cleaning check' },
+
+    // Imaging reports
+    { petName: 'Rocky', doctorId: '4', type: 'imaging', category: 'Ultrasound (Abdomen)', status: 'completed', result: 'normal', cost: 300.00, date: offsetDate(today, -14), notes: 'Post-surgery abdominal check' },
+    { petName: 'Luna', doctorId: '5', type: 'imaging', category: 'X-Ray (Chest)', status: 'completed', result: 'normal', cost: 220.00, date: offsetDate(today, -3), notes: 'Wellness chest imaging' },
+    { petName: 'Milo', doctorId: '6', type: 'imaging', category: 'X-Ray (Leg)', status: 'pending', result: 'pending', cost: 250.00, date: offsetDate(today, 5), notes: 'Rehabilitation progress check' },
+    { petName: 'Simba', doctorId: '4', type: 'imaging', category: 'X-Ray (Hip)', status: 'completed', result: 'normal', cost: 250.00, date: offsetDate(today, -9), notes: 'Hip check for Simba' },
+    { petName: 'Kiwi', doctorId: '5', type: 'imaging', category: 'X-Ray (Wing)', status: 'pending', result: 'pending', cost: 180.00, date: offsetDate(today, 3), notes: 'Wing check for Kiwi' },
+  ];
+
+  console.log('📄 Creating reports...');
+  for (const report of REPORTS_DATA) {
+    try {
+      const petId = createdPets[report.petName];
+      const petData = PETS_DATA.find(p => p.name === report.petName);
+      const clientUid = petData ? createdUsers[petData.ownerEmail] : null;
+      const doctorData = DOCTORS_DATA.find(d => d.id === report.doctorId);
+
+      if (!petId || !clientUid || !doctorData) {
+        console.error(`   Missing data for report: ${report.category} for ${report.petName}`);
+        continue;
+      }
+
+      await addDoc(collection(db, 'reports'), {
+        petId,
+        petName: report.petName,
+        clientUid,
+        doctorId: report.doctorId,
+        doctorName: doctorData.name,
+        department: doctorData.department,
+        type: report.type,
+        category: report.category,
+        status: report.status,
+        result: report.result,
+        cost: report.cost,
+        date: report.date,
+        notes: report.notes,
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error(`   Error creating report:`, error);
+    }
+  }
+  console.log(`   ✅ Created ${REPORTS_DATA.length} reports\n`);
+
+  // Additional invoices for monthly revenue stats
+  const MORE_INVOICES = [
+    { clientEmail: 'john@medipaws.com', petName: 'Buddy', amount: 150.00, status: 'paid', date: offsetDate(today, -60), dueDate: offsetDate(today, -45), description: 'Monthly checkup (2 months ago)' },
+    { clientEmail: 'jane@medipaws.com', petName: 'Whiskers', amount: 200.00, status: 'paid', date: offsetDate(today, -90), dueDate: offsetDate(today, -75), description: 'Dental cleaning (3 months ago)' },
+    { clientEmail: 'robert@medipaws.com', petName: 'Max', amount: 120.00, status: 'paid', date: offsetDate(today, -120), dueDate: offsetDate(today, -105), description: 'Allergy check (4 months ago)' },
+    { clientEmail: 'emily@medipaws.com', petName: 'Luna', amount: 75.00, status: 'paid', date: offsetDate(today, -150), dueDate: offsetDate(today, -135), description: 'Wellness exam (5 months ago)' },
+    { clientEmail: 'michael@medipaws.com', petName: 'Charlie', amount: 210.00, status: 'paid', date: offsetDate(today, -180), dueDate: offsetDate(today, -165), description: 'Obesity check (6 months ago)' },
+    { clientEmail: 'sarah@medipaws.com', petName: 'Oliver', amount: 85.00, status: 'paid', date: offsetDate(today, -30), dueDate: offsetDate(today, -15), description: 'Vaccination (1 month ago)' },
+    { clientEmail: 'emily@medipaws.com', petName: 'Simba', amount: 95.00, status: 'paid', date: offsetDate(today, -10), dueDate: offsetDate(today, 5), description: 'Simba wellness check' },
+    { clientEmail: 'jane@medipaws.com', petName: 'Kiwi', amount: 120.00, status: 'paid', date: offsetDate(today, -7), dueDate: offsetDate(today, 8), description: 'Kiwi wellness check' },
+    { clientEmail: 'michael@medipaws.com', petName: 'Bella', amount: 85.00, status: 'paid', date: offsetDate(today, -5), dueDate: offsetDate(today, 10), description: 'Bella wellness check' },
+  ];
+
+  for (const inv of MORE_INVOICES) {
+    try {
+      const clientUid = createdUsers[inv.clientEmail];
+      const petId = createdPets[inv.petName];
+
+      if (!clientUid || !petId) {
+        console.error(`   Missing data for additional invoice: ${inv.petName}`);
+        continue;
+      }
+
+      await addDoc(collection(db, 'invoices'), {
+        clientUid,
+        petId,
+        petName: inv.petName,
+        amount: inv.amount,
+        status: inv.status,
+        date: inv.date,
+        dueDate: inv.dueDate,
+        description: inv.description,
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error(`   Error creating additional invoice:`, error);
+    }
+  }
+  console.log(`   ✅ Created ${MORE_INVOICES.length} additional invoices\n`);
+
   console.log('🎉 Seeding complete!\n');
   console.log('📋 Summary:');
   console.log(`   - ${MOCK_USERS.length} users created`);
   console.log(`   - ${DOCTORS_DATA.length} doctors created with IDs 1-6`);
   console.log(`   - ${PETS_DATA.length} pets created`);
   console.log(`   - ${appointments.length} appointments created (past, today, future)`);
-  console.log(`   - ${invoices.length} invoices created (paid, partial, outstanding)\n`);
+  console.log(`   - ${invoices.length + MORE_INVOICES.length} invoices created (paid, partial, outstanding)`);
+  console.log(`   - ${REPORTS_DATA.length} reports created (lab, imaging)\n`);
 
   console.log('🔐 Login credentials:');
   MOCK_USERS.forEach(u => console.log(`   ${u.role.toUpperCase()}: ${u.email} / ${u.password}`));

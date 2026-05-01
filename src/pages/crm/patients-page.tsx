@@ -1,13 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Search, 
-  User, 
-  Plus, 
-  Filter, 
-  ChevronRight, 
-  Grid, 
-  List, 
+import {
+  Search,
+  User,
+  Plus,
+  Filter,
+  ChevronRight,
+  Grid,
+  List,
   MoreHorizontal,
   Mail,
   Phone,
@@ -21,13 +21,13 @@ import { Badge } from '../../components/ui/badge';
 import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription, 
-  DialogFooter 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
 } from '../../components/ui/dialog';
 import {
   DropdownMenu,
@@ -35,120 +35,184 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
-import { patients as initialPatients } from '../../data/crm-data';
+import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from '../../firebase';
+
+interface Patient {
+  id: string;
+  name: string;
+  ownerUid: string;
+  ownerName?: string;
+  species: string;
+  breed: string;
+  color?: string;
+  gender?: string;
+  weight: number;
+  weightHistory?: any[];
+  currentStatus: string;
+  dateOfBirth?: string;
+  bloodType?: string;
+  photo?: string;
+  contact?: string;
+  email?: string;
+  address?: string;
+  medicalHistory?: string;
+  auditTrail?: any[];
+  recentVisits?: any[];
+  patientId?: string;
+  imageUrl?: string;
+}
 
 export default function PatientsPage() {
   const navigate = useNavigate();
-  const [patients, setPatients] = useState(initialPatients);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [users, setUsers] = useState<{ [uid: string]: any }>({});
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [editingPatient, setEditingPatient] = useState<any>(null);
-  const [deletingPatient, setDeletingPatient] = useState<any>(null);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [deletingPatient, setDeletingPatient] = useState<Patient | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  const fetchData = useCallback(async () => {
+    try {
+      // Fetch pets
+      const petsSnapshot = await getDocs(collection(db, 'pets'));
+      const petsData = petsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || 'Unknown',
+          ownerUid: data.ownerUid || '',
+          species: data.species || '',
+          breed: data.breed || '',
+          weight: data.weight || 0,
+          currentStatus: data.currentStatus || 'active',
+          dateOfBirth: data.dateOfBirth || '',
+          photo: data.imageUrl || '',
+          patientId: `P-${doc.id.slice(0, 8)}`,
+          ...data
+        } as Patient;
+      });
+
+      // Fetch users for owner names
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const usersData: { [uid: string]: any } = {};
+      usersSnapshot.docs.forEach(doc => {
+        usersData[doc.id] = doc.data();
+      });
+      setUsers(usersData);
+
+      // Add owner names to patients
+      const patientsWithOwners = petsData.map(pet => ({
+        ...pet,
+        ownerName: usersData[pet.ownerUid]?.displayName || 'Unknown',
+        contact: usersData[pet.ownerUid]?.phoneNumber || '',
+        email: usersData[pet.ownerUid]?.email || '',
+      }));
+
+      setPatients(patientsWithOwners);
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
   const filteredPatients = useMemo(() => {
     return patients.filter(patient => {
       const matchesSearch = patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           patient.owner.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           patient.patientId.toLowerCase().includes(searchQuery.toLowerCase());
+                           (patient.ownerName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           (patient.patientId || '').toLowerCase().includes(searchQuery.toLowerCase());
       const matchesLetter = selectedLetter ? patient.name.startsWith(selectedLetter) : true;
       return matchesSearch && matchesLetter;
     });
   }, [patients, searchQuery, selectedLetter]);
 
-  const handleAddPatient = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddPatient = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const newPatient = {
-      id: (patients.length + 1).toString(),
-      patientId: `P-${1000 + patients.length + 1}`,
-      name: formData.get('name') as string,
-      owner: formData.get('owner') as string,
-      ownerId: `owner-${1000 + patients.length + 1}`,
-      species: formData.get('species') as string,
-      breed: formData.get('breed') as string,
-      color: formData.get('color') as string || '',
-      gender: formData.get('gender') as string,
-      weight: parseFloat(formData.get('weight') as string) || 0,
-      weightHistory: formData.get('weight') ? [
-        { date: new Date().toISOString().split('T')[0], weight: parseFloat(formData.get('weight') as string), notes: 'Initial record' }
-      ] : [],
-      status: 'Active',
-      contact: formData.get('contact') as string,
-      email: formData.get('email') as string,
-      address: formData.get('address') as string,
-      dateOfBirth: formData.get('dob') as string,
-      bloodType: formData.get('bloodType') as string || 'Unknown',
-      photo: '',
-      emergencyContact: '',
-      medicalHistory: '',
-      auditTrail: [
-        { id: '1', event: 'Record Created', staff: 'Admin User', timestamp: new Date().toLocaleString() }
-      ],
-      recentVisits: []
-    };
-    setPatients([newPatient, ...patients]);
-    setIsAddModalOpen(false);
+    try {
+      const newPet = {
+        name: formData.get('name') as string,
+        species: formData.get('species') as string,
+        breed: formData.get('breed') as string,
+        weight: parseFloat(formData.get('weight') as string) || 0,
+        currentStatus: 'discharged',
+        dateOfBirth: formData.get('dob') as string,
+        gender: formData.get('gender') as string,
+        bloodType: formData.get('bloodType') as string || 'Unknown',
+        imageUrl: '',
+        createdAt: new Date().toISOString()
+      };
+      await addDoc(collection(db, 'pets'), newPet);
+      setIsAddModalOpen(false);
+      fetchData(); // Refresh the list
+    } catch (error) {
+      console.error('Error adding patient:', error);
+    }
   };
 
-  const handleEditClick = (patient: any, e: React.MouseEvent) => {
+  const handleEditClick = (patient: Patient, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingPatient(patient);
     setIsEditModalOpen(true);
   };
 
-  const handleDeleteClick = (patient: any, e: React.MouseEvent) => {
+  const handleDeleteClick = (patient: Patient, e: React.MouseEvent) => {
     e.stopPropagation();
     setDeletingPatient(patient);
     setIsDeleteModalOpen(true);
   };
 
-  const handleUpdatePatient = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdatePatient = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingPatient) return;
     
-    const formData = new FormData(e.currentTarget);
-    const newWeight = parseFloat(formData.get('weight') as string);
-    const weightHistory = [...(editingPatient.weightHistory || [])];
-    
-    // Add to weight history if weight changed
-    if (newWeight && newWeight !== editingPatient.weight) {
-      weightHistory.push({
-        date: new Date().toISOString().split('T')[0],
-        weight: newWeight,
-        notes: 'Updated during edit'
-      });
+    try {
+      const formData = new FormData(e.currentTarget);
+      const updatedData = {
+        name: formData.get('name') as string,
+        species: formData.get('species') as string,
+        breed: formData.get('breed') as string,
+        weight: parseFloat(formData.get('weight') as string) || editingPatient.weight,
+        dateOfBirth: formData.get('dob') as string,
+        gender: formData.get('gender') as string,
+        bloodType: formData.get('bloodType') as string,
+      };
+      
+      await updateDoc(doc(db, 'pets', editingPatient.id), updatedData);
+      setIsEditModalOpen(false);
+      setEditingPatient(null);
+      fetchData(); // Refresh the list
+    } catch (error) {
+      console.error('Error updating patient:', error);
     }
-
-    const updatedPatient = {
-      ...editingPatient,
-      name: formData.get('name') as string,
-      owner: formData.get('owner') as string,
-      species: formData.get('species') as string,
-      breed: formData.get('breed') as string,
-      color: formData.get('color') as string || editingPatient.color,
-      contact: formData.get('contact') as string,
-      email: formData.get('email') as string,
-      weight: newWeight || editingPatient.weight,
-      weightHistory,
-    };
-
-    setPatients(patients.map(p => p.id === editingPatient.id ? updatedPatient : p));
-    setIsEditModalOpen(false);
-    setEditingPatient(null);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deletingPatient) return;
-    setPatients(patients.filter(p => p.id !== deletingPatient.id));
-    setIsDeleteModalOpen(false);
-    setDeletingPatient(null);
+    try {
+      await deleteDoc(doc(db, 'pets', deletingPatient.id));
+      setIsDeleteModalOpen(false);
+      setDeletingPatient(null);
+      fetchData(); // Refresh the list
+    } catch (error) {
+      console.error('Error deleting patient:', error);
+    }
   };
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading patients...</div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -317,16 +381,16 @@ export default function PatientsPage() {
                     <h3 className="text-lg font-bold text-gray-900 leading-tight mb-6">{patient.name}</h3>
                   </div>
                   
-                  <div className="space-y-3 pt-4 border-t border-gray-50">
-                    <div className="flex items-center text-sm text-gray-500 gap-2">
-                      <User className="w-4 h-4 opacity-50" />
-                      <span className="font-semibold text-gray-700 truncate">{patient.owner}</span>
+                    <div className="space-y-3 pt-4 border-t border-gray-50">
+                      <div className="flex items-center text-sm text-gray-500 gap-2">
+                        <User className="w-4 h-4 opacity-50" />
+                        <span className="font-semibold text-gray-700 truncate">{patient.ownerName}</span>
+                      </div>
+                      <div className="flex items-center text-sm text-gray-500 gap-2">
+                        <Phone className="w-4 h-4 opacity-50" />
+                        <span>{patient.contact}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center text-sm text-gray-500 gap-2">
-                      <Phone className="w-4 h-4 opacity-50" />
-                      <span>{patient.contact}</span>
-                    </div>
-                  </div>
 
                   <div className="mt-6 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="text-xs font-bold text-blue-600">View Profile</span>
@@ -366,15 +430,15 @@ export default function PatientsPage() {
                     <div className="flex items-center gap-8">
                       <div className="text-right hidden sm:block">
                         <p className="text-[10px] font-bold text-gray-400 uppercase">Owner</p>
-                        <p className="text-sm font-semibold text-gray-700">{patient.owner}</p>
+                        <p className="text-sm font-semibold text-gray-700">{patient.ownerName}</p>
                       </div>
                       <div className="w-32 hidden md:block">
                          <p className="text-[10px] font-bold text-gray-400 uppercase">Status</p>
                          <Badge className={cn(
                             "mt-0.5",
-                            patient.status === 'Active' ? "bg-emerald-50 text-emerald-700" : "bg-gray-50 text-gray-500"
+                            patient.currentStatus === 'discharged' || patient.currentStatus === 'active' ? "bg-emerald-50 text-emerald-700" : "bg-gray-50 text-gray-500"
                           )}>
-                            {patient.status}
+                            {patient.currentStatus}
                           </Badge>
                       </div>
                         <div className="flex items-center gap-2">
@@ -508,9 +572,10 @@ export default function PatientsPage() {
                 <Input 
                   id="edit-owner-name" 
                   name="owner" 
-                  defaultValue={editingPatient?.owner} 
+                  defaultValue={editingPatient?.ownerName} 
                   className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white" 
                   required 
+                  disabled
                 />
               </div>
             </div>

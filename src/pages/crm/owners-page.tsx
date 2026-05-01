@@ -1,13 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Search, 
-  User, 
-  Plus, 
-  Filter, 
-  ChevronRight, 
-  Grid, 
-  List, 
+import {
+  Search,
+  User,
+  Plus,
+  Filter,
+  ChevronRight,
+  Grid,
+  List,
   MoreHorizontal,
   Mail,
   Phone,
@@ -24,13 +24,13 @@ import { Badge } from '../../components/ui/badge';
 import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription, 
-  DialogFooter 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
 } from '../../components/ui/dialog';
 import {
   DropdownMenu,
@@ -38,85 +38,151 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
-import { owners as initialOwners } from '../../data/crm-data';
+import { db, collection, getDocs, query, where, addDoc, updateDoc, deleteDoc, doc } from '../../firebase';
+
+interface Owner {
+  id: string;
+  name: string;
+  displayName?: string;
+  email: string;
+  contact?: string;
+  phoneNumber?: string;
+  address?: string;
+  role: string;
+  petCount?: number;
+  status?: string;
+  joinDate?: string;
+  createdAt?: string;
+}
 
 export default function OwnersPage() {
   const navigate = useNavigate();
-  const [owners, setOwners] = useState(initialOwners);
+  const [owners, setOwners] = useState<Owner[]>([]);
+  const [pets, setPets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [editingOwner, setEditingOwner] = useState<any>(null);
-  const [deletingOwner, setDeletingOwner] = useState<any>(null);
+  const [editingOwner, setEditingOwner] = useState<Owner | null>(null);
+  const [deletingOwner, setDeletingOwner] = useState<Owner | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  const fetchData = useCallback(async () => {
+    try {
+      // Fetch users with role 'client'
+      const q = query(collection(db, 'users'), where('role', '==', 'client'));
+      const usersSnapshot = await getDocs(q);
+      const usersData = usersSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        name: doc.data().displayName || doc.data().email || 'Unknown',
+      } as Owner));
+
+      // Fetch pets to count per owner
+      const petsSnapshot = await getDocs(collection(db, 'pets'));
+      const petsData = petsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setPets(petsData);
+
+      // Count pets per owner
+      const ownerPetCount: { [uid: string]: number } = {};
+      petsData.forEach((pet: any) => {
+        if (pet.ownerUid) {
+          ownerPetCount[pet.ownerUid] = (ownerPetCount[pet.ownerUid] || 0) + 1;
+        }
+      });
+
+      // Add pet count to owners
+      const ownersWithPetCount = usersData.map(owner => ({
+        ...owner,
+        petCount: ownerPetCount[owner.id] || 0,
+        status: 'Active', // Default status
+        joinDate: owner.createdAt || new Date().toISOString().split('T')[0],
+      }));
+
+      setOwners(ownersWithPetCount);
+    } catch (error) {
+      console.error('Error fetching owners:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
   const filteredOwners = useMemo(() => {
     return owners.filter(owner => {
-      const matchesSearch = owner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           owner.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           owner.id.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesLetter = selectedLetter ? owner.name.startsWith(selectedLetter) : true;
+      const name = owner.displayName || owner.name || '';
+      const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           (owner.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           (owner.id || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesLetter = selectedLetter ? name.startsWith(selectedLetter) : true;
       return matchesSearch && matchesLetter;
     });
   }, [owners, searchQuery, selectedLetter]);
 
-  const handleAddOwner = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddOwner = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const newOwner = {
-      id: `owner-${1000 + owners.length + 1}`,
-      name: formData.get('name') as string,
-      contact: formData.get('contact') as string,
-      email: formData.get('email') as string,
-      address: formData.get('address') as string,
-      patients: [],
-      status: 'Active',
-      joinDate: new Date().toISOString().split('T')[0],
-    };
-    setOwners([newOwner, ...owners]);
+    // Note: Adding owners requires Firebase Auth user creation
+    // This is a simplified version - in production, you'd create an auth user first
+    alert('To add a new client, use the Signup page or Firebase Console to create a user with role "client"');
     setIsAddModalOpen(false);
   };
 
-  const handleEditClick = (owner: any, e: React.MouseEvent) => {
+  const handleEditClick = (owner: Owner, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingOwner(owner);
     setIsEditModalOpen(true);
   };
 
-  const handleDeleteClick = (owner: any, e: React.MouseEvent) => {
+  const handleDeleteClick = (owner: Owner, e: React.MouseEvent) => {
     e.stopPropagation();
     setDeletingOwner(owner);
     setIsDeleteModalOpen(true);
   };
 
-  const handleUpdateOwner = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdateOwner = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingOwner) return;
     
-    const formData = new FormData(e.currentTarget);
-    const updatedOwner = {
-      ...editingOwner,
-      name: formData.get('name') as string,
-      contact: formData.get('contact') as string,
-      email: formData.get('email') as string,
-      address: formData.get('address') as string,
-    };
-
-    setOwners(owners.map(o => o.id === editingOwner.id ? updatedOwner : o));
-    setIsEditModalOpen(false);
-    setEditingOwner(null);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const updatedData = {
+        displayName: formData.get('name') as string,
+        phoneNumber: formData.get('contact') as string,
+        email: formData.get('email') as string,
+      };
+      
+      await updateDoc(doc(db, 'users', editingOwner.id), updatedData);
+      setIsEditModalOpen(false);
+      setEditingOwner(null);
+      fetchData(); // Refresh the list
+    } catch (error) {
+      console.error('Error updating owner:', error);
+    }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deletingOwner) return;
-    setOwners(owners.filter(o => o.id !== deletingOwner.id));
-    setIsDeleteModalOpen(false);
-    setDeletingOwner(null);
+    try {
+      // Note: Deleting users requires admin SDK or client-side auth deletion
+      // This is a simplified version
+      alert('To delete a client, use Firebase Console or implement admin SDK');
+      setIsDeleteModalOpen(false);
+      setDeletingOwner(null);
+    } catch (error) {
+      console.error('Error deleting owner:', error);
+    }
   };
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading owners...</div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -210,9 +276,9 @@ export default function OwnersPage() {
             >
               <div className="flex flex-col items-center text-center mb-6">
                 <div className="w-24 h-24 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-3xl font-bold mb-4 group-hover:scale-110 transition-transform">
-                  {owner.name[0]}
+                  {(owner.displayName || owner.name || '?')[0]}
                 </div>
-
+                
                 {/* Card Actions */}
                 <div className="absolute top-6 right-6">
                   <DropdownMenu>
@@ -240,7 +306,7 @@ export default function OwnersPage() {
                   </DropdownMenu>
                 </div>
 
-                <h3 className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{owner.name}</h3>
+                <h3 className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{owner.displayName || owner.name}</h3>
                 <p className="text-sm text-gray-400 font-medium mb-3">{owner.id}</p>
                 <Badge 
                   className={cn(
@@ -259,11 +325,11 @@ export default function OwnersPage() {
                 </div>
                 <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 p-3 rounded-2xl">
                   <Phone className="w-4 h-4 text-emerald-500" />
-                  <span>{owner.contact}</span>
+                  <span>{owner.phoneNumber || owner.contact || 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-gray-500 border-t border-gray-50 pt-4 px-2">
                   <Activity className="w-4 h-4 text-emerald-400" />
-                  <span className="font-bold">{owner.patients.length} Registered Pets</span>
+                  <span className="font-bold">{owner.petCount || 0} Registered Pets</span>
                 </div>
               </div>
 
@@ -300,10 +366,10 @@ export default function OwnersPage() {
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
-                        {owner.name[0]}
+                        {(owner.displayName || owner.name || '?')[0]}
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900">{owner.name}</p>
+                        <p className="font-bold text-gray-900">{owner.displayName || owner.name}</p>
                         <p className="text-xs text-gray-400">{owner.id}</p>
                       </div>
                     </div>
@@ -311,7 +377,7 @@ export default function OwnersPage() {
                   <td className="px-8 py-6 text-sm text-gray-600">
                     <div className="flex flex-col">
                       <span className="font-medium">{owner.email}</span>
-                      <span className="text-gray-400 text-xs">{owner.contact}</span>
+                      <span className="text-gray-400 text-xs">{owner.phoneNumber || owner.contact || 'N/A'}</span>
                     </div>
                   </td>
                   <td className="px-8 py-6">
@@ -323,7 +389,7 @@ export default function OwnersPage() {
                     </Badge>
                   </td>
                   <td className="px-8 py-6 text-sm font-bold text-gray-600">
-                    {owner.patients.length} Pets
+                    {owner.petCount || 0} Pets
                   </td>
                   <td className="px-8 py-6 text-right">
                     <div className="flex items-center justify-end gap-2">
