@@ -10,13 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../../components/ui/badge';
 import { ArrowLeft, User, Stethoscope, Calendar, Clock, Plus, Search } from 'lucide-react';
 import { format, startOfToday } from 'date-fns';
-import { db, collection, getDocs, addDoc, serverTimestamp, doc, getDoc } from '../../firebase';
+import { db, collection, getDocs, addDoc, serverTimestamp, doc, updateDoc, getDoc } from '../../firebase';
 import { Doctor, Pet, Appointment } from '../../types';
 
 export default function CreateAppointmentPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const prefill = (location.state as any)?.prefill as Appointment | undefined;
+  const prefill = (location.state as any)?.prefill as (Appointment & { originalId?: string }) | undefined;
+  const isReschedule = prefill?.status === 'rescheduled';
 
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
@@ -29,17 +30,6 @@ export default function CreateAppointmentPage() {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [existingAppointments, setExistingAppointments] = useState<Appointment[]>([]);
-
-  // Prefill when rescheduling
-  useEffect(() => {
-    if (prefill) {
-      setSelectedDoctor(prefill.doctorId || '');
-      setSelectedPet(prefill.petId || '');
-      setSelectedDate(prefill.date || format(startOfToday(), 'yyyy-MM-dd'));
-      setSelectedTime(prefill.time || '');
-      setNotes(prefill.notes || '');
-    }
-  }, [prefill]);
 
   // Pet selection mode
   const [petSearchTerm, setPetSearchTerm] = useState('');
@@ -57,6 +47,20 @@ export default function CreateAppointmentPage() {
     fetchPets();
     fetchUsers();
   }, []);
+
+  // Pre‑fill when rescheduling
+  useEffect(() => {
+    if (prefill) {
+      setSelectedDoctor(prefill.doctorId || '');
+      setSelectedPet(prefill.petId || '');
+      setSelectedDate(prefill.date || format(startOfToday(), 'yyyy-MM-dd'));
+      setSelectedTime(prefill.time || '');
+      setNotes(prefill.notes || '');
+      if (prefill.originalId) {
+        // Keep originalId so we can update it later
+      }
+    }
+  }, [prefill]);
 
   const fetchDoctors = async () => {
     try {
@@ -114,11 +118,13 @@ export default function CreateAppointmentPage() {
     fetchExistingAppointments();
   }, [selectedDoctor, selectedDate]);
 
-  // Get time slot status
+  // Get time slot status – treat cancelled/rescheduled as available
   const getSlotStatus = (time: string) => {
     const existing = existingAppointments.find(apt => apt.time === time);
     if (!existing) return 'available';
-    return existing.status; // 'pending', 'confirmed', 'completed', 'cancelled'
+    // Only pending and confirmed block the slot
+    if (existing.status === 'cancelled' || existing.status === 'rescheduled') return 'available';
+    return existing.status; // 'pending', 'confirmed'
   };
 
   // Get doctor's available time slots
@@ -188,20 +194,34 @@ export default function CreateAppointmentPage() {
         clientUid = pet?.ownerUid || '';
       }
 
-      await addDoc(collection(db, 'appointments'), {
-        clientUid,
-        petId,
-        petName,
-        doctorId: selectedDoctor,
-        doctorName: selectedDoctorData?.name || '',
-        date: selectedDate,
-        time: selectedTime,
-        status: 'confirmed',
-        notes,
-        createdAt: serverTimestamp()
-      });
+      if (isReschedule && prefill?.originalId) {
+        // Update the original appointment instead of creating a new one
+        const aptRef = doc(db, 'appointments', prefill.originalId);
+        await updateDoc(aptRef, {
+          doctorId: selectedDoctor,
+          date: selectedDate,
+          time: selectedTime,
+          notes,
+          status: 'pending', // or 'confirmed' as preferred
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        await addDoc(collection(db, 'appointments'), {
+          clientUid,
+          petId,
+          petName,
+          doctorId: selectedDoctor,
+          doctorName: selectedDoctorData?.name || '',
+          date: selectedDate,
+          time: selectedTime,
+          status: 'confirmed',
+          notes,
+          createdAt: serverTimestamp()
+        });
+      }
 
-      navigate('/crm/appointments');
+      // Clear prefill state so form resets
+      navigate('/crm/appointments', { replace: true });
     } catch (error) {
       console.error('Error creating appointment:', error);
       alert('Failed to create appointment');
@@ -213,7 +233,7 @@ export default function CreateAppointmentPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-4 md:space-y-6 px-2 sm:px-0">
       <PageHeader
-        title="Create New Appointment"
+        title={isReschedule ? 'Reschedule Appointment' : 'Create New Appointment'}
         actions={
           <Button variant="ghost" onClick={() => navigate('/crm/appointments')} className="text-sm md:text-base">
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -235,7 +255,7 @@ export default function CreateAppointmentPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
+                <Select value={selectedDoctor} onValueChange={setSelectedDoctor} disabled={isReschedule}>
                   <SelectTrigger className="h-11">
                     <SelectValue placeholder="Choose a doctor" />
                   </SelectTrigger>
@@ -244,7 +264,7 @@ export default function CreateAppointmentPage() {
                       <SelectItem key={doc.id} value={doc.id}>
                         <div className="flex flex-col">
                           <span className="font-medium">{doc.name}</span>
-                          <span className="text-xs text-stone-500">{doc.specialization}</span>
+                          <span className="text-xs text-muted-foreground">{doc.specialization}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -299,12 +319,13 @@ export default function CreateAppointmentPage() {
                       const isConfirmed = slotStatus === 'confirmed';
                       const isPending = slotStatus === 'pending';
                       const isSelected = selectedTime === time;
+                      const isAvailable = slotStatus === 'available';
 
                       return (
                         <button
                           key={time}
                           type="button"
-                          onClick={() => !isConfirmed && setSelectedTime(time)}
+                          onClick={() => (isAvailable || isPending) && setSelectedTime(time)}
                           disabled={isConfirmed}
                           className={`p-2 sm:p-3 rounded-lg border text-sm font-medium transition-all relative min-h-[44px] ${
                             isConfirmed
@@ -313,9 +334,11 @@ export default function CreateAppointmentPage() {
                                 ? isSelected
                                   ? 'bg-yellow-500 text-white border-yellow-600'
                                   : 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100'
-                                : isSelected
-                                  ? 'bg-emerald-600 text-white border-emerald-600'
-                                  : 'bg-white border-stone-200 text-stone-700 hover:bg-emerald-50 hover:border-emerald-300'
+                                : isAvailable
+                                  ? isSelected
+                                    ? 'bg-emerald-600 text-white border-emerald-600'
+                                    : 'bg-white border-stone-200 text-stone-700 hover:bg-emerald-50 hover:border-emerald-300'
+                                  : ''
                           }`}
                         >
                           {time}
@@ -348,138 +371,159 @@ export default function CreateAppointmentPage() {
 
           {/* Right Column - Pet Selection */}
           <div className="lg:col-span-2 space-y-4 lg:space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5 text-emerald-600" />
-                  Select Patient / Pet
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Toggle between existing pet and new pet */}
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={!showNewPetForm ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setShowNewPetForm(false)}
-                    className={!showNewPetForm ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
-                  >
-                    Existing Pet
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={showNewPetForm ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setShowNewPetForm(true)}
-                    className={showNewPetForm ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    New Pet
-                  </Button>
-                </div>
-
-                {showNewPetForm ? (
-                  <div className="space-y-4 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                    <h4 className="font-bold text-emerald-800">Create New Pet</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Pet Name</Label>
-                        <Input
-                          value={newPet.name}
-                          onChange={(e) => setNewPet({ ...newPet, name: e.target.value })}
-                          placeholder="Enter pet name"
-                        />
-                      </div>
-                      <div>
-                        <Label>Species</Label>
-                        <Select
-                          value={newPet.species}
-                          onValueChange={(val) => setNewPet({ ...newPet, species: val })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Dog">Dog</SelectItem>
-                            <SelectItem value="Cat">Cat</SelectItem>
-                            <SelectItem value="Bird">Bird</SelectItem>
-                            <SelectItem value="Rabbit">Rabbit</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="col-span-2">
-                        <Label>Breed</Label>
-                        <Input
-                          value={newPet.breed}
-                          onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })}
-                          placeholder="Enter breed"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <Label>Owner</Label>
-                        <Select
-                          value={newPet.ownerUid}
-                          onValueChange={(val) => setNewPet({ ...newPet, ownerUid: val })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select owner" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(users).map(([uid, name]) => (
-                              <SelectItem key={uid} value={uid}>{name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+            {!isReschedule && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-emerald-600" />
+                    Select Patient / Pet
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Toggle between existing pet and new pet */}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={!showNewPetForm ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setShowNewPetForm(false)}
+                      className={!showNewPetForm ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+                    >
+                      Existing Pet
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={showNewPetForm ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setShowNewPetForm(true)}
+                      className={showNewPetForm ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      New Pet
+                    </Button>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                      <Input
-                        placeholder="Search pets by name, species, breed, or owner..."
-                        value={petSearchTerm}
-                        onChange={(e) => setPetSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
 
-                    <div className="max-h-64 overflow-y-auto space-y-2 border border-stone-200 rounded-lg p-2">
-                      {filteredPets.length === 0 ? (
-                        <p className="text-center text-stone-500 py-4">No pets found</p>
-                      ) : (
-                        filteredPets.map(pet => (
-                          <button
-                            key={pet.id}
-                            type="button"
-                            onClick={() => setSelectedPet(pet.id)}
-                            className={`w-full text-left p-3 rounded-lg border transition-all ${
-                              selectedPet === pet.id
-                                ? 'bg-emerald-50 border-emerald-300'
-                                : 'border-stone-200 hover:bg-stone-50'
-                            }`}
+                  {showNewPetForm ? (
+                    <div className="space-y-4 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                      <h4 className="font-bold text-emerald-800">Create New Pet</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Pet Name</Label>
+                          <Input
+                            value={newPet.name}
+                            onChange={(e) => setNewPet({ ...newPet, name: e.target.value })}
+                            placeholder="Enter pet name"
+                          />
+                        </div>
+                        <div>
+                          <Label>Species</Label>
+                          <Select
+                            value={newPet.species}
+                            onValueChange={(val) => setNewPet({ ...newPet, species: val })}
                           >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-medium">{pet.name}</p>
-                                <p className="text-xs text-stone-500">{pet.species} - {pet.breed}</p>
-                                <p className="text-xs text-stone-400">Owner: {users[pet.ownerUid] || 'Unknown'}</p>
-                              </div>
-                              {selectedPet === pet.id && (
-                                <Badge variant="success">Selected</Badge>
-                              )}
-                            </div>
-                          </button>
-                        ))
-                      )}
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Dog">Dog</SelectItem>
+                              <SelectItem value="Cat">Cat</SelectItem>
+                              <SelectItem value="Bird">Bird</SelectItem>
+                              <SelectItem value="Rabbit">Rabbit</SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-2">
+                          <Label>Breed</Label>
+                          <Input
+                            value={newPet.breed}
+                            onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })}
+                            placeholder="Enter breed"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Label>Owner</Label>
+                          <Select
+                            value={newPet.ownerUid}
+                            onValueChange={(val) => setNewPet({ ...newPet, ownerUid: val })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select owner" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(users).map(([uid, name]) => (
+                                <SelectItem key={uid} value={uid}>{name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                        <Input
+                          placeholder="Search pets by name, species, breed, or owner..."
+                          value={petSearchTerm}
+                          onChange={(e) => setPetSearchTerm(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+
+                      <div className="max-h-64 overflow-y-auto space-y-2 border border-stone-200 rounded-lg p-2">
+                        {filteredPets.length === 0 ? (
+                          <p className="text-center text-stone-500 py-4">No pets found</p>
+                        ) : (
+                          filteredPets.map(pet => (
+                            <button
+                              key={pet.id}
+                              type="button"
+                              onClick={() => setSelectedPet(pet.id)}
+                              className={`w-full text-left p-3 rounded-lg border transition-all ${
+                                selectedPet === pet.id
+                                  ? 'bg-emerald-50 border-emerald-300'
+                                  : 'border-stone-200 hover:bg-stone-50'
+                              }`}
+                            >
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <p className="font-medium">{pet.name}</p>
+                                  <p className="text-xs text-stone-500">{pet.species} - {pet.breed}</p>
+                                  <p className="text-xs text-stone-400">Owner: {users[pet.ownerUid] || 'Unknown'}</p>
+                                </div>
+                                {selectedPet === pet.id && (
+                                  <Badge variant="success">Selected</Badge>
+                                )}
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* When rescheduling, show locked pet info */}
+            {isReschedule && selectedPetData && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-emerald-600" />
+                    Patient / Pet (Locked)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="p-4 bg-emerald-50 rounded-lg">
+                    <p className="font-medium">{selectedPetData.name}</p>
+                    <p className="text-xs text-emerald-700">{selectedPetData.species} - {selectedPetData.breed}</p>
+                    <p className="text-xs text-emerald-600">Owner: {users[selectedPetData.ownerUid] || 'Unknown'}</p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Notes */}
             <Card>

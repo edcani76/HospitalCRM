@@ -131,7 +131,7 @@ export default function AppointmentsPage() {
     }
   };
 
-  const handleStatusChange = async (appointmentId: string, newStatus: 'confirmed' | 'cancelled' | 'completed') => {
+  const handleStatusChange = async (appointmentId: string, newStatus: 'confirmed' | 'cancelled' | 'completed' | 'rescheduled') => {
     try {
       const aptRef = doc(db, 'appointments', appointmentId);
       const userUid = auth.currentUser?.uid || 'unknown';
@@ -143,8 +143,18 @@ export default function AppointmentsPage() {
     }
   };
 
-  const handleReschedule = (appointment: Appointment) => {
-    navigate('/crm/appointments/create', { state: { prefill: appointment } });
+  const handleReschedule = async (appointment: Appointment) => {
+    // Mark as rescheduled and log audit
+    try {
+      const aptRef = doc(db, 'appointments', appointment.id);
+      const userUid = auth.currentUser?.uid || 'unknown';
+      const auditEntry = { action: 'rescheduled', userId: userUid, timestamp: new Date().toISOString() };
+      await updateDoc(aptRef, { status: 'rescheduled', audit: arrayUnion(auditEntry) });
+      // Navigate to create page with prefill (including id so we can update later)
+      navigate('/crm/appointments/create', { state: { prefill: { ...appointment, status: 'rescheduled', originalId: appointment.id } } });
+    } catch (error) {
+      console.error('Error rescheduling:', error);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -157,6 +167,8 @@ export default function AppointmentsPage() {
         return <Badge variant="destructive">Cancelled</Badge>;
       case 'completed':
         return <Badge>Completed</Badge>;
+      case 'rescheduled':
+        return <Badge variant="outline" className="border-orange-500 text-orange-600">Rescheduled</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -302,7 +314,7 @@ export default function AppointmentsPage() {
                             <TableCell className="max-w-[200px] truncate text-xs lg:text-sm">
                               {appointment.notes || '-'}
                             </TableCell>
-                            {/* ---------- ACTIONS CELL ---------- */}
+                            {/* Actions cell */}
                             <TableCell>
                               <div className="flex items-center gap-1">
                                 {appointment.status === 'pending' && (
@@ -316,7 +328,7 @@ export default function AppointmentsPage() {
                                     <CheckCircle className="w-4 h-4 text-emerald-600" />
                                   </Button>
                                 )}
-                                {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                                {appointment.status !== 'cancelled' && appointment.status !== 'completed' && appointment.status !== 'rescheduled' && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -348,7 +360,7 @@ export default function AppointmentsPage() {
                                 </Button>
                               </div>
                             </TableCell>
-                            {/* ---------- AUDIT CELL ---------- */}
+                            {/* Audit cell */}
                             <TableCell>
                               <Button
                                 variant="ghost"
