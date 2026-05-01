@@ -192,6 +192,11 @@ export default function AppointmentsPage() {
   const handleStatusChange = async (appointmentId: string, newStatus: 'confirmed' | 'cancelled' | 'completed' | 'no-show', reason?: string) => {
     try {
       const aptRef = doc(db, 'appointments', appointmentId);
+      
+      // Get current appointment data first
+      const aptSnap = await getDoc(aptRef);
+      const oldData = aptSnap.data();
+      
       const userUid = auth.currentUser?.uid || 'unknown';
       const auditEntry = { action: newStatus, userId: userUid, timestamp: new Date().toISOString(), reason };
       const updateData: any = { status: newStatus, audit: arrayUnion(auditEntry) };
@@ -200,9 +205,8 @@ export default function AppointmentsPage() {
       }
       await updateDoc(aptRef, updateData);
       
-      // Get appointment details for notification
-      const aptSnap = await getDoc(aptRef);
-      const aptData = aptSnap.data();
+      // Get updated appointment details for notification
+      const aptData = (await getDoc(aptRef)).data();
       if (aptData) {
         if (newStatus === 'cancelled') {
           // Notify doctor
@@ -216,6 +220,25 @@ export default function AppointmentsPage() {
         } else if (newStatus === 'confirmed') {
           await notifyDoctor(aptData.doctorId, 'appointment_confirmed', 'Appointment Confirmed', 
             `Appointment for ${aptData.petName} on ${aptData.date} at ${aptData.time} is confirmed.`);
+          if (aptData.clientUid) {
+            await notifyClient(aptData.clientUid, 'appointment_confirmed', 'Appointment Confirmed', 
+              `Your appointment for ${aptData.petName} on ${aptData.date} at ${aptData.time} is confirmed.`);
+          }
+        } else {
+          // Notify for other status changes (e.g., no-show, completed, or reactivating from cancelled)
+          const statusMessages: any = {
+            'no-show': 'marked as No-Show',
+            'completed': 'marked as Completed',
+            'pending': 'changed to Pending',
+            'confirmed': 'confirmed'
+          };
+          const statusText = statusMessages[newStatus] || `changed to ${newStatus}`;
+          await notifyDoctor(aptData.doctorId, 'appointment_updated', 'Appointment Updated', 
+            `Appointment for ${aptData.petName} on ${aptData.date} at ${aptData.time} was ${statusText}.`);
+          if (aptData.clientUid) {
+            await notifyClient(aptData.clientUid, 'appointment_updated', 'Appointment Updated', 
+              `Your appointment for ${aptData.petName} on ${aptData.date} at ${aptData.time} was ${statusText}.`);
+          }
         }
       }
       
