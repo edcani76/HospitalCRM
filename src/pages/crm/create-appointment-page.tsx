@@ -48,9 +48,9 @@ export default function CreateAppointmentPage() {
     fetchUsers();
   }, []);
 
-  // Pre-fill when rescheduling
+  // Pre-fill when editing - wait for doctors/pets to load
   useEffect(() => {
-    if (prefill) {
+    if (prefill && doctors.length > 0 && pets.length > 0) {
       console.log('Prefill data:', prefill); // Debug log
       setSelectedDoctor(prefill.doctorId || '');
       setSelectedPet(prefill.petId || '');
@@ -58,7 +58,7 @@ export default function CreateAppointmentPage() {
       setSelectedTime(prefill.time || '');
       setNotes(prefill.notes || '');
     }
-  }, [prefill]);
+  }, [prefill, doctors, pets]);
 
   const fetchDoctors = async () => {
     try {
@@ -150,6 +150,17 @@ export default function CreateAppointmentPage() {
   // Get selected pet details
   const selectedPetData = pets.find(p => p.id === selectedPet);
   const selectedDoctorData = doctors.find(d => d.id === selectedDoctor);
+  // Fallback for edit mode: use prefill data if doctor not found in loaded list yet
+  const displayDoctorData = selectedDoctorData || (
+    isEdit && prefill ? {
+      id: prefill.doctorId,
+      name: prefill.doctorName || 'Unknown',
+      department: (prefill as any).doctorDepartment || '',
+      experience: (prefill as any).doctorExperience || 0,
+      specialization: '',
+      availability: []
+    } as Doctor : null
+  );
 
   const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -262,6 +273,14 @@ export default function CreateAppointmentPage() {
                       <SelectValue placeholder="Choose a doctor" />
                     </SelectTrigger>
                     <SelectContent>
+                      {/* Show prefill doctor if not in loaded list yet */}
+                      {isEdit && prefill && !doctors.find(d => d.id === prefill.doctorId) && (
+                        <SelectItem key={prefill.doctorId} value={prefill.doctorId}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{prefill.doctorName || 'Unknown'}</span>
+                          </div>
+                        </SelectItem>
+                      )}
                       {doctors.map(doc => (
                         <SelectItem key={doc.id} value={doc.id}>
                           <div className="flex flex-col">
@@ -273,16 +292,16 @@ export default function CreateAppointmentPage() {
                     </SelectContent>
                   </Select>
 
-                  {selectedDoctorData && (
+                  {displayDoctorData && (
                     <div className="p-4 bg-emerald-50 rounded-lg space-y-2">
-                      <p className="text-sm font-bold text-emerald-800">{selectedDoctorData.name}</p>
-                      <p className="text-xs text-emerald-600">{selectedDoctorData.department}</p>
-                      <p className="text-xs text-emerald-600">{selectedDoctorData.experience} years experience</p>
-                      {selectedDoctorData.availability && (
+                      <p className="text-sm font-bold text-emerald-800">{displayDoctorData.name}</p>
+                      <p className="text-xs text-emerald-600">{displayDoctorData.department}</p>
+                      <p className="text-xs text-emerald-600">{displayDoctorData.experience} years experience</p>
+                      {displayDoctorData.availability && (
                         <div className="mt-2">
                           <p className="text-xs font-medium text-emerald-700 mb-1">Available slots:</p>
                           <div className="flex flex-wrap gap-1">
-                            {selectedDoctorData.availability.map(time => (
+                            {displayDoctorData.availability.map(time => (
                               <Badge key={time} variant="outline" className="text-xs border-emerald-300 text-emerald-700">
                                 {time}
                               </Badge>
@@ -319,16 +338,16 @@ export default function CreateAppointmentPage() {
                     </SelectContent>
                   </Select>
 
-                  {selectedDoctorData && (
+                  {displayDoctorData && (
                     <div className="p-4 bg-emerald-50 rounded-lg space-y-2">
-                      <p className="text-sm font-bold text-emerald-800">{selectedDoctorData.name}</p>
-                      <p className="text-xs text-emerald-600">{selectedDoctorData.department}</p>
-                      <p className="text-xs text-emerald-600">{selectedDoctorData.experience} years experience</p>
-                      {selectedDoctorData.availability && (
+                      <p className="text-sm font-bold text-emerald-800">{displayDoctorData.name}</p>
+                      <p className="text-xs text-emerald-600">{displayDoctorData.department}</p>
+                      <p className="text-xs text-emerald-600">{displayDoctorData.experience} years experience</p>
+                      {displayDoctorData.availability && (
                         <div className="mt-2">
                           <p className="text-xs font-medium text-emerald-700 mb-1">Available slots:</p>
                           <div className="flex flex-wrap gap-1">
-                            {selectedDoctorData.availability.map(time => (
+                            {displayDoctorData.availability.map(time => (
                               <Badge key={time} variant="outline" className="text-xs border-emerald-300 text-emerald-700">
                                 {time}
                               </Badge>
@@ -417,7 +436,7 @@ export default function CreateAppointmentPage() {
 
           {/* Right Column - Pet Selection */}
           <div className="lg:col-span-2 space-y-4 lg:space-y-6">
-            {!isReschedule && (
+            {!isEdit && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">

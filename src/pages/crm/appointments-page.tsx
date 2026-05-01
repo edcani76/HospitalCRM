@@ -29,7 +29,6 @@ export default function AppointmentsPage() {
   const navigate = useNavigate();
   const [auditOpen, setAuditOpen] = useState(false);
   const [selectedAuditAppointment, setSelectedAuditAppointment] = useState<Appointment | null>(null);
-  const [rescheduleAppt, setRescheduleAppt] = useState<Appointment | null>(null);
 
   useEffect(() => {
     fetchDoctors();
@@ -131,7 +130,7 @@ export default function AppointmentsPage() {
     }
   };
 
-  const handleStatusChange = async (appointmentId: string, newStatus: 'confirmed' | 'cancelled' | 'completed' | 'rescheduled') => {
+  const handleStatusChange = async (appointmentId: string, newStatus: 'confirmed' | 'cancelled' | 'completed') => {
     try {
       const aptRef = doc(db, 'appointments', appointmentId);
       const userUid = auth.currentUser?.uid || 'unknown';
@@ -330,7 +329,7 @@ export default function AppointmentsPage() {
                                     <CheckCircle className="w-4 h-4 text-emerald-600" />
                                   </Button>
                                 )}
-                                {appointment.status !== 'cancelled' && appointment.status !== 'completed' && appointment.status !== 'rescheduled' && (
+                                {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
