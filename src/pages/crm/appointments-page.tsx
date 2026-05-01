@@ -150,8 +150,17 @@ export default function AppointmentsPage() {
       const userUid = auth.currentUser?.uid || 'unknown';
       const auditEntry = { action: 'rescheduled', userId: userUid, timestamp: new Date().toISOString() };
       await updateDoc(aptRef, { status: 'rescheduled', audit: arrayUnion(auditEntry) });
-      // Navigate to create page with prefill (including id so we can update later)
-      navigate('/crm/appointments/create', { state: { prefill: { ...appointment, status: 'rescheduled', originalId: appointment.id } } });
+      // Find doctor details to pass in prefill
+      const doctor = doctors.find(d => d.id === appointment.doctorId);
+      const prefillData = {
+        ...appointment,
+        status: 'rescheduled',
+        originalId: appointment.id,
+        doctorName: doctor?.name || appointment.doctorName,
+        doctorDepartment: doctor?.department || '',
+        doctorExperience: doctor?.experience || 0,
+      };
+      navigate('/crm/appointments/create', { state: { prefill: prefillData } });
     } catch (error) {
       console.error('Error rescheduling:', error);
     }

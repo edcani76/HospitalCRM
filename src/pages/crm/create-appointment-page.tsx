@@ -48,17 +48,15 @@ export default function CreateAppointmentPage() {
     fetchUsers();
   }, []);
 
-  // Pre‑fill when rescheduling
+  // Pre-fill when rescheduling
   useEffect(() => {
     if (prefill) {
+      console.log('Prefill data:', prefill); // Debug log
       setSelectedDoctor(prefill.doctorId || '');
       setSelectedPet(prefill.petId || '');
       setSelectedDate(prefill.date || format(startOfToday(), 'yyyy-MM-dd'));
       setSelectedTime(prefill.time || '');
       setNotes(prefill.notes || '');
-      if (prefill.originalId) {
-        // Keep originalId so we can update it later
-      }
     }
   }, [prefill]);
 
@@ -124,7 +122,7 @@ export default function CreateAppointmentPage() {
     if (!existing) return 'available';
     // Only pending and confirmed block the slot
     if (existing.status === 'cancelled' || existing.status === 'rescheduled') return 'available';
-    return existing.status; // 'pending', 'confirmed'
+    return existing.status;
   };
 
   // Get doctor's available time slots
@@ -199,6 +197,7 @@ export default function CreateAppointmentPage() {
         const aptRef = doc(db, 'appointments', prefill.originalId);
         await updateDoc(aptRef, {
           doctorId: selectedDoctor,
+          doctorName: selectedDoctorData?.name || '',
           date: selectedDate,
           time: selectedTime,
           notes,
@@ -247,51 +246,67 @@ export default function CreateAppointmentPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Left Column - Doctor & Time */}
           <div className="lg:col-span-1 space-y-4 lg:space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Stethoscope className="w-5 h-5 text-emerald-600" />
-                  Select Doctor
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Select value={selectedDoctor} onValueChange={setSelectedDoctor} disabled={isReschedule}>
-                  <SelectTrigger className="h-11">
-                    <SelectValue placeholder="Choose a doctor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {doctors.map(doc => (
-                      <SelectItem key={doc.id} value={doc.id}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{doc.name}</span>
-                          <span className="text-xs text-muted-foreground">{doc.specialization}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {isReschedule ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Stethoscope className="w-5 h-5 text-emerald-600" />
+                    Doctor (Locked)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 bg-emerald-50 rounded-lg space-y-1">
+                  <p className="font-medium">{prefill?.doctorName || selectedDoctorData?.name || 'Unknown'}</p>
+                  <p className="text-xs text-emerald-600">{prefill?.doctorDepartment || selectedDoctorData?.department}</p>
+                  <p className="text-xs text-emerald-600">{(prefill as any)?.doctorExperience || selectedDoctorData?.experience} years experience</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Stethoscope className="w-5 h-5 text-emerald-600" />
+                    Select Doctor
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Choose a doctor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {doctors.map(doc => (
+                        <SelectItem key={doc.id} value={doc.id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{doc.name}</span>
+                            <span className="text-xs text-muted-foreground">{doc.specialization}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                {selectedDoctorData && (
-                  <div className="p-4 bg-emerald-50 rounded-lg space-y-2">
-                    <p className="text-sm font-bold text-emerald-800">{selectedDoctorData.name}</p>
-                    <p className="text-xs text-emerald-600">{selectedDoctorData.department}</p>
-                    <p className="text-xs text-emerald-600">{selectedDoctorData.experience} years experience</p>
-                    {selectedDoctorData.availability && (
-                      <div className="mt-2">
-                        <p className="text-xs font-medium text-emerald-700 mb-1">Available slots:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {selectedDoctorData.availability.map(time => (
-                            <Badge key={time} variant="outline" className="text-xs border-emerald-300 text-emerald-700">
-                              {time}
-                            </Badge>
-                          ))}
+                  {selectedDoctorData && (
+                    <div className="p-4 bg-emerald-50 rounded-lg space-y-2">
+                      <p className="text-sm font-bold text-emerald-800">{selectedDoctorData.name}</p>
+                      <p className="text-xs text-emerald-600">{selectedDoctorData.department}</p>
+                      <p className="text-xs text-emerald-600">{selectedDoctorData.experience} years experience</p>
+                      {selectedDoctorData.availability && (
+                        <div className="mt-2">
+                          <p className="text-xs font-medium text-emerald-700 mb-1">Available slots:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedDoctorData.availability.map(time => (
+                              <Badge key={time} variant="outline" className="text-xs border-emerald-300 text-emerald-700">
+                                {time}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader>
@@ -319,13 +334,12 @@ export default function CreateAppointmentPage() {
                       const isConfirmed = slotStatus === 'confirmed';
                       const isPending = slotStatus === 'pending';
                       const isSelected = selectedTime === time;
-                      const isAvailable = slotStatus === 'available';
 
                       return (
                         <button
                           key={time}
                           type="button"
-                          onClick={() => (isAvailable || isPending) && setSelectedTime(time)}
+                          onClick={() => !isConfirmed && setSelectedTime(time)}
                           disabled={isConfirmed}
                           className={`p-2 sm:p-3 rounded-lg border text-sm font-medium transition-all relative min-h-[44px] ${
                             isConfirmed
@@ -334,11 +348,9 @@ export default function CreateAppointmentPage() {
                                 ? isSelected
                                   ? 'bg-yellow-500 text-white border-yellow-600'
                                   : 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100'
-                                : isAvailable
-                                  ? isSelected
-                                    ? 'bg-emerald-600 text-white border-emerald-600'
-                                    : 'bg-white border-stone-200 text-stone-700 hover:bg-emerald-50 hover:border-emerald-300'
-                                  : ''
+                                : isSelected
+                                  ? 'bg-emerald-600 text-white border-emerald-600'
+                                  : 'bg-white border-stone-200 text-stone-700 hover:bg-emerald-50 hover:border-emerald-300'
                           }`}
                         >
                           {time}
@@ -555,6 +567,32 @@ export default function CreateAppointmentPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Submit Button */}
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/crm/appointments')}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={loading || !selectedDoctor || !selectedTime || (!selectedPet && !showNewPetForm)}
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    {isReschedule ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : (
+                  isReschedule ? 'Update Appointment' : 'Create Appointment'
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </form>
