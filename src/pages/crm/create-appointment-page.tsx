@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../../components/ui/badge';
 import { ArrowLeft, User, Stethoscope, Calendar, Clock, Plus, Search } from 'lucide-react';
 import { format, startOfToday } from 'date-fns';
-import { db, auth, collection, getDocs, addDoc, serverTimestamp, doc, updateDoc, getDoc } from '../../firebase';
+import { db, auth, collection, getDocs, addDoc, serverTimestamp, doc, updateDoc, getDoc, arrayUnion } from '../../firebase';
 import { Doctor, Pet, Appointment } from '../../types';
 
 export default function CreateAppointmentPage() {
