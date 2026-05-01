@@ -35,6 +35,7 @@ export default function AppointmentDetailsPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [notificationSent, setNotificationSent] = useState<string>('');
+  const [notifications, setNotifications] = useState<{ message: string; timestamp: Date }[]>([]);
 
   useEffect(() => {
     const fetchAppointment = async () => {
@@ -118,6 +119,11 @@ export default function AppointmentDetailsPage() {
         setAppointment({ id: updatedSnap.id, ...updatedSnap.data() } as Appointment);
       }
       
+      const notifData = {
+        message: `Notification sent to doctor and client about: ${changes.join(', ')}`,
+        timestamp: new Date()
+      };
+      setNotifications(prev => [notifData, ...prev]);
       setNotificationSent(`Notification sent to doctor and client about: ${changes.join(', ')}`);
       setTimeout(() => setNotificationSent(''), 5000);
     } catch (error) {
@@ -162,6 +168,11 @@ export default function AppointmentDetailsPage() {
         setAppointment({ id: updatedSnap.id, ...updatedSnap.data() } as Appointment);
       }
       
+      const notifData = {
+        message: 'Cancellation notification sent to doctor and client',
+        timestamp: new Date()
+      };
+      setNotifications(prev => [notifData, ...prev]);
       setShowCancelDialog(false);
       setCancelReason('');
       setNotificationSent('Cancellation notification sent to doctor and client');
@@ -366,8 +377,29 @@ export default function AppointmentDetailsPage() {
               ) : (
                 <p className="text-center py-4 text-gray-500">No audit entries yet</p>
               )}
-            </CardContent>
+             </CardContent>
           </Card>
+
+          {/* Notifications Sent */}
+          {notifications.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Notifications Sent</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {notifications.map((notif, idx) => (
+                    <div key={idx} className="p-3 bg-blue-50 rounded-lg">
+                      <p className="text-sm font-medium">{notif.message}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Sent: {notif.timestamp.toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right Column - Quick Actions */}
