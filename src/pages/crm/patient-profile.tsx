@@ -307,6 +307,14 @@ export default function PatientProfilePage() {
               <Activity className="w-4 h-4 mr-2" />
               Triage Check
             </Button>
+            <Button 
+              variant="outline"
+              className="text-emerald-600 border-emerald-200 rounded-xl hover:bg-emerald-50"
+              onClick={() => navigate(`/crm/emr/${patient.id}`)}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              EMR
+            </Button>
           </div>
         }
       />
