@@ -584,13 +584,15 @@ export default function AppointmentsPage() {
       </Dialog>
 
       {/* Activity Feed */}
-      {notifications.length > 0 && (
-        <div className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Activity Feed</CardTitle>
-            </CardHeader>
-            <CardContent>
+      <div className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Activity Feed</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {notifications.length === 0 ? (
+              <p className="text-center py-4 text-gray-500">No activity yet</p>
+            ) : (
               <div className="space-y-3 max-h-64 overflow-y-auto">
                 {notifications.slice(0, 20).map((notif) => (
                   <div
@@ -620,10 +622,10 @@ export default function AppointmentsPage() {
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </>
   );
 }
