@@ -33,6 +33,7 @@ import SecurityPage from './pages/crm/security-page';
 import StaffManagementPage from './pages/crm/staff-management-page';
 import PatientProfilePage from './pages/crm/patient-profile';
 import OwnerProfilePage from './pages/crm/owner-profile';
+import AppointmentDetailsPage from './pages/crm/appointment-details-page';
 import AuditLogPage from './pages/crm/audit-log-page';
 
 // Contexts
@@ -61,6 +62,7 @@ export default function App() {
                     <Route path="patients/:patientId" element={<PatientProfilePage />} />
                     <Route path="appointments" element={<AppointmentsPage />} />
                     <Route path="appointments/create" element={<CreateAppointmentPage />} />
+                    <Route path="appointments/:appointmentId" element={<AppointmentDetailsPage />} />
                     <Route path="emr" element={<EMRDirectory />} />
                     <Route path="emr/:patientId" element={<EMRPage />} />
                     <Route path="billing" element={<BillingPage />} />

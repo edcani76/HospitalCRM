@@ -8,12 +8,12 @@ import { Badge } from '../../components/ui/badge';
 import { Calendar } from '../../components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Input } from '../../components/ui/input';
-import { Plus, CalendarClock, Filter, Clock, User, Stethoscope, Search, CheckCircle, XCircle, Info, Pencil } from 'lucide-react';
+import { Plus, CalendarClock, Filter, Clock, User, Stethoscope, Search, CheckCircle, XCircle } from 'lucide-react';
 import { format, startOfToday } from 'date-fns';
 import { db, collection, getDocs, doc, updateDoc } from '../../firebase';
 import { arrayUnion } from 'firebase/firestore';
 import { auth } from '../../firebase';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { createNotification, notifyDoctor, notifyClient, getNotifications, markAsRead } from '../../lib/notifications';
 import { Appointment, Doctor, Pet, Notification } from '../../types';
 
@@ -28,8 +28,6 @@ export default function AppointmentsPage() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [users, setUsers] = useState<{ [uid: string]: string }>({});
   const navigate = useNavigate();
-  const [auditOpen, setAuditOpen] = useState(false);
-  const [selectedAuditAppointment, setSelectedAuditAppointment] = useState<Appointment | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelAppointment, setCancelAppointment] = useState<Appointment | null>(null);
   const [cancelReason, setCancelReason] = useState('');
@@ -381,7 +379,7 @@ export default function AppointmentsPage() {
                   <p>No appointments scheduled for this date</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <div className="overflow-x-auto -mx-4 sm:mx-0">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -390,8 +388,6 @@ export default function AppointmentsPage() {
                         <TableHead className="text-xs lg:text-sm">Doctor</TableHead>
                         <TableHead className="text-xs lg:text-sm">Status</TableHead>
                         <TableHead className="text-xs lg:text-sm">Notes</TableHead>
-                        <TableHead className="text-xs lg:text-sm">Actions</TableHead>
-                        <TableHead className="text-xs lg:text-sm">Audit</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -399,25 +395,28 @@ export default function AppointmentsPage() {
                         const pet = pets.find(p => p.id === appointment.petId);
                         const ownerName = pet ? (users[pet.ownerUid] || '') : '';
                         return (
-                          <TableRow key={appointment.id}>
+                          <TableRow 
+                            key={appointment.id}
+                            className="cursor-pointer hover:bg-gray-50"
+                            onClick={() => navigate(`/crm/appointments/${appointment.id}`, { 
+                              state: { from: '/crm/appointments' } 
+                            })}
+                          >
                             <TableCell className="text-xs lg:text-sm">
                               <div className="flex items-center gap-2">
                                 <Clock className="w-3 h-3 text-stone-400" />
                                 {appointment.time}
                               </div>
                             </TableCell>
-                             <TableCell>
-                               <div className="flex items-center gap-2">
-                                 <User className="w-3 h-3 text-stone-400" />
-                                 <button
-                                   onClick={() => navigate(`/crm/patients/${appointment.petId}`)}
-                                   className="text-xs lg:text-sm text-emerald-600 hover:underline font-medium"
-                                 >
-                                   {appointment.petName}
-                                 </button>
-                                 {ownerName && <span className="text-stone-500 text-xs">({ownerName})</span>}
-                               </div>
-                             </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <User className="w-3 h-3 text-stone-400" />
+                                <span className="text-xs lg:text-sm text-emerald-600 font-medium">
+                                  {appointment.petName}
+                                </span>
+                                {ownerName && <span className="text-stone-500 text-xs">({ownerName})</span>}
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <Stethoscope className="w-3 h-3 text-stone-400" />
@@ -427,82 +426,8 @@ export default function AppointmentsPage() {
                             <TableCell>{getStatusBadge(appointment.status)}</TableCell>
                             <TableCell className="max-w-[200px] truncate text-xs lg:text-sm">
                               {appointment.notes || '-'}
-                            </TableCell>
-                            {/* Actions cell */}
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                {appointment.status === 'pending' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleStatusChange(appointment.id, 'confirmed')}
-                                    title="Confirm"
-                                    className="hover:bg-emerald-50 hover:text-emerald-700"
-                                  >
-                                    <CheckCircle className="w-4 h-4 text-emerald-600" />
-                                  </Button>
-                                )}
-                                {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setCancelAppointment(appointment);
-                                      setCancelDialogOpen(true);
-                                    }}
-                                    title="Cancel"
-                                    className="hover:bg-red-50 hover:text-red-700"
-                                  >
-                                    <XCircle className="w-4 h-4 text-red-600" />
-                                  </Button>
-                                )}
-                                {appointment.status === 'confirmed' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleStatusChange(appointment.id, 'completed')}
-                                    title="Mark Complete"
-                                    className="hover:bg-blue-50 hover:text-blue-700"
-                                  >
-                                    <CheckCircle className="w-4 h-4 text-blue-600" />
-                                  </Button>
-                                )}
-                                {appointment.status === 'confirmed' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleStatusChange(appointment.id, 'no-show')}
-                                    title="Mark No-Show"
-                                    className="hover:bg-yellow-50 hover:text-yellow-700"
-                                  >
-                                    <XCircle className="w-4 h-4 text-yellow-600" />
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEdit(appointment)}
-                                  title="Edit"
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                            {/* Audit cell */}
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedAuditAppointment(appointment);
-                                  setAuditOpen(true);
-                                }}
-                                title="View Audit"
-                              >
-                                <Info className="w-4 h-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
+                             </TableCell>
+                           </TableRow>
                         );
                       })}
                     </TableBody>
@@ -512,142 +437,6 @@ export default function AppointmentsPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
-
-      {/* Single Audit Dialog */}
-      <Dialog open={auditOpen} onOpenChange={setAuditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Appointment Audit Trail</DialogTitle>
-            <DialogDescription>
-              Audit trail for appointment {selectedAuditAppointment?.petName || ''}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedAuditAppointment && (
-            <div className="mt-4 space-y-2 text-sm">
-              <div>
-                <strong>Created by:</strong> {' '}
-                {users[selectedAuditAppointment.clientUid] ||
-                  selectedAuditAppointment.clientUid}{' '}
-                at{' '}
-                {selectedAuditAppointment.createdAt
-                  ? new Date(selectedAuditAppointment.createdAt).toLocaleString()
-                  : 'N/A'}
-              </div>
-              {(selectedAuditAppointment as any).audit && (selectedAuditAppointment as any).audit.length > 0 ? (
-                <div>
-                  <strong>History:</strong>
-                  <ul className="list-disc list-inside">
-                    {(selectedAuditAppointment as any).audit.map((entry: any, idx: number) => {
-                      const userName = users[entry.userId] || entry.userId;
-                      const ts = new Date(entry.timestamp).toLocaleString();
-                      return (
-                        <li key={idx}>
-                          {entry.action} by {userName} at {ts}
-                          {entry.reason && ` (Reason: ${entry.reason})`}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ) : (
-                <div>No audit entries.</div>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button onClick={() => setAuditOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Cancel Confirmation Dialog */}
-      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancel Appointment</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to cancel this appointment for {cancelAppointment?.petName}?
-              This action will notify the doctor and client.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <label className="text-sm font-medium">Reason for cancellation</label>
-            <textarea
-              className="w-full mt-2 p-2 border rounded-md"
-              rows={3}
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              placeholder="Enter reason for cancellation..."
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setCancelDialogOpen(false);
-              setCancelReason('');
-              setCancelAppointment(null);
-            }}>
-              Back
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={async () => {
-                if (cancelAppointment) {
-                  await handleStatusChange(cancelAppointment.id, 'cancelled', cancelReason);
-                  setCancelDialogOpen(false);
-                  setCancelReason('');
-                  setCancelAppointment(null);
-                }
-              }}
-            >
-              Confirm Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Activity Feed */}
-      <div className="mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Activity Feed</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {notifications.length === 0 ? (
-              <p className="text-center py-4 text-gray-500">No activity yet</p>
-            ) : (
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {notifications.slice(0, 20).map((notif) => (
-                  <div
-                    key={notif.id}
-                    className={`p-3 rounded-lg border ${notif.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'}`}
-                    onClick={async () => {
-                      if (!notif.read && notif.id) {
-                        await markAsRead(notif.id);
-                        if (auth.currentUser) {
-                          fetchNotifications(auth.currentUser.uid);
-                        }
-                      }
-                    }}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium text-sm">{notif.title}</p>
-                        <p className="text-xs text-gray-600 mt-1">{notif.message}</p>
-                      </div>
-                      {!notif.read && (
-                        <Badge variant="default" className="text-xs">New</Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {notif.createdAt?.toDate?.()?.toLocaleString() || 'Just now'}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </>
   );
