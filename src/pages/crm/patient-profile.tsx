@@ -950,6 +950,8 @@ export default function PatientProfilePage() {
         if (!open) stopCamera();
       }}>
         <DialogContent className="max-w-xl rounded-3xl p-0 overflow-hidden bg-black">
+          <DialogTitle className="sr-only">Camera Capture</DialogTitle>
+          <DialogDescription className="sr-only">Capture a photo using your camera</DialogDescription>
           <div className="relative aspect-video bg-gray-900 flex items-center justify-center">
             <video 
               ref={videoRef} 
@@ -1001,6 +1003,8 @@ export default function PatientProfilePage() {
       {/* Lightbox Modal */}
       <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none flex items-center justify-center">
+          <DialogTitle className="sr-only">Patient Photo</DialogTitle>
+          <DialogDescription className="sr-only">Full size view of patient photo</DialogDescription>
           <div className="relative group">
             {patient.photo || patient.imageUrl ? (
               <img 
