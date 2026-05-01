@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from '../../components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import { db, auth } from '../../firebase';
-import { db, doc, getDoc, getDocs, updateDoc, arrayUnion } from '../../firebase';
+import { doc, getDoc, getDocs, updateDoc, arrayUnion } from '../../firebase';
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
 import { format } from 'date-fns';
 import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft } from 'lucide-react';
