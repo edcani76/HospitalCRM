@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../../components/ui/badge';
 import { ArrowLeft, User, Stethoscope, Calendar, Clock, Plus, Search } from 'lucide-react';
 import { format, startOfToday } from 'date-fns';
-import { db, collection, getDocs, addDoc, serverTimestamp, doc, updateDoc, getDoc } from '../../firebase';
+import { db, auth, collection, getDocs, addDoc, serverTimestamp, doc, updateDoc, getDoc } from '../../firebase';
 import { Doctor, Pet, Appointment } from '../../types';
 
 export default function CreateAppointmentPage() {
@@ -210,7 +210,7 @@ export default function CreateAppointmentPage() {
         const auditEntry = { action: 'edited', userId: userUid, timestamp: new Date().toISOString() };
         await updateDoc(aptRef, {
           doctorId: selectedDoctor,
-          doctorName: selectedDoctorData?.name || '',
+          doctorName: displayDoctorData?.name || prefill?.doctorName || '',
           date: selectedDate,
           time: selectedTime,
           notes,
@@ -223,7 +223,7 @@ export default function CreateAppointmentPage() {
           petId,
           petName,
           doctorId: selectedDoctor,
-          doctorName: selectedDoctorData?.name || '',
+          doctorName: displayDoctorData?.name || '',
           date: selectedDate,
           time: selectedTime,
           status: 'confirmed',
@@ -234,9 +234,9 @@ export default function CreateAppointmentPage() {
 
       // Clear prefill state so form resets
       navigate('/crm/appointments', { replace: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating appointment:', error);
-      alert('Failed to create appointment');
+      alert(`Failed to update appointment: ${error.message || error}`);
     } finally {
       setLoading(false);
     }
