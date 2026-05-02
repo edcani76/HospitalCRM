@@ -403,7 +403,7 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
                   <select
                     id="ownerUid"
                     name="ownerUid"
-                    defaultValue={mode === 'edit' ? pet?.ownerUid : ''}
+                    defaultValue={mode === 'edit' as string ? pet?.ownerUid : ''}
                     className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white h-12 px-3"
                     required
                   >
