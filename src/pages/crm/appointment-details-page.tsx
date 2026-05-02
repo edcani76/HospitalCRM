@@ -25,13 +25,13 @@ export default function AppointmentDetailsPage() {
 
   // Check if current user is the assigned doctor
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [appointment, setAppointment] = useState<Appointment | null>(null);
+  
   const currentDoctor = user?.role === 'doctor'
     ? doctors.find(d => d.uid === user.uid)
     : null;
   const isOwnAppointment = currentDoctor && appointment && appointment.doctorId === currentDoctor.id;
   const canEdit = user?.role !== 'doctor' || isOwnAppointment;
-
-  const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -78,7 +78,7 @@ export default function AppointmentDetailsPage() {
       try {
         // Fetch doctors
         const doctorsSnap = await getDocs(collection(db, 'doctors'));
-        const doctorsList = doctorsSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name || 'Unknown' }));
+        const doctorsList = doctorsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Doctor));
         setDoctors(doctorsList);
 
         // Fetch users for audit trail

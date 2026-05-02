@@ -23,7 +23,7 @@ export default function StaffDashboard() {
   const { user } = useAuth();
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [doctors, setDoctors] = useState<{ id: string; name: string }[]>([]);
+  const [doctors, setDoctors] = useState<{ id: string; name: string; createdAt?: any; status?: string }[]>([]);
   const [stats, setStats] = useState({ newPatients: 0, UnconfirmedBills: 0, totalPets: 0 });
   const [loading, setLoading] = useState(true);
 

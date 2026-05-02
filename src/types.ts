@@ -45,10 +45,12 @@ export interface Appointment {
   doctorName: string;
   date: string;
   time: string;
-  status: 'unconfirmed' | 'confirmed' | 'cancelled' | 'completed' | 'no-show';
+  status: 'unconfirmed' | 'confirmed' | 'cancelled' | 'completed' | 'no-show' | 'in-progress' | 'pending';
   workflowStatus?: PatientStatus; // Link to active workflow status
   notes?: string;
   createdAt: any;
+  cancelReason?: string;
+  audit?: any[];
 }
 
 export interface Report {

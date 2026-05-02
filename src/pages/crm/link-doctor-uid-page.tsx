@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Loader2, Link, Check, AlertTriangle } from 'lucide-react';
-import { auth } from '../../firebase';
+import { db, auth } from '../../firebase';
 import { collection, getDocs, doc, updateDoc } from '../../firebase';
 
 export default function LinkDoctorUidPage() {
@@ -20,7 +20,7 @@ export default function LinkDoctorUidPage() {
 
   const loadDoctors = async () => {
     try {
-      const snapshot = await getDocs(collection('doctors'));
+      const snapshot = await getDocs(collection(db, 'doctors'));
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setDoctors(data);
     } catch (error) {
@@ -55,7 +55,7 @@ export default function LinkDoctorUidPage() {
 
     setUpdating(doctorId);
     try {
-      await updateDoc(doc('doctors', doctorId), { uid: user.uid, email: user.email });
+      await updateDoc(doc(db, 'doctors', doctorId), { uid: user.uid, email: user.email });
       alert(`✓ Linked! Doctor document now has uid: ${user.uid}`);
       loadDoctors();
     } catch (error) {

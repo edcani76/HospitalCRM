@@ -143,7 +143,7 @@ export default function EMRPage() {
 
         const [
           services, vitals, notes, labs, rxs, dispensing,
-          inv, items, pays, atts, logs
+          inv, atts, logs
         ] = await Promise.all([
           fetchAppointmentServices(encounterId),
           fetchTriageVitals(encounterId),
@@ -152,10 +152,15 @@ export default function EMRPage() {
           fetchPrescriptions(encounterId),
           fetchDispensingRecords(encounterId),
           fetchInvoicesByEncounter(encounterId),
-          fetchInvoiceItems(inv?.[0]?.id || ''),
-          fetchPayments(inv?.[0]?.id || ''),
           fetchAttachments(encounterId),
           fetchAuditLogs({ encounterId })
+        ]);
+
+        // Fetch invoice items and payments based on invoice
+        const invoiceId = inv?.[0]?.id || '';
+        const [items, pays] = await Promise.all([
+          fetchInvoiceItems(invoiceId),
+          fetchPayments(invoiceId)
         ]);
 
         setAppointmentServices(services);
@@ -177,7 +182,7 @@ export default function EMRPage() {
     loadEncounterData();
   }, [selectedEncounter?.id]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev: any) => ({ ...prev, [name]: value }));
   };
@@ -512,7 +517,7 @@ export default function EMRPage() {
     setUploadingFile(true);
     try {
       // Upload to Google Drive
-      const { fileId, webViewLink, downloadUrl } = await uploadToGoogleDrive(file, file.name, file.type);
+      const { fileId, webViewLink, downloadUrl } = await uploadToGoogleDrive(file);
 
       // Save attachment record to Firestore
       const attachmentData = {

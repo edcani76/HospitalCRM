@@ -36,6 +36,7 @@ export default function CreateAppointmentPage() {
 
   const [activeTab, setActiveTab] = useState(0);
   const [deleteConfirmIdx, setDeleteConfirmIdx] = useState<number | null>(null);
+  const [showServiceSelector, setShowServiceSelector] = useState(false);
 
   const [appointments, setAppointments] = useState<Array<{
     id: string;
@@ -100,7 +101,7 @@ export default function CreateAppointmentPage() {
   };
 
   // Get slot status including past check and blocked dates
-  const getSlotStatus = (apt: typeof appointments[0], time: string) => {
+  const getSlotStatus = (apt: typeof appointments[0], time: string): 'available' | 'past' | 'unavailable' | 'unconfirmed' | 'confirmed' | 'cancelled' => {
     if (!apt.providerId || !apt.date) return 'available';
 
     // Check if time slot is in the past
