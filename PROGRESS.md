@@ -16,7 +16,8 @@ This document tracks the milestones, current development status, and roadmap for
 - [x] **EMR System**: Electronic Medical Records directory and detailed record views.
 - [x] **Firestore Migration**: Migrated all CRM pages from static `crm-data.ts` to Firestore.
 - [x] **Unified PetDialog**: Reusable Add/Edit dialog for patients across all CRM pages.
-- [x] **Appointment Workflow**: Complete lifecycle (pending → confirmed → in-progress → completed).
+- [x] **Appointment Workflow**: Complete lifecycle (unconfirmed → confirmed → in-progress → completed).
+- [x] **Multi-Type Appointments**: Support multiple appointment types (consultation, grooming, etc.) with individual notes for each type.
 - [x] **Service Management**: Auto-create EMR and invoice when starting appointments.
 - [x] **Auto No-Show**: Automatically tag past appointments as no-show.
 
@@ -36,7 +37,13 @@ This document tracks the milestones, current development status, and roadmap for
 
 ### 🔔 Notification System
 - [x] **In-App Notifications**: Notify doctors and clients on appointment status changes.
-- [x] **Audit Trail**: Track all appointment actions with user ID and timestamp.
+- [x] **Audit Trail**: Track all appointment actions with user ID and timestamp (standardized across all pages).
+- [x] **User Names in Audit**: Show user names instead of UUIDs in audit trails.
+
+### 🌐 Offline Support
+- [x] **IndexedDB Cache**: Local caching for offline data access.
+- [x] **Offline-Aware Writes**: Queue mutations when offline, sync when online.
+- [x] **Online/Offline Indicator**: Visual indicator in CRM layout with sync button.
 
 ## 🚀 Current Focus
 - [ ] **Service Completion**: Allow completing individual services with end times.

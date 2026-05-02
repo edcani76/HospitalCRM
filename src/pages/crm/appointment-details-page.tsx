@@ -52,8 +52,25 @@ export default function AppointmentDetailsPage() {
   const [notifications, setNotifications] = useState<{ message: string; timestamp: Date }[]>([]);
   const [notificationSent, setNotificationSent] = useState('');
   const [emrId, setEmrId] = useState<string | null>(null);
+  const [emrData, setEmrData] = useState<any | null>(null);
   const [addingService, setAddingService] = useState<string | null>(null);
-
+  const [users, setUsers] = useState<{ [uid: string]: string }>({});
+  
+  // Fetch users for audit trail display
+  const fetchUsers = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, 'users'));
+      const userMap: { [uid: string]: string } = {};
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        userMap[doc.id] = data.displayName || data.name || doc.id;
+      });
+      setUsers(userMap);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+  
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -61,6 +78,9 @@ export default function AppointmentDetailsPage() {
         const doctorsSnap = await getDocs(collection(db, 'doctors'));
         const doctorsList = doctorsSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name || 'Unknown' }));
         setDoctors(doctorsList);
+        
+        // Fetch users for audit trail
+        await fetchUsers();
         
         // Fetch appointment
         const aptSnap = await getDoc(doc(db, 'appointments', appointmentId || ''));
@@ -74,10 +94,11 @@ export default function AppointmentDetailsPage() {
           setSelectedTime(data.time || '');
           setSelectedStatus(data.status || 'pending');
           
-          // Extract type from notes
-          const typeMatch = data.notes?.match(/Type: (\w+)/i);
-          setSelectedType((typeMatch?.[1] as AppointmentType) || 'consultation');
-          setNotes(data.notes?.replace(/Type: \w+/i, '').trim() || '');
+          // Extract multiple types from notes
+          const typeMatches = [...(data.notes?.matchAll(/Type:\s*(\w+)/gi) || [])];
+          const types = typeMatches.map(m => m[1].toLowerCase());
+          setSelectedType((types[0] as AppointmentType) || 'consultation'); // Keep for backward compatibility
+          setNotes(data.notes?.replace(/Type:\s*\w+/gi, '').replace(/Mode:\s*\w+/i, '').trim() || '');
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -149,20 +170,23 @@ export default function AppointmentDetailsPage() {
     const fetchEMR = async () => {
       if (!appointment || appointment.status !== 'in-progress') {
         setEmrId(null);
+        setEmrData(null);
         return;
       }
-      
+
       try {
         const q = query(collection(db, 'emrRecords'), where('appointmentId', '==', appointment.id));
         const snapshot = await getDocs(q);
         if (!snapshot.empty) {
-          setEmrId(snapshot.docs[0].id);
+          const emrDoc = snapshot.docs[0];
+          setEmrId(emrDoc.id);
+          setEmrData({ id: emrDoc.id, ...emrDoc.data() });
         }
       } catch (error) {
         console.error('Error fetching EMR:', error);
       }
     };
-    
+
     fetchEMR();
   }, [appointment?.id, appointment?.status]);
 
@@ -353,8 +377,9 @@ export default function AppointmentDetailsPage() {
         updatedAt: startTime
       });
 
-      // Get appointment type for the service
-      const aptType = appointment.notes?.match(/Type: (\w+)/i)?.[1] || 'consultation';
+      // Get appointment types for the service (use first type for EMR)
+      const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
+      const aptType = types[0] || 'consultation';
 
       // Create EMR record with initial service
       const emrData = {
@@ -703,10 +728,18 @@ export default function AppointmentDetailsPage() {
                     </Badge>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Type</p>
-                    <Badge variant="outline" className="border-blue-500 text-blue-600">
-                      {appointment.notes?.match(/Type: (\w+)/i)?.[1] || 'Consultation'}
-                    </Badge>
+                    <p className="text-sm text-gray-500">Type(s)</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(() => {
+                        const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
+                        if (types.length === 0) return <Badge variant="outline" className="border-blue-500 text-blue-600">Consultation</Badge>;
+                        return types.map(type => (
+                          <Badge key={type} variant="outline" className="border-blue-500 text-blue-600">
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </Badge>
+                        ));
+                      })()}
+                    </div>
                   </div>
                   {additionalNotes && (
                     <div className="col-span-2">
@@ -864,13 +897,16 @@ export default function AppointmentDetailsPage() {
                     <tbody>
                       <tr className="border-b hover:bg-gray-50">
                         <td className="p-3 font-medium">
-                          {(() => {
-                            const type = appointment.notes?.match(/Type: (\w+)/i)?.[1] || 'consultation';
-                            return type.charAt(0).toUpperCase() + type.slice(1);
-                          })()}
-                        </td>
+                           {(() => {
+                             const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
+                             if (types.length === 0) return 'Consultation';
+                             return types.map(type => type.charAt(0).toUpperCase() + type.slice(1)).join(', ');
+                           })()}
+                         </td>
                         <td className="p-3 text-gray-600">
-                          {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          {emrData?.services?.[0]?.startTime
+                            ? new Date(emrData.services[0].startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                            : '--'}
                         </td>
                         <td className="p-3 text-gray-400">--</td>
                         <td className="p-3">
@@ -888,125 +924,52 @@ export default function AppointmentDetailsPage() {
                     </tbody>
                   </table>
                 </div>
-                <div className="mt-4 pt-4 border-t">
-                  <p className="text-sm font-medium mb-3">Add Additional Service</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      variant="outline"
-                      className="h-16 flex-col gap-1"
-                      onClick={() => addService('laboratory')}
-                      disabled={addingService === 'laboratory'}
-                    >
-                      {addingService === 'laboratory' ? (
-                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <FileText className="w-5 h-5" />
-                          Laboratory
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-16 flex-col gap-1"
-                      onClick={() => addService('procedure')}
-                      disabled={addingService === 'procedure'}
-                    >
-                      {addingService === 'procedure' ? (
-                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <Stethoscope className="w-5 h-5" />
-                          Procedure
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-16 flex-col gap-1"
-                      onClick={() => addService('vaccination')}
-                      disabled={addingService === 'vaccination'}
-                    >
-                      {addingService === 'vaccination' ? (
-                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <CheckCircle className="w-5 h-5" />
-                          Vaccination
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-16 flex-col gap-1"
-                      onClick={() => addService('grooming')}
-                      disabled={addingService === 'grooming'}
-                    >
-                      {addingService === 'grooming' ? (
-                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <User className="w-5 h-5" />
-                          Grooming
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-16 flex-col gap-1 col-span-2"
-                      onClick={() => {
-                        const service = prompt('Enter service name:');
-                        if (service) addService(service.toLowerCase());
-                      }}
-                      disabled={addingService !== null}
-                    >
-                      {addingService ? (
-                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <FileText className="w-5 h-5" />
-                          Others...
-                        </>
-                      )}
-                    </Button>
+                {emrData && emrData.services && emrData.services.length > 0 && (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-sm text-gray-500 mb-1">Duration</p>
+                    <p className="text-lg font-semibold text-blue-700">
+                      {(() => {
+                        const startTime = new Date(emrData.services?.[0]?.startTime || Date.now());
+                        const now = new Date();
+                        const diffMs = now.getTime() - startTime.getTime();
+                        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                        if (hours > 0) return `${hours}h ${minutes}m`;
+                        return `${minutes}m`;
+                      })()}
+                    </p>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           )}
 
           {/* Audit Trail */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Audit Trail</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {appointment.audit && (appointment.audit as any[]).length > 0 ? (
+          {appointment.audit && (appointment.audit as any[]).length > 0 && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold">Audit Trail</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-3">
-                  {(appointment.audit as any[]).map((entry: any, idx: number) => (
-                    <div key={idx} className="p-3 bg-gray-50 rounded-lg">
+                  {(appointment.audit as any[])
+                    .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                    .map((entry: any, idx: number) => (
+                    <div key={entry.id || idx} className="text-sm border-b border-gray-100 pb-2 last:border-0">
                       <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium text-sm">
-                            {entry.action}
-                            {entry.reason && (
-                              <span className="text-gray-600 font-normal"> - {entry.reason}</span>
-                            )}
-                          </p>
-                          <p className="text-xs text-gray-500">By: {entry.userId}</p>
-                        </div>
-                        <p className="text-xs text-gray-400">
-                          {new Date(entry.timestamp).toLocaleString()}
-                        </p>
+                         <div>
+                           <span className="font-medium capitalize">{entry.action}</span>
+                           {entry.reason && <span className="text-gray-600 ml-2">{entry.reason}</span>}
+                           <span className="text-gray-500 ml-2">by {users[entry.userId] || entry.userId}</span>
+                         </div>
+                        <span className="text-xs text-gray-400">{new Date(entry.timestamp).toLocaleString()}</span>
                       </div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <p className="text-center py-4 text-gray-500">No audit entries yet</p>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Notifications Sent */}
           {notifications.length > 0 && (
@@ -1068,10 +1031,18 @@ export default function AppointmentDetailsPage() {
                 </Badge>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Type</p>
-                <Badge variant="outline" className="border-blue-500 text-blue-600">
-                  {appointment.notes?.match(/Type: (\w+)/i)?.[1] || 'Consultation'}
-                </Badge>
+                <p className="text-sm text-gray-500">Type(s)</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {(() => {
+                    const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
+                    if (types.length === 0) return <Badge variant="outline" className="border-blue-500 text-blue-600">Consultation</Badge>;
+                    return types.map(type => (
+                      <Badge key={type} variant="outline" className="border-blue-500 text-blue-600">
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Badge>
+                    ));
+                  })()}
+                </div>
               </div>
             </CardContent>
           </Card>

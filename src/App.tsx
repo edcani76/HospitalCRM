@@ -35,6 +35,9 @@ import PatientProfilePage from './pages/crm/patient-profile';
 import OwnerProfilePage from './pages/crm/owner-profile';
 import AppointmentDetailsPage from './pages/crm/appointment-details-page';
 import AuditLogPage from './pages/crm/audit-log-page';
+import DoctorAvailabilityPage from './pages/crm/doctor-availability-page';
+import SeedDoctorAvailabilityPage from './pages/crm/seed-doctor-availability-page';
+import LinkDoctorUidPage from './pages/crm/link-doctor-uid-page';
 
 // Contexts
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -72,6 +75,9 @@ export default function App() {
                     <Route path="security" element={<SecurityPage />} />
                     <Route path="staff" element={<StaffManagementPage />} />
                     <Route path="audit" element={<AuditLogPage />} />
+                    <Route path="doctor-availability" element={<DoctorAvailabilityPage />} />
+                    <Route path="seed-doctor-availability" element={<SeedDoctorAvailabilityPage />} />
+                    <Route path="link-doctor-uid" element={<LinkDoctorUidPage />} />
                     <Route path="*" element={<Navigate to="/crm/admin-dashboard" replace />} />
                   </Routes>
                 </CRMLayout>

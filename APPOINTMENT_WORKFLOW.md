@@ -15,6 +15,7 @@ This document describes the appointment request, confirmation, and notification 
    - Date (next 8 days shown)
    - Time slot (9 AM - 5 PM, with breaks)
    - Pet (from their registered pets)
+   - Service type (Consultation, Grooming, Vaccination, etc.)
    - Optional notes/reason for visit
 4. On submission, appointment is created in Firestore with:
    - `status: 'pending'`
@@ -22,7 +23,7 @@ This document describes the appointment request, confirmation, and notification 
    - `doctorId`: Selected doctor
    - `petId` and `petName`: Selected pet
    - `date`, `time`: Selected slot
-   - `notes`: Optional reason
+   - `notes`: "Type: {type}\nMode: scheduled\n{notes}"
    - `createdAt`: Server timestamp
 
 **Files involved:**
@@ -39,13 +40,13 @@ This document describes the appointment request, confirmation, and notification 
 2. Filters by:
    - Date (using calendar component)
    - Doctor (dropdown filter)
-3. Pending appointments show with "Pending" badge
-4. Staff clicks **Checkmark button** to confirm:
-   - Updates `status` from `'pending'` → `'confirmed'`
-   - Ideally triggers notification to patient (see below)
+3. Pending appointments show with "Unconfirmed" badge
+4. Staff clicks **Confirm button** to confirm:
+   - Updates `status` from `'unconfirmed'` → `'confirmed'`
+   - Triggers notification to patient
 5. Alternative actions:
    - **X button**: Cancel appointment (`status` → `'cancelled'`)
-   - **Complete button**: Mark as completed (`status` → `'completed'`)
+   - **Edit**: Modify appointment details including services
 
 **Files involved:**
 - `src/pages/crm/appointments-page.tsx` - Appointments management page
@@ -93,16 +94,18 @@ When appointment status changes to `'confirmed'`:
 ## Appointment Status Flow
 
 ```
-[pending] → [confirmed] → [completed]
-    ↓
-[cancelled]
+[unconfirmed] → [confirmed] → [in-progress] → [completed]
+      ↓              ↓
+[cancelled]   [no-show]
 ```
 
 **Status Definitions:**
-- `pending`: Initial state when patient requests appointment
+- `unconfirmed`: Initial state when appointment is created (CRM) or requested (Patient Portal - legacy 'pending')
 - `confirmed`: Staff/Doctor has approved the appointment
-- `completed`: Appointment has been fulfilled
+- `in-progress`: Appointment has started, EMR and billing initialized
+- `completed`: Appointment has been fulfilled, all services done
 - `cancelled`: Appointment was cancelled (by staff or patient)
+- `no-show`: Patient missed the appointment (auto-tagged by system)
 
 ---
 
@@ -119,26 +122,43 @@ export interface Appointment {
   doctorName: string;     // Doctor name (denormalized)
   date: string;           // Format: 'yyyy-MM-dd'
   time: string;           // Format: 'HH:MM AM/PM'
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
-  workflowStatus?: PatientStatus;  // Links to active workflow
-  notes?: string;         // Reason for visit
+  status: 'unconfirmed' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
+  notes?: string;         // Format: "Type: {type}\n  Notes: {notes}\nMode: {mode}\n{general notes}"
+  cancelReason?: string;  // If cancelled
+  audit?: Array<{
+    action: string;
+    userId: string;
+    timestamp: string;
+    reason?: string;
+  }>;
   createdAt: any;        // Firestore timestamp
+  updatedAt: any;
 }
 ```
 
 ---
 
-## Creating New Appointments (CRM)
+## Creating New Appointments (CRM) - Multi-Provider System
 
-Staff can create appointments directly from the CRM:
+Staff can create multiple appointments in one form:
 1. Click "New Appointment" button
-2. Fill in:
-   - Pet (from all registered pets)
-   - Doctor (from doctors list)
-   - Time slot
-   - Optional: Client UID (if booking for existing client)
-   - Notes
-3. Appointment is created with `status: 'confirmed'` (bypasses pending state)
+2. Select **Pet** and **Date**
+3. Add **Appointment Groups** (click "+ Add New Appointment"):
+   - Select **Provider** (Doctor/Groomer/Lab Tech)
+   - System auto-detects department (doctor/grooming/laboratory)
+   - Select **Time Slot** for this provider
+   - Add **Services** to this group (click "+ Add Service to this Appointment"):
+     - Select service type (Consultation, Grooming, Vaccination, etc.)
+     - Add notes for each service
+     - For Laboratory: Add Laboratory Center name
+   - Remove services with ✕ button
+   - Remove entire group with "Remove" button
+4. **Mode**: Walk-in or Scheduled (applies to all groups)
+5. **Status**: Unconfirmed or Confirmed
+6. **General Notes**: Overall notes
+7. Click **"Create Appointment"**
+8. System creates **SEPARATE appointments** for each provider group
+9. Services with same provider are combined into one appointment
 
 ---
 

@@ -30,10 +30,14 @@ import { signOut, auth } from '../firebase'
 import { useState, useEffect } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import { fetchPets, fetchUsers } from '../lib/firestore-helpers'
-import { isOnline, getQueuedMutations, syncMutations } from '../lib/offline-cache'
 
 interface CRMLayoutProps {
   children: React.ReactNode
+}
+
+// Helper to check if online
+function isOnline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine;
 }
 
 const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
@@ -45,25 +49,34 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
   const [syncing, setSyncing] = useState(false)
   const [queuedCount, setQueuedCount] = useState(0)
 
-  // Update online status and queued count
+  // Setup online/offline listeners
   useEffect(() => {
     const updateStatus = async () => {
       setOnline(isOnline());
-      const mutations = await getQueuedMutations();
-      setQueuedCount(mutations.length);
+      try {
+        const mutations = await getQueuedMutations();
+        setQueuedCount(mutations.length);
+      } catch (e) {}
     };
     updateStatus();
 
-    const cleanup = setupConnectivityListeners(
-      async () => {
-        setOnline(true);
-        const mutations = await getQueuedMutations();
-        setQueuedCount(mutations.length);
-      },
-      () => setOnline(false)
-    );
+    const handleOnline = () => {
+      setOnline(true);
+      updateStatus();
+    };
 
-    return cleanup;
+    const handleOffline = () => {
+      setOnline(false);
+      updateStatus();
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   const handleSync = async () => {
@@ -83,6 +96,25 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
       setSyncing(false);
     }
   };
+
+  // Helper functions for offline-cache (define them here or import)
+  async function getQueuedMutations(): Promise<any[]> {
+    try {
+      const { getQueuedMutations: getM } = await import('../lib/offline-cache');
+      return getM();
+    } catch {
+      return [];
+    }
+  }
+
+  async function syncMutations(syncFn: (mutation: any) => Promise<void>): Promise<{ success: number; failed: number }> {
+    try {
+      const { syncMutations: syncM } = await import('../lib/offline-cache');
+      return syncM(syncFn);
+    } catch {
+      return { success: 0, failed: 0 };
+    }
+  }
 
   const isActive = (path: string) => location.pathname === path
 
@@ -120,6 +152,12 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
         path: '/crm/emr',
         icon: ClipboardList,
         roles: ['admin', 'doctor', 'staff'],
+      },
+      {
+        name: 'Availability',
+        path: '/crm/doctor-availability',
+        icon: CalendarClock,
+        roles: ['doctor'],
       },
       {
         name: 'Billing',

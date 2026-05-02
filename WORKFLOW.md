@@ -124,20 +124,22 @@ This document describes the complete workflow for appointment management in the 
      appointmentId: appointment.id,
      date, time,
      status: 'in-progress',
-     type: appointmentType,  // From notes: "Type: consultation"
+     type: services[0].type,  // First service type from notes
      vitals: {},
      diagnosis: '',
      treatment: '',
      prescriptions: [],
      labResults: [],
-     services: [{
-       id: timestamp,
-       name: 'Consultation' | 'Grooming' | etc.,
-       startTime: timestamp,
-       endTime: null,
-       status: 'in-progress',
-       fee: 500 | 800 | 300 | 1000  // Based on type
-     }],
+     services: [  // Based on all services in appointment
+       {
+         id: timestamp,
+         name: 'Consultation' | 'Grooming' | etc.,
+         startTime: timestamp,
+         endTime: null,
+         status: 'in-progress',
+         fee: 500 | 800 | 300 | 1000  // Based on type
+       }
+     ],
      createdAt, updatedAt
    }
    ```
@@ -291,8 +293,8 @@ interface Appointment {
   doctorName: string;      // Denormalized
   date: string;            // Format: 'yyyy-MM-dd'
   time: string;            // Format: 'HH:MM AM/PM'
-  status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
-  notes: string;           // Format: "Type: {type}\nMode: {mode}\n{notes}"
+  status: 'unconfirmed' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
+  notes: string;           // Format: "Type: {type}\n  Notes: {notes}\nMode: {mode}\n{general notes}"
   cancelReason?: string;   // If cancelled
   audit: Array<{
     action: string;
