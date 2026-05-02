@@ -331,7 +331,8 @@ export default function PatientProfilePage() {
       <PageHeader 
         title="Patient Profile" 
         subtitle={`Managing administrative and contact details for ${patient.name}`}
-        onBack={() => navigate(location.state?.from || '/crm/patients')}
+        backTo={location.state?.from || '/crm/patients'}
+        backText="Back to Patients"
         actions={
           <div className="flex gap-3">
             <Button 

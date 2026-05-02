@@ -125,7 +125,8 @@ export default function OwnerProfilePage() {
       <PageHeader 
         title="Owner Profile" 
         subtitle={`Client Management: ${owner.displayName || owner.name}`}
-        onBack={() => navigate('/crm/owners')}
+        backTo="/crm/owners"
+        backText="Back to Owners"
         actions={
           <div className="flex gap-3">
             <Button variant="outline" className="rounded-xl border-slate-200">

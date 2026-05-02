@@ -539,7 +539,7 @@ export default function AppointmentDetailsPage() {
           </div>
         }
         subtitle={`${appointment.petName} - ${format(new Date(appointment.date), 'MMM dd, yyyy')} at ${appointment.time}`}
-        onBack={() => navigate('/crm/appointments')}
+        backTo="/crm/appointments"
         backText="Back to Appointments"
         actions={
           canEdit && appointment.status !== 'in-progress' && (

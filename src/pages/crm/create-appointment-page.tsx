@@ -304,13 +304,8 @@ export default function CreateAppointmentPage() {
     <div className="max-w-5xl mx-auto space-y-4 md:space-y-6 px-2 sm:px-0">
       <PageHeader
         title={isEdit ? 'Edit Appointment' : 'Create New Appointment'}
-        actions={
-          <Button variant="ghost" onClick={() => navigate('/crm/appointments')} className="text-sm md:text-base">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">Back to Appointments</span>
-            <span className="sm:hidden">Back</span>
-          </Button>
-        }
+        backTo={location.state?.from || '/crm/appointments'}
+        backText="Back to Appointments"
       />
 
       <form onSubmit={handleCreateAppointment}>
