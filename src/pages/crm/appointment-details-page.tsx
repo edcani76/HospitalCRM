@@ -570,6 +570,12 @@ export default function AppointmentDetailsPage() {
                 {getStatusBadge(appointment.status)}
               </div>
               <div>
+                <p className="text-sm text-gray-500">Mode</p>
+                <Badge variant="outline" className="border-purple-500 text-purple-600">
+                  {appointment.notes?.match(/Mode:\s*(\w+)/i)?.[1] === 'walk-in' ? 'Walk-in' : 'Scheduled'}
+                </Badge>
+              </div>
+              <div>
                 <p className="text-sm text-gray-500">Type</p>
                 <Badge variant="outline" className="border-blue-500 text-blue-600">
                   {appointment.notes?.match(/Type: (\w+)/i)?.[1] || 'Consultation'}
