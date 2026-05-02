@@ -154,6 +154,14 @@ export async function fetchPetById(petId: string) {
   return fetchWithCache('pets', queryFn, petId);
 }
 
+export async function fetchOwnerByUid(ownerUid: string) {
+  const queryFn = async () => {
+    const d = await getDoc(doc(db, 'users', ownerUid));
+    return d.exists() ? { id: d.id, ...d.data() } : null;
+  };
+  return fetchWithCache('users', queryFn, ownerUid);
+}
+
 export async function fetchDoctors() {
   const queryFn = async () => {
     const snapshot = await getDocs(collection(db, 'doctors'));

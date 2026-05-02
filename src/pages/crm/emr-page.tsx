@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  BarChart2, Plus, Loader2
+import {
+  Plus, Loader2, Mail, Phone, User
 } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
 import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
-import { fetchPetById, fetchEmrRecords } from '../../lib/firestore-helpers';
+import { fetchPetById, fetchEmrRecords, fetchOwnerByUid } from '../../lib/firestore-helpers';
 import { collection, addDoc, serverTimestamp, db } from '../../firebase';
 
 export default function EMRPage() {
@@ -21,6 +21,7 @@ export default function EMRPage() {
   const [tab, setTab] = useState<"medications" | "medical" | "dental" | "family" | "social" | "audit">("medications");
   
   const [patient, setPatient] = useState<any>(null);
+  const [owner, setOwner] = useState<any>(null);
   const [emrRecords, setEmrRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -29,11 +30,16 @@ export default function EMRPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [petData, emrData] = await Promise.all([
-          fetchPetById(patientId || ''),
-          fetchEmrRecords(patientId)
-        ]);
+        const petData = await fetchPetById(patientId || '');
+        const emrData = await fetchEmrRecords(patientId);
         setPatient(petData);
+
+        // Fetch owner data if pet has ownerUid
+        if (petData?.ownerUid) {
+          const ownerData = await fetchOwnerByUid(petData.ownerUid);
+          setOwner(ownerData);
+        }
+
         setEmrRecords(emrData);
       } catch (error) {
         console.error('Error loading EMR data:', error);
@@ -53,13 +59,13 @@ export default function EMRPage() {
   const getAuditStats = () => {
     const stats: { [key: string]: number } = {};
     (patient?.auditTrail || []).forEach((item: any) => {
-      stats[item.staff] = (stats[item.staff] || 0) + 1;
+      const name = item.userId || item.staff || 'Unknown';
+      stats[name] = (stats[name] || 0) + 1;
     });
     return Object.entries(stats).map(([name, count]) => ({ name, count }));
   };
 
   const auditStats = getAuditStats();
-  const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -113,45 +119,41 @@ export default function EMRPage() {
         backText="Back to Previous Page"
       />
 
-      <div className="bg-white rounded-lg p-6 shadow mb-8">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
-          <div className="flex items-center gap-6">
-            <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-white shadow-xl bg-blue-50 flex items-center justify-center text-3xl font-bold text-blue-600">
-              {patient.name?.[0] || 'P'}
+        <div className="bg-white rounded-lg p-6 shadow mb-8">
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
+            <div className="flex items-center gap-6">
+              <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-white shadow-xl bg-blue-50 flex items-center justify-center text-3xl font-bold text-blue-600">
+                {patient.name?.[0] || 'P'}
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900">{patient.name}</h2>
+                <p className="text-sm text-gray-600"><span className="font-medium">Pet ID:</span> {patient.id}</p>
+                <p className="text-sm text-gray-600"><span className="font-medium">Species:</span> {patient.species || 'N/A'}</p>
+                <p className="text-sm text-gray-600"><span className="font-medium">Breed:</span> {patient.breed || 'N/A'}</p>
+                <p className="text-sm text-gray-600"><span className="font-medium">Age:</span> {patient.age ? `${patient.age} years` : 'N/A'}</p>
+                <p className="text-sm text-gray-600"><span className="font-medium">Status:</span> {patient.currentStatus || patient.status || 'N/A'}</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900">{patient.name}</h2>
-              <p className="text-sm text-gray-600"><span className="font-medium">DOB:</span> {patient.dateOfBirth || 'N/A'}</p>
-              <p className="text-sm text-gray-600"><span className="font-medium">Gender:</span> {patient.gender || 'N/A'}</p>
-              <p className="text-sm text-gray-600"><span className="font-medium">Patient ID:</span> {patient.id}</p>
-              <p className="text-sm text-gray-600"><span className="font-medium">Age:</span> {age} years | {patient.species} - {patient.breed}</p>
-            </div>
-          </div>
 
-          <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 min-w-[320px]">
-            <h4 className="font-bold text-blue-900 mb-3 text-sm uppercase tracking-wider">Owner Information</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-blue-700/70 font-medium">Name:</span>
-                <span className="text-blue-900 font-semibold">{patient.ownerName || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-blue-700/70 font-medium">Contact:</span>
-                <span className="text-blue-900">{patient.contact || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-blue-700/70 font-medium">Email:</span>
-                <span className="text-blue-900 underline decoration-blue-200">{patient.email || 'N/A'}</span>
+            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 min-w-[320px]">
+              <h4 className="font-bold text-blue-900 mb-3 text-sm uppercase tracking-wider">Owner Information</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-blue-700/70 font-medium">Name:</span>
+                  <span className="text-blue-900 font-semibold">{owner?.displayName || owner?.name || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-blue-700/70 font-medium">Email:</span>
+                  <span className="text-blue-900 underline decoration-blue-200">{owner?.email || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-blue-700/70 font-medium">Phone:</span>
+                  <span className="text-blue-900">{owner?.phone || patient.ownerPhone || 'N/A'}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-
-        <section className="flex items-center gap-4 mb-6 flex-wrap">
-          <Badge className="uppercase">Blood Type: {patient.bloodType || 'N/A'}</Badge>
-          {patient.allergies && <Badge variant="destructive" className="uppercase">Allergies: {patient.allergies.join(", ")}</Badge>}
-        </section>
-      </div>
 
       <div className="mb-4 flex gap-3 flex-wrap">
         {["medications", "medical", "dental", "family", "social", "audit"].map((t) => (
@@ -309,52 +311,29 @@ export default function EMRPage() {
         )}
         {tab === "audit" && (
           <div className="p-6">
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 mb-8 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <BarChart2 className="w-4 h-4 text-blue-500" />
-                    Staff Activity Distribution
-                  </h4>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold">Audit Trail</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {(patient.auditTrail || [])
+                    .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                    .map((log: any, idx: number) => (
+                     <div key={log.id || idx} className="text-sm border-b border-gray-100 pb-2 last:border-0">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="font-medium capitalize">{log.action || log.event}</span>
+                          {log.reason && <span className="text-gray-600 ml-2">{log.reason}</span>}
+                          <span className="text-gray-500 ml-2">by {log.staff || log.userId}</span>
+                        </div>
+                        <span className="text-xs text-gray-400">{new Date(log.timestamp).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-100 text-[10px] font-bold">
-                  {(patient.auditTrail || []).length} Total Actions
-                </Badge>
-              </div>
-              <div className="h-[180px] w-full">
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                  <BarChart data={auditStats}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} dy={10} />
-                    <YAxis hide />
-                    <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '8px 12px' }} itemStyle={{ fontSize: '12px', fontWeight: 'bold' }} />
-                    <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={40}>
-                      {auditStats.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            <table className="w-full">
-              <thead>
-                <tr className="bg-slate-900 text-white">
-                  <th className="text-left p-4 font-bold text-sm uppercase tracking-wider">Event</th>
-                  <th className="text-left p-4 font-bold text-sm uppercase tracking-wider">Staff</th>
-                  <th className="text-left p-4 font-bold text-sm uppercase tracking-wider">Timestamp</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(patient.auditTrail || []).slice().reverse().map((log: any) => (
-                  <tr key={log.id} className="border-b border-slate-50 hover:bg-indigo-50/30">
-                    <td className="p-4 font-bold text-slate-900">{log.event}</td>
-                    <td className="p-4">{log.staff}</td>
-                    <td className="p-4 text-sm">{log.timestamp}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
