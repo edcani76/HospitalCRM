@@ -695,7 +695,52 @@ export default function AppointmentDetailsPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+      {/* Pet Information Card */}
+      <div className="mb-6">
+        <div className="bg-white rounded-lg p-6 shadow">
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
+            <div className="flex items-center gap-6">
+              <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-white shadow-xl bg-blue-50 flex items-center justify-center text-3xl font-bold text-blue-600">
+                {petInfo?.imageUrl || petInfo?.photo ? (
+                  <img src={petInfo.imageUrl || petInfo.photo} alt={petInfo.name} className="w-full h-full object-cover" />
+                ) : (
+                  petInfo?.name?.[0] || appointment.petName?.[0] || 'P'
+                )}
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900">{petInfo?.name || appointment.petName}</h2>
+                <p className="text-sm text-gray-600"><span className="font-medium">Pet ID:</span> {petInfo?.id || appointment.petId}</p>
+                <p className="text-sm text-gray-600"><span className="font-medium">Species:</span> {petInfo?.species || 'N/A'}</p>
+                <p className="text-sm text-gray-600"><span className="font-medium">Breed:</span> {petInfo?.breed || 'N/A'}</p>
+                <p className="text-sm text-gray-600"><span className="font-medium">Age:</span> {petInfo?.age ? `${petInfo.age} years` : 'N/A'}</p>
+                <p className="text-sm text-gray-600"><span className="font-medium">Status:</span> {petInfo?.currentStatus || petInfo?.status || 'N/A'}</p>
+              </div>
+            </div>
+
+            {petOwner && (
+              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 min-w-[320px]">
+                <h4 className="font-bold text-blue-900 mb-3 text-sm uppercase tracking-wider">Owner Information</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-blue-700/70 font-medium">Name:</span>
+                    <span className="text-blue-900 font-semibold">{petOwner?.displayName || petOwner?.name || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-blue-700/70 font-medium">Email:</span>
+                    <span className="text-blue-900 underline decoration-blue-200">{petOwner?.email || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-blue-700/70 font-medium">Phone:</span>
+                    <span className="text-blue-900">{petOwner?.phone || petInfo?.ownerPhone || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Details */}
         <div className="lg:col-span-2 space-y-6">
           {/* Appointment Info Card */}
@@ -1011,49 +1056,9 @@ export default function AppointmentDetailsPage() {
           )}
         </div>
 
-        {/* Right Column - Pet Info */}
+        {/* Right Column - Empty or other widgets can go here */}
         <div className="space-y-6">
-          <div className="bg-white rounded-lg p-6 shadow">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
-              <div className="flex items-center gap-6">
-                <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-white shadow-xl bg-blue-50 flex items-center justify-center text-3xl font-bold text-blue-600">
-                  {petInfo?.imageUrl || petInfo?.photo ? (
-                    <img src={petInfo.imageUrl || petInfo.photo} alt={petInfo.name} className="w-full h-full object-cover" />
-                  ) : (
-                    petInfo?.name?.[0] || appointment.petName?.[0] || 'P'
-                  )}
-                </div>
-                <div>
-                  <h2 className="text-3xl font-bold text-gray-900">{petInfo?.name || appointment.petName}</h2>
-                  <p className="text-sm text-gray-600"><span className="font-medium">Pet ID:</span> {petInfo?.id || appointment.petId}</p>
-                  <p className="text-sm text-gray-600"><span className="font-medium">Species:</span> {petInfo?.species || 'N/A'}</p>
-                  <p className="text-sm text-gray-600"><span className="font-medium">Breed:</span> {petInfo?.breed || 'N/A'}</p>
-                  <p className="text-sm text-gray-600"><span className="font-medium">Age:</span> {petInfo?.age ? `${petInfo.age} years` : 'N/A'}</p>
-                  <p className="text-sm text-gray-600"><span className="font-medium">Status:</span> {petInfo?.currentStatus || petInfo?.status || 'N/A'}</p>
-                </div>
-              </div>
-
-              {petOwner && (
-                <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 min-w-[320px]">
-                  <h4 className="font-bold text-blue-900 mb-3 text-sm uppercase tracking-wider">Owner Information</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-blue-700/70 font-medium">Name:</span>
-                      <span className="text-blue-900 font-semibold">{petOwner?.displayName || petOwner?.name || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-blue-700/70 font-medium">Email:</span>
-                      <span className="text-blue-900 underline decoration-blue-200">{petOwner?.email || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-blue-700/70 font-medium">Phone:</span>
-                      <span className="text-blue-900">{petOwner?.phone || petInfo?.ownerPhone || 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Reserved for future widgets */}
         </div>
       </div>
 
