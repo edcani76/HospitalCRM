@@ -109,7 +109,8 @@ export default function EMRPage() {
       <PageHeader 
         title="Electronic Medical Records (EMR)" 
         subtitle={`Viewing full clinical history for ${patient.name}`}
-        onBack={() => navigate(location.state?.from || '/crm/emr')}
+        backTo={location.state?.from || '/crm/emr'}
+        backText="Back to Previous Page"
       />
 
       <div className="bg-white rounded-lg p-6 shadow mb-8">
