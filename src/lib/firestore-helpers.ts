@@ -1,8 +1,5 @@
-import { db, collection, getDocs, getDoc, doc, query, where, orderBy } from '../firebase';
-import { getCached, getAllCached, setCached, setManyCached } from './offline-cache';
-
-// Helper to check if online
-const isOnline = () => navigator.onLine;
+import { db, collection, getDocs, getDoc, doc, query, where, orderBy, addDoc, updateDoc, deleteDoc, serverTimestamp } from '../firebase';
+import { getCached, getAllCached, setCached, setManyCached, queueMutation, isOnline } from './offline-cache';
 
 // Wrapper to fetch with cache fallback
 async function fetchWithCache(collectionName: string, queryFn: () => Promise<any>, id?: string) {
@@ -56,6 +53,87 @@ async function fetchWithCache(collectionName: string, queryFn: () => Promise<any
   }
 
   return data;
+}
+
+// Create document (offline-aware)
+export async function createDocument(collectionName: string, data: any): Promise<string> {
+  if (isOnline()) {
+    // Online: write directly to Firestore
+    const docRef = await addDoc(collection(db, collectionName), {
+      ...data,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    
+    // Update cache
+    try {
+      setCached(collectionName, docRef.id, { id: docRef.id, ...data });
+    } catch (e) {}
+    
+    return docRef.id;
+  } else {
+    // Offline: queue mutation
+    const tempId = `temp_${Date.now()}`;
+    const offlineData = { id: tempId, ...data, createdAt: new Date(), updatedAt: new Date() };
+    
+    await queueMutation(collectionName, tempId, 'create', offlineData);
+    
+    // Add to cache immediately for UI
+    try {
+      setCached(collectionName, tempId, offlineData);
+    } catch (e) {}
+    
+    return tempId;
+  }
+}
+
+// Update document (offline-aware)
+export async function updateDocument(collectionName: string, docId: string, data: any): Promise<void> {
+  if (isOnline()) {
+    // Online: update directly
+    const docRef = doc(db, collectionName, docId);
+    await updateDoc(docRef, {
+      ...data,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Update cache
+    try {
+      const cached = await getCached(collectionName, docId);
+      if (cached) {
+        setCached(collectionName, docId, { ...cached, ...data, updatedAt: new Date() });
+      }
+    } catch (e) {}
+  } else {
+    // Offline: queue mutation
+    await queueMutation(collectionName, docId, 'update', data);
+    
+    // Update cache immediately for UI
+    try {
+      const cached = await getCached(collectionName, docId);
+      if (cached) {
+        setCached(collectionName, docId, { ...cached, ...data, updatedAt: new Date() });
+      }
+    } catch (e) {}
+  }
+}
+
+// Delete document (offline-aware)
+export async function deleteDocument(collectionName: string, docId: string): Promise<void> {
+  if (isOnline()) {
+    // Online: delete directly
+    const docRef = doc(db, collectionName, docId);
+    await deleteDoc(docRef);
+    
+    // Remove from cache
+    try {
+      const { deleteCached } = await import('./offline-cache');
+      deleteCached(collectionName, docId);
+    } catch (e) {}
+  } else {
+    // Offline: queue mutation
+    await queueMutation(collectionName, docId, 'delete');
+  }
 }
 
 export async function fetchPets(ownerUid?: string) {
