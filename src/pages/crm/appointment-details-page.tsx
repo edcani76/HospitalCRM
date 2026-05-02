@@ -240,6 +240,7 @@ export default function AppointmentDetailsPage() {
         title="Appointment Details"
         subtitle={`${appointment.petName} - ${format(new Date(appointment.date), 'MMM dd, yyyy')} at ${appointment.time}`}
         onBack={() => navigate('/crm/appointments')}
+        backText="Back to Appointments"
         actions={
           canEdit && (
             <div className="flex gap-2">
@@ -347,6 +348,12 @@ export default function AppointmentDetailsPage() {
                     <p className="text-sm text-gray-500">Type</p>
                     <Badge variant="outline" className="border-blue-500 text-blue-600">
                       {appointment.notes?.match(/Type: (\w+)/i)?.[1] || 'Consultation'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Mode</p>
+                    <Badge variant="outline" className="border-purple-500 text-purple-600">
+                      {appointment.notes?.match(/Mode:\s*(\w+)/i)?.[1] === 'walk-in' ? 'Walk-in' : 'Scheduled'}
                     </Badge>
                   </div>
                 </div>

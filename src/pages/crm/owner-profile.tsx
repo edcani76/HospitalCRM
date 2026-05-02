@@ -89,7 +89,8 @@ export default function OwnerProfilePage() {
     }
   }, [ownerId]);
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | undefined) => {
+    if (!status) return 'bg-slate-50 text-slate-600 border-slate-100';
     switch (status.toLowerCase()) {
       case 'paid':
       case 'active':
@@ -155,9 +156,11 @@ export default function OwnerProfilePage() {
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900">{owner.displayName || owner.name}</h2>
                 <p className="text-slate-500 font-medium mb-4">{owner.id}</p>
-                <Badge className={cn("px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-wider", getStatusColor(owner.status))}>
-                  {owner.status}
-                </Badge>
+                {owner.status && (
+                  <Badge className={cn("px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-wider", getStatusColor(owner.status))}>
+                    {owner.status}
+                  </Badge>
+                )}
               </div>
 
               <div className="mt-8 space-y-4">

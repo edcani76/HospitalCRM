@@ -7,9 +7,10 @@ interface PageHeaderProps {
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;
   onBack?: () => void;
+  backText?: string;
 }
 
-export function PageHeader({ title, subtitle, actions, onBack }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, actions, onBack, backText = 'Back to Directory' }: PageHeaderProps) {
   return (
     <div className="mb-6">
       {onBack && (
@@ -19,7 +20,7 @@ export function PageHeader({ title, subtitle, actions, onBack }: PageHeaderProps
           className="mb-4 -ml-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 group transition-all"
         >
           <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-          Back to Directory
+          {backText}
         </Button>
       )}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center">

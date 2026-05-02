@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search, Plus, Filter, Grid, List, MoreHorizontal, Trash2
+  Search, Plus, Filter, Grid, List, MoreHorizontal, Trash2, Activity, Pencil, ChevronRight, User, Phone
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
@@ -11,6 +11,7 @@ import { Input } from '../../components/ui/input';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from '../../firebase';
 import PetDialog from '../../components/crm/pet-dialog';
 
@@ -77,11 +78,15 @@ export default function PatientsPage() {
         } as Patient;
       });
 
-      // Fetch users for owner names
+      // Fetch users for owner names (only clients)
       const usersSnapshot = await getDocs(collection(db, 'users'));
       const usersData: { [uid: string]: any } = {};
       usersSnapshot.docs.forEach(doc => {
-        usersData[doc.id] = doc.data();
+        const data = doc.data();
+        // Only include users with role 'client' for the owner dropdown
+        if (data.role === 'client') {
+          usersData[doc.id] = data;
+        }
       });
       setUsers(usersData);
 

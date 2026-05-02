@@ -24,9 +24,8 @@ import {
   History
 } from 'lucide-react'
 import { signOut, auth } from '../firebase'
-import { useState } from 'react'
-import { useTheme } from '../contexts/ThemeContext'
 import { useState, useEffect } from 'react'
+import { useTheme } from '../contexts/ThemeContext'
 import { fetchPets, fetchUsers } from '../lib/firestore-helpers'
 
 interface CRMLayoutProps {

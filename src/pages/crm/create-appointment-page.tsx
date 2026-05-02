@@ -503,88 +503,61 @@ export default function CreateAppointmentPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Toggle between existing pet and new pet */}
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={!showNewPetForm ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setShowNewPetForm(false)}
-                      className={!showNewPetForm ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
-                    >
-                      Existing Pet
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={showNewPetForm ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setShowNewPetForm(true)}
-                      className={showNewPetForm ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      New Pet
-                    </Button>
-                  </div>
-
-                  {showNewPetForm ? (
-                    <div className="space-y-4 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                      <div className="flex justify-between items-center">
-                        <h4 className="font-bold text-emerald-800">Create New Pet</h4>
-                        <Button
-                          type="button"
-                          onClick={() => setIsPetDialogOpen(true)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                          size="sm"
-                        >
-                          <Plus className="w-4 h-4 mr-1" />
-                          Use Dialog
-                        </Button>
-                      </div>
-                      <p className="text-sm text-emerald-600">Click "Use Dialog" above to use the enhanced pet creation form.</p>
+                  {/* Existing Pet Selection */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-emerald-800">Select Existing Pet</h4>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setIsPetDialogOpen(true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        New Pet
+                      </Button>
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                        <Input
-                          placeholder="Search pets by name, species, breed, or owner..."
-                          value={petSearchTerm}
-                          onChange={(e) => setPetSearchTerm(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
 
-                      <div className="max-h-64 overflow-y-auto space-y-2 border border-stone-200 rounded-lg p-2">
-                        {filteredPets.length === 0 ? (
-                          <p className="text-center text-stone-500 py-4">No pets found</p>
-                        ) : (
-                          filteredPets.map(pet => (
-                            <button
-                              key={pet.id}
-                              type="button"
-                              onClick={() => setSelectedPet(pet.id)}
-                              className={`w-full text-left p-3 rounded-lg border transition-all ${
-                                selectedPet === pet.id
-                                  ? 'bg-emerald-50 border-emerald-300'
-                                  : 'border-stone-200 hover:bg-stone-50'
-                              }`}
-                            >
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <p className="font-medium">{pet.name}</p>
-                                  <p className="text-xs text-stone-500">{pet.species} - {pet.breed}</p>
-                                  <p className="text-xs text-stone-400">Owner: {users[pet.ownerUid] || 'Unknown'}</p>
-                                </div>
-                                {selectedPet === pet.id && (
-                                  <Badge variant="success">Selected</Badge>
-                                )}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                      <Input
+                        placeholder="Search pets by name, species, breed, or owner..."
+                        value={petSearchTerm}
+                        onChange={(e) => setPetSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto space-y-2 border border-stone-200 rounded-lg p-2">
+                      {filteredPets.length === 0 ? (
+                        <p className="text-center text-stone-500 py-4">No pets found</p>
+                      ) : (
+                        filteredPets.map(pet => (
+                          <button
+                            key={pet.id}
+                            type="button"
+                            onClick={() => setSelectedPet(pet.id)}
+                            className={`w-full text-left p-3 rounded-lg border transition-all ${
+                              selectedPet === pet.id
+                                ? 'bg-emerald-50 border-emerald-300'
+                                : 'border-stone-200 hover:bg-stone-50'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium">{pet.name}</p>
+                                <p className="text-xs text-stone-500">{pet.species} - {pet.breed}</p>
+                                <p className="text-xs text-stone-400">Owner: {users[pet.ownerUid] || 'Unknown'}</p>
                               </div>
-                            </button>
-                          ))
-                        )}
-                      </div>
+                              {selectedPet === pet.id && (
+                                <Badge variant="success">Selected</Badge>
+                              )}
+                            </div>
+                          </button>
+                        ))
+                      )}
                     </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
             )}

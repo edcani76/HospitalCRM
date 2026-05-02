@@ -117,7 +117,7 @@ export function DropdownMenuContent({
     <div
       ref={contentRef}
       className={cn(
-        "absolute z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 mt-1",
+        "absolute z-50 min-w-[8rem] overflow-hidden rounded-2xl border border-gray-100 bg-white p-2 shadow-xl animate-in fade-in-0 zoom-in-95 mt-1",
         alignClasses[align],
         className
       )}
@@ -159,7 +159,7 @@ export function DropdownMenuItem({
         }
       }}
       className={cn(
-        "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 hover:bg-accent hover:text-accent-foreground",
+        "relative flex cursor-pointer select-none items-center rounded-xl px-4 py-3 text-sm outline-none transition-colors focus:bg-blue-50 focus:text-blue-600 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 hover:bg-blue-50 hover:text-blue-600 font-bold",
         className
       )}
       {...props}

@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '../../components/ui/button'
 import { Label } from '../../components/ui/label'
 import { Input } from '../../components/ui/input'
+import { Activity, User } from 'lucide-react'
 
 interface PetDialogProps {
   open: boolean;
@@ -33,8 +34,8 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl rounded-3xl">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl rounded-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-2xl font-bold">
             {mode === 'add' ? 'Register New Patient' : 'Edit Patient Record'}
           </DialogTitle>
@@ -44,179 +45,149 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
               : `Update the clinical profile for ${pet?.name}.`}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6 py-4">
-          {/* Pet Information */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                <Activity className="w-4 h-4 text-blue-600" />
-              </div>
-              <h3 className="font-bold text-gray-900">Pet Information</h3>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="font-bold text-gray-700">Pet Name</Label>
-                <Input 
-                  id="name" 
-                  name="name" 
-                  defaultValue={mode === 'edit' ? pet?.name : ''} 
-                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                  required 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="species" className="font-bold text-gray-700">Species</Label>
-                <Input 
-                  id="species" 
-                  name="species" 
-                  defaultValue={mode === 'edit' ? pet?.species : ''} 
-                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                  required 
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="breed" className="font-bold text-gray-700">Breed</Label>
-                <Input 
-                  id="breed" 
-                  name="breed" 
-                  defaultValue={mode === 'edit' ? pet?.breed : ''} 
-                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="gender" className="font-bold text-gray-700">Gender</Label>
-                  <select 
-                    id="gender" 
-                    name="gender" 
-                    defaultValue={mode === 'edit' ? pet?.gender : ''}
-                    className="rounded-xl border border-gray-100 bg-gray-50 focus:bg-white h-10 px-3 w-full"
-                  >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bloodType" className="font-bold text-gray-700">Blood Type</Label>
-                  <Input 
-                    id="bloodType" 
-                    name="bloodType" 
-                    defaultValue={mode === 'edit' ? pet?.bloodType : ''} 
-                    className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                    placeholder="DEA 1.1+"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dob" className="font-bold text-gray-700">Date of Birth</Label>
-                <Input 
-                  id="dob" 
-                  name="dob" 
-                  type="date"
-                  defaultValue={mode === 'edit' ? pet?.dateOfBirth : ''} 
-                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                  required 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="color" className="font-bold text-gray-700">Coat Color</Label>
-                <Input 
-                  id="color" 
-                  name="color" 
-                  defaultValue={mode === 'edit' ? pet?.color : ''} 
-                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                  placeholder="e.g., Golden, Black"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="weight" className="font-bold text-gray-700">Weight (kg)</Label>
-                <Input 
-                  id="weight" 
-                  name="weight" 
-                  type="number" 
-                  step="0.1" 
-                  min="0"
-                  defaultValue={mode === 'edit' ? pet?.weight : ''} 
-                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                  placeholder="0.0" 
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Owner Information (Add mode only) */}
-          {mode === 'add' && (
-            <div className="space-y-4 pt-4">
+        <div className="flex-1 overflow-y-auto pr-2">
+          <form onSubmit={handleSubmit} className="space-y-6 py-4">
+            {/* Pet Information */}
+            <div className="space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
-                <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
-                  <User className="w-4 h-4 text-orange-600" />
+                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <Activity className="w-4 h-4 text-blue-600" />
                 </div>
-                <h3 className="font-bold text-gray-900">Owner & Contact Details</h3>
+                <h3 className="font-bold text-gray-900">Pet Information</h3>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="owner" className="font-bold text-gray-700">Owner Name</Label>
+                  <Label htmlFor="name" className="font-bold text-gray-700">Pet Name</Label>
                   <Input 
-                    id="owner" 
-                    name="owner" 
+                    id="name" 
+                    name="name" 
+                    defaultValue={mode === 'edit' ? pet?.name : ''} 
                     className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                    placeholder="John Smith" 
                     required 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="contact" className="font-bold text-gray-700">Phone Number</Label>
+                  <Label htmlFor="species" className="font-bold text-gray-700">Species</Label>
                   <Input 
-                    id="contact" 
-                    name="contact" 
+                    id="species" 
+                    name="species" 
+                    defaultValue={mode === 'edit' ? pet?.species : ''} 
                     className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                    placeholder="(555) 000-0000" 
                     required 
                   />
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email" className="font-bold text-gray-700">Email Address</Label>
-                <Input 
-                  id="email" 
-                  name="email" 
-                  type="email" 
-                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                  placeholder="owner@example.com" 
-                />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="breed" className="font-bold text-gray-700">Breed</Label>
+                  <Input 
+                    id="breed" 
+                    name="breed" 
+                    defaultValue={mode === 'edit' ? pet?.breed : ''} 
+                    className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="gender" className="font-bold text-gray-700">Gender</Label>
+                    <Input 
+                      id="gender" 
+                      name="gender" 
+                      defaultValue={mode === 'edit' ? pet?.gender : ''} 
+                      className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bloodType" className="font-bold text-gray-700">Blood Type</Label>
+                    <Input 
+                      id="bloodType" 
+                      name="bloodType" 
+                      defaultValue={mode === 'edit' ? pet?.bloodType : ''} 
+                      className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="address" className="font-bold text-gray-700">Home Address</Label>
-                <Input 
-                  id="address" 
-                  name="address" 
-                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                  placeholder="123 Main St, City, State" 
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dob" className="font-bold text-gray-700">Date of Birth</Label>
+                  <Input 
+                    id="dob" 
+                    name="dob" 
+                    type="date"
+                    defaultValue={mode === 'edit' ? pet?.dateOfBirth : ''} 
+                    className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="color" className="font-bold text-gray-700">Color</Label>
+                  <Input 
+                    id="color" 
+                    name="color" 
+                    defaultValue={mode === 'edit' ? pet?.color : ''} 
+                    className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="weight" className="font-bold text-gray-700">Weight (kg)</Label>
+                  <Input 
+                    id="weight" 
+                    name="weight" 
+                    type="number"
+                    step="0.1"
+                    defaultValue={mode === 'edit' ? pet?.weight : ''} 
+                    className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                  />
+                </div>
               </div>
             </div>
-          )}
 
-          <DialogFooter className="pt-4 flex gap-3 border-t border-gray-50">
-            <Button type="button" variant="ghost" onClick={onCancel} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-blue-100">
-              {mode === 'add' ? 'Create Record' : 'Save Changes'}
-            </Button>
-          </DialogFooter>
-        </form>
+            {/* Owner Information */}
+            {mode === 'add' && (
+              <div className="space-y-4 pt-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
+                  <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+                    <User className="w-4 h-4 text-orange-600" />
+                  </div>
+                  <h3 className="font-bold text-gray-900">Owner Information</h3>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ownerUid" className="font-bold text-gray-700">Select Owner</Label>
+                  <select
+                    id="ownerUid"
+                    name="ownerUid"
+                    defaultValue={mode === 'edit' ? pet?.ownerUid : ''}
+                    className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white h-12 px-3"
+                    required
+                  >
+                    <option value="">Select an owner...</option>
+                    {Object.entries(users || {})
+                      .filter(([uid, userData]: [string, any]) => userData?.role === 'client')
+                      .map(([uid, userData]: [string, any]) => (
+                        <option key={uid} value={uid}>
+                          {userData?.displayName || userData?.email || uid}
+                        </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="pt-6 flex gap-3 border-t border-gray-50">
+              <Button type="button" variant="ghost" onClick={onCancel} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-blue-100">
+                {mode === 'add' ? 'Register Patient' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
