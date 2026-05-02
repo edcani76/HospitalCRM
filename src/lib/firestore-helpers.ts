@@ -224,6 +224,137 @@ export async function fetchEmrRecords(petId?: string) {
   return fetchWithCache('emrRecords', queryFn);
 }
 
+// Encounters
+export async function fetchEncounters(petId?: string) {
+  const queryFn = async () => {
+    let q = query(collection(db, 'encounters'), orderBy('startedAt', 'desc'));
+    if (petId) q = query(collection(db, 'encounters'), where('petId', '==', petId), orderBy('startedAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache('encounters', queryFn);
+}
+
+export async function fetchEncounterById(encounterId: string) {
+  const docRef = doc(db, 'encounters', encounterId);
+  const snapshot = await getDoc(docRef);
+  if (snapshot.exists()) {
+    return { id: snapshot.id, ...snapshot.data() };
+  }
+  return null;
+}
+
+// Service Catalog
+export async function fetchServiceCatalog(category?: string) {
+  const queryFn = async () => {
+    let q = query(collection(db, 'service_catalog'), where('active', '==', true));
+    if (category) q = query(collection(db, 'service_catalog'), where('category', '==', category), where('active', '==', true));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache('service_catalog', queryFn);
+}
+
+// Appointment Services
+export async function fetchAppointmentServices(encounterId: string) {
+  const queryFn = async () => {
+    const q = query(collection(db, 'appointment_services'), where('encounterId', '==', encounterId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache(`appointment_services_${encounterId}`, queryFn);
+}
+
+// Triage Vitals
+export async function fetchTriageVitals(encounterId: string) {
+  const queryFn = async () => {
+    const q = query(collection(db, 'triage_vitals'), where('encounterId', '==', encounterId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache(`triage_vitals_${encounterId}`, queryFn);
+}
+
+// Clinical Notes
+export async function fetchClinicalNotes(encounterId: string) {
+  const queryFn = async () => {
+    const q = query(collection(db, 'clinical_notes'), where('encounterId', '==', encounterId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache(`clinical_notes_${encounterId}`, queryFn);
+}
+
+// Lab Orders
+export async function fetchLabOrders(encounterId: string) {
+  const queryFn = async () => {
+    const q = query(collection(db, 'lab_orders'), where('encounterId', '==', encounterId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache(`lab_orders_${encounterId}`, queryFn);
+}
+
+// Prescriptions
+export async function fetchPrescriptions(encounterId: string) {
+  const queryFn = async () => {
+    const q = query(collection(db, 'prescriptions'), where('encounterId', '==', encounterId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache(`prescriptions_${encounterId}`, queryFn);
+}
+
+// Dispensing Records
+export async function fetchDispensingRecords(encounterId: string) {
+  const queryFn = async () => {
+    const q = query(collection(db, 'dispensing_records'), where('encounterId', '==', encounterId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache(`dispensing_records_${encounterId}`, queryFn);
+}
+
+// Invoices
+export async function fetchInvoicesByEncounter(encounterId: string) {
+  const queryFn = async () => {
+    const q = query(collection(db, 'invoices'), where('encounterId', '==', encounterId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache(`invoices_${encounterId}`, queryFn);
+}
+
+// Invoice Items
+export async function fetchInvoiceItems(invoiceId: string) {
+  const queryFn = async () => {
+    const q = query(collection(db, 'invoice_items'), where('invoiceId', '==', invoiceId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache(`invoice_items_${invoiceId}`, queryFn);
+}
+
+// Payments
+export async function fetchPayments(invoiceId: string) {
+  const queryFn = async () => {
+    const q = query(collection(db, 'payments'), where('invoiceId', '==', invoiceId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache(`payments_${invoiceId}`, queryFn);
+}
+
+// Attachments
+export async function fetchAttachments(encounterId: string) {
+  const queryFn = async () => {
+    const q = query(collection(db, 'attachments'), where('encounterId', '==', encounterId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache(`attachments_${encounterId}`, queryFn);
+}
+
 export async function fetchAuditLogs(filters?: any) {
   const queryFn = async () => {
     let q = query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'));

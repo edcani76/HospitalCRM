@@ -220,8 +220,8 @@ export default function AdminDashboard() {
             <CardTitle>Appointment Trends (Last 7 Days)</CardTitle>
           </CardHeader>
           <CardContent className="min-w-0">
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+            <div className="h-80 w-full">
+              <ResponsiveContainer width="100%" height={320}>
                 <LineChart data={stats.appointmentsTrend}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
@@ -251,8 +251,8 @@ export default function AdminDashboard() {
             <CardTitle>Patients by Department</CardTitle>
           </CardHeader>
           <CardContent className="min-w-0">
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+            <div className="h-80 w-full">
+              <ResponsiveContainer width="100%" height={320}>
                 <BarChart data={stats.patientsByDepartment}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="department" />

@@ -399,67 +399,109 @@ export default function AppointmentDetailsPage() {
       const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
       const aptType = types[0] || 'consultation';
 
-      // Create EMR record with initial service
-      const emrData = {
+      // Create ENCOUNTER record (replaces emrRecords)
+      const encounterData = {
+        appointmentId: appointment.id,
         petId: appointment.petId,
         petName: appointment.petName,
         clientUid: appointment.clientUid,
         doctorId: appointment.doctorId,
         doctorName: appointment.doctorName,
-        appointmentId: appointment.id,
-        date: appointment.date,
-        time: appointment.time,
+        startedAt: startTime,
+        completedAt: null,
         status: 'in-progress',
-        type: aptType,
-        vitals: {},
-        diagnosis: '',
-        treatment: '',
-        prescriptions: [],
-        labResults: [],
-        notes: '',
-        services: [
-          {
-            id: Date.now().toString(),
-            name: aptType.charAt(0).toUpperCase() + aptType.slice(1),
-            startTime: startTime,
-            endTime: null,
-            status: 'in-progress',
-            fee: aptType === 'consultation' ? 500 : aptType === 'grooming' ? 800 : aptType === 'vaccination' ? 300 : 1000
-          }
-        ],
+        vitals: {
+          weightKg: 0,
+          temperatureC: 0,
+          heartRateBpm: 0,
+          respiratoryRateRpm: 0,
+          mmColor: '',
+          crtSeconds: 0,
+          notes: ''
+        },
+        clinicalNotes: {
+          subjective: '',
+          objective: '',
+          assessment: '',
+          plan: '',
+          diagnosis: '',
+          doctorNotes: '',
+          followUpInstructions: ''
+        },
+        createdBy: userUid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
-      const emrRef = await addDoc(collection(db, 'emrRecords'), emrData);
+      const encounterRef = await addDoc(collection(db, 'encounters'), encounterData);
+      const encounterId = encounterRef.id;
 
-      // Create draft invoice with the service
+      // Create appointment_service record for the initial service
       const serviceFee = aptType === 'consultation' ? 500 : aptType === 'grooming' ? 800 : aptType === 'vaccination' ? 300 : 1000;
+      const serviceData = {
+        appointmentId: appointment.id,
+        encounterId: encounterId,
+        petId: appointment.petId,
+        clientUid: appointment.clientUid,
+        serviceCatalogId: '', // Will be populated from service_catalog
+        serviceCode: aptType.toUpperCase().slice(0, 3),
+        serviceName: aptType.charAt(0).toUpperCase() + aptType.slice(1),
+        serviceType: aptType as AppointmentType,
+        status: 'in-progress',
+        source: 'pre-booked',
+        billable: true,
+        quantity: 1,
+        unitPrice: serviceFee,
+        discountAmount: 0,
+        taxRate: 0,
+        performedBy: appointment.doctorId,
+        completedAt: null,
+        createdBy: userUid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      const serviceRef = await addDoc(collection(db, 'appointment_services'), serviceData);
+
+      // Create draft invoice linked to encounter
       const invoiceData = {
+        invoiceNo: `INV-${Date.now().toString().slice(-6)}`,
+        appointmentId: appointment.id,
+        encounterId: encounterId,
         petId: appointment.petId,
         petName: appointment.petName,
         clientUid: appointment.clientUid,
-        doctorId: appointment.doctorId,
-        doctorName: appointment.doctorName,
-        appointmentId: appointment.id,
-        emrId: emrRef.id,
-        date: startTime,
         status: 'draft',
-        items: [
-          {
-            description: aptType.charAt(0).toUpperCase() + aptType.slice(1),
-            amount: serviceFee,
-            quantity: 1
-          }
-        ],
-        total: serviceFee,
+        subTotal: serviceFee,
+        discountTotal: 0,
+        taxTotal: 0,
+        grandTotal: serviceFee,
+        amountPaid: 0,
+        balanceDue: serviceFee,
+        createdBy: userUid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
-      await addDoc(collection(db, 'invoices'), invoiceData);
+      const invoiceRef = await addDoc(collection(db, 'invoices'), invoiceData);
+
+      // Create invoice item for the service
+      const invoiceItemData = {
+        invoiceId: invoiceRef.id,
+        appointmentServiceId: serviceRef.id,
+        serviceCatalogId: '',
+        description: aptType.charAt(0).toUpperCase() + aptType.slice(1),
+        itemType: 'service',
+        quantity: 1,
+        unitPrice: serviceFee,
+        discountAmount: 0,
+        taxRate: 0,
+        taxAmount: 0,
+        lineTotal: serviceFee,
+        createdAt: serverTimestamp()
+      };
+      await addDoc(collection(db, 'invoice_items'), invoiceItemData);
 
       // Send notifications
       await notifyDoctor(appointment.doctorId, 'appointment_started', 'Appointment Started',
-        `Appointment for ${appointment.petName} has started. EMR and billing initialized.`);
+        `Appointment for ${appointment.petName} has started. Encounter and billing initialized.`);
       
       if (appointment.clientUid) {
         await notifyClient(appointment.clientUid, 'appointment_started', 'Appointment Started',
@@ -472,7 +514,10 @@ export default function AppointmentDetailsPage() {
         setAppointment({ id: updatedSnap.id, ...updatedSnap.data() } as Appointment);
       }
 
-      setNotificationSent('Appointment started - EMR and billing initialized');
+      // Set emrId to encounterId for backward compatibility
+      setEmrId(encounterId);
+
+      setNotificationSent('Appointment started - Encounter and billing initialized');
       setTimeout(() => setNotificationSent(''), 5000);
     } catch (error) {
       console.error('Error starting appointment:', error);
@@ -585,105 +630,121 @@ export default function AppointmentDetailsPage() {
         backTo="/crm/appointments"
         backText="Back to Appointments"
         actions={
-          canEdit && appointment.status !== 'in-progress' && (
-            <div className="flex gap-2">
-              {!isEditMode ? (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsEditMode(true)}
-                  >
-                    <Pencil className="w-4 h-4 mr-2" />
-                    Edit
-                  </Button>
-                  {appointment.status === 'pending' && (
+          <div className="flex gap-2 items-center">
+            {/* View Medical Record button (when in-progress) */}
+            {appointment.status === 'in-progress' && emrId && (
+              <Button
+                className="bg-gradient-to-r from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white animate-pulse"
+                size="sm"
+                onClick={() => navigate(`/crm/emr/${appointment.petId}`, { 
+                  state: { from: `/crm/appointments/${appointment.id}`, backText: 'Back to Appointment Details' }
+                })}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                View Medical Record →
+              </Button>
+            )}
+            
+            {canEdit && appointment.status !== 'in-progress' && (
+              <>
+                {!isEditMode ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditMode(true)}
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+                    {appointment.status === 'pending' && (
+                      <Button
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={confirmAppointment}
+                        disabled={saving}
+                      >
+                        {saving ? (
+                          <span className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Confirming...
+                          </span>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Confirm
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    {appointment.status === 'confirmed' && (() => {
+                      const today = new Date().toISOString().split('T')[0];
+                      const isToday = appointment.date === today;
+                      return isToday ? (
+                        <Button
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          onClick={startAppointment}
+                          disabled={starting}
+                        >
+                          {starting ? (
+                            <span className="flex items-center gap-2">
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Starting...
+                            </span>
+                          ) : (
+                            <>
+                              <Play className="w-4 h-4 mr-2" />
+                              Start Appointment
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          disabled={true}
+                          title="Can only start appointment on the scheduled date"
+                        >
+                          <Play className="w-4 h-4 mr-2" />
+                          Start Appointment
+                        </Button>
+                      );
+                    })()}
+                    {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                    <Button
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                      onClick={() => setShowCancelDialog(true)}
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      Cancel Appointment
+                    </Button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditMode(false)}
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Cancel Edit
+                    </Button>
                     <Button
                       className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                      onClick={confirmAppointment}
+                      onClick={handleSave}
                       disabled={saving}
                     >
                       {saving ? (
                         <span className="flex items-center gap-2">
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Confirming...
+                          Saving...
                         </span>
                       ) : (
-                        <>
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Confirm
-                        </>
+                        'Save Changes'
                       )}
                     </Button>
-                  )}
-                  {appointment.status === 'confirmed' && (() => {
-                    const today = new Date().toISOString().split('T')[0];
-                    const isToday = appointment.date === today;
-                    return isToday ? (
-                      <Button
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                        onClick={startAppointment}
-                        disabled={starting}
-                      >
-                        {starting ? (
-                          <span className="flex items-center gap-2">
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            Starting...
-                          </span>
-                        ) : (
-                          <>
-                            <Play className="w-4 h-4 mr-2" />
-                            Start Appointment
-                          </>
-                        )}
-                      </Button>
-                    ) : (
-                      <Button
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                        disabled={true}
-                        title="Can only start appointment on the scheduled date"
-                      >
-                        <Play className="w-4 h-4 mr-2" />
-                        Start Appointment
-                      </Button>
-                    );
-                  })()}
-                  {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
-                  <Button
-                    className="bg-red-600 hover:bg-red-700 text-white"
-                    onClick={() => setShowCancelDialog(true)}
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Cancel Appointment
-                  </Button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsEditMode(false)}
-                  >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Cancel Edit
-                  </Button>
-                  <Button
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                    onClick={handleSave}
-                    disabled={saving}
-                  >
-                    {saving ? (
-                      <span className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Saving...
-                      </span>
-                    ) : (
-                      'Save Changes'
-                    )}
-                  </Button>
-                </>
-              )}
-            </div>
-          )
+                  </>
+                )}
+              </>
+            )}
+          </div>
         }
       />
 
@@ -927,21 +988,7 @@ export default function AppointmentDetailsPage() {
         {appointment.status === 'in-progress' && (
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Services</CardTitle>
-                {emrId && (
-                  <Button
-                    className="bg-gradient-to-r from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white animate-pulse"
-                    size="sm"
-                    onClick={() => navigate(`/crm/emr/${appointment.petId}`, { 
-                      state: { from: `/crm/appointments/${appointment.id}`, backText: 'Back to Appointment Details' }
-                    })}
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    View Medical Record →
-                  </Button>
-                )}
-              </div>
+              <CardTitle>Services</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="border rounded-lg overflow-hidden">

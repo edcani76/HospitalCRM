@@ -188,8 +188,8 @@ export default function AnalyticsPage() {
             <CardTitle>Appointment Trends</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-80 w-full">
+              <ResponsiveContainer width="100%" height={320}>
                 <LineChart data={stats.appointmentsTrend}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
@@ -207,8 +207,8 @@ export default function AnalyticsPage() {
             <CardTitle>Patients by Department</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-80 w-full">
+              <ResponsiveContainer width="100%" height={320}>
                 <BarChart data={stats.patientsByDepartment}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="department" />

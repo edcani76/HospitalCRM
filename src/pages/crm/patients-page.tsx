@@ -53,6 +53,7 @@ export default function PatientsPage() {
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [deletingPatient, setDeletingPatient] = useState<Patient | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -123,6 +124,7 @@ export default function PatientsPage() {
   }, [patients, searchQuery, selectedLetter]);
 
   const handleAddSubmit = async (formData: any) => {
+    setIsSubmitting(true);
     try {
       const newPet = {
         name: formData.name,
@@ -143,6 +145,8 @@ export default function PatientsPage() {
       fetchData();
     } catch (error) {
       console.error('Error adding patient:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -154,6 +158,7 @@ export default function PatientsPage() {
 
   const handleEditSubmit = async (formData: any) => {
     if (!editingPatient) return;
+    setIsSubmitting(true);
     try {
       const updatedData = {
         name: formData.name,
@@ -170,6 +175,8 @@ export default function PatientsPage() {
       fetchData();
     } catch (error) {
       console.error('Error updating patient:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -457,17 +464,18 @@ export default function PatientsPage() {
       </div>
 
       {/* Reusable Pet Dialog for Add */}
-      <PetDialog 
+      <PetDialog
         open={isAddModalOpen}
         onOpenChange={setIsAddModalOpen}
         mode="add"
         users={users}
         onSubmit={handleAddSubmit}
         onCancel={() => setIsAddModalOpen(false)}
+        isSubmitting={isSubmitting}
       />
       
       {/* Reusable Pet Dialog for Edit */}
-      <PetDialog 
+      <PetDialog
         open={isEditModalOpen}
         onOpenChange={setIsEditModalOpen}
         mode="edit"
@@ -478,6 +486,7 @@ export default function PatientsPage() {
           setIsEditModalOpen(false);
           setEditingPatient(null);
         }}
+        isSubmitting={isSubmitting}
       />
 
       {/* Delete Confirmation Modal */}

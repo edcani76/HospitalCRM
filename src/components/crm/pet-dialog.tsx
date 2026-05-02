@@ -191,9 +191,10 @@ interface PetDialogProps {
   users?: { [uid: string]: any };
   onSubmit: (formData: any) => void;
   onCancel: () => void;
+  isSubmitting?: boolean;
 }
 
-export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, onSubmit, onCancel }: PetDialogProps) {
+export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, onSubmit, onCancel, isSubmitting = false }: PetDialogProps) {
   const [selectedSpecies, setSelectedSpecies] = useState('')
   const [customSpecies, setCustomSpecies] = useState('')
   const [selectedBreed, setSelectedBreed] = useState('')
@@ -420,9 +421,16 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
             )}
 
             <DialogFooter className="pt-6 flex gap-3 border-t border-gray-50">
-              <Button type="button" variant="ghost" onClick={onCancel} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-blue-100">
-                {mode === 'add' ? 'Register Patient' : 'Save Changes'}
+              <Button type="button" variant="ghost" onClick={onCancel} className="rounded-xl h-12 px-6 font-bold" disabled={isSubmitting}>Cancel</Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-blue-100" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    {mode === 'add' ? 'Registering...' : 'Saving...'}
+                  </span>
+                ) : (
+                  mode === 'add' ? 'Register Patient' : 'Save Changes'
+                )}
               </Button>
             </DialogFooter>
           </form>
