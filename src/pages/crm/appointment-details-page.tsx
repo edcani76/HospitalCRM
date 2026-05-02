@@ -54,7 +54,9 @@ export default function AppointmentDetailsPage() {
   const [emrId, setEmrId] = useState<string | null>(null);
   const [emrData, setEmrData] = useState<any | null>(null);
   const [addingService, setAddingService] = useState<string | null>(null);
-  const [users, setUsers] = useState<{ [uid: string]: string }>({});
+  const [users, setUsers] = useState<{ [uid: string]: any }>({});
+  const [petInfo, setPetInfo] = useState<any>(null);
+  const [petOwner, setPetOwner] = useState<any>(null);
   
   // Fetch users for audit trail display
   const fetchUsers = async () => {
@@ -78,26 +80,42 @@ export default function AppointmentDetailsPage() {
         const doctorsSnap = await getDocs(collection(db, 'doctors'));
         const doctorsList = doctorsSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name || 'Unknown' }));
         setDoctors(doctorsList);
-        
+
         // Fetch users for audit trail
         await fetchUsers();
-        
+
         // Fetch appointment
         const aptSnap = await getDoc(doc(db, 'appointments', appointmentId || ''));
         if (aptSnap.exists()) {
           const data = { id: aptSnap.id, ...aptSnap.data() } as Appointment;
           setAppointment(data);
-          
+
+          // Fetch pet info
+          if (data.petId) {
+            const petSnap = await getDoc(doc(db, 'pets', data.petId));
+            if (petSnap.exists()) {
+              setPetInfo({ id: petSnap.id, ...petSnap.data() });
+              // Fetch owner info
+              const petData = petSnap.data();
+              if (petData.ownerUid) {
+                const ownerSnap = await getDoc(doc(db, 'users', petData.ownerUid));
+                if (ownerSnap.exists()) {
+                  setPetOwner({ id: ownerSnap.id, ...ownerSnap.data() });
+                }
+              }
+            }
+          }
+
           // Set edit fields
           setSelectedDoctorId(data.doctorId || '');
           setSelectedDate(data.date || '');
           setSelectedTime(data.time || '');
           setSelectedStatus(data.status || 'pending');
-          
+
           // Extract multiple types from notes
           const typeMatches = [...(data.notes?.matchAll(/Type:\s*(\w+)/gi) || [])];
           const types = typeMatches.map(m => m[1].toLowerCase());
-          setSelectedType((types[0] as AppointmentType) || 'consultation'); // Keep for backward compatibility
+          setSelectedType((types[0] as AppointmentType) || 'consultation');
           setNotes(data.notes?.replace(/Type:\s*\w+/gi, '').replace(/Mode:\s*\w+/i, '').trim() || '');
         }
       } catch (error) {
@@ -995,57 +1013,47 @@ export default function AppointmentDetailsPage() {
 
         {/* Right Column - Pet Info */}
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pet Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <p className="text-sm text-gray-500">Pet Name</p>
-                <button 
-                  className="font-medium text-emerald-600 hover:underline"
-                  onClick={() => navigate(`/crm/patients/${appointment.petId}`)}
-                >
-                  {appointment.petName}
-                </button>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Doctor</p>
-                <p className="font-medium">{appointment.doctorName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Schedule</p>
-                <p className="font-medium flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
-                  {appointment.date} at {appointment.time}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Status</p>
-                {getStatusBadge(appointment.status)}
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Mode</p>
-                <Badge variant="outline" className="border-purple-500 text-purple-600">
-                  {appointment.notes?.match(/Mode:\s*(\w+)/i)?.[1] === 'walk-in' ? 'Walk-in' : 'Scheduled'}
-                </Badge>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Type(s)</p>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {(() => {
-                    const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
-                    if (types.length === 0) return <Badge variant="outline" className="border-blue-500 text-blue-600">Consultation</Badge>;
-                    return types.map(type => (
-                      <Badge key={type} variant="outline" className="border-blue-500 text-blue-600">
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </Badge>
-                    ));
-                  })()}
+          <div className="bg-white rounded-lg p-6 shadow">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
+              <div className="flex items-center gap-6">
+                <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-white shadow-xl bg-blue-50 flex items-center justify-center text-3xl font-bold text-blue-600">
+                  {petInfo?.imageUrl || petInfo?.photo ? (
+                    <img src={petInfo.imageUrl || petInfo.photo} alt={petInfo.name} className="w-full h-full object-cover" />
+                  ) : (
+                    petInfo?.name?.[0] || appointment.petName?.[0] || 'P'
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-gray-900">{petInfo?.name || appointment.petName}</h2>
+                  <p className="text-sm text-gray-600"><span className="font-medium">Pet ID:</span> {petInfo?.id || appointment.petId}</p>
+                  <p className="text-sm text-gray-600"><span className="font-medium">Species:</span> {petInfo?.species || 'N/A'}</p>
+                  <p className="text-sm text-gray-600"><span className="font-medium">Breed:</span> {petInfo?.breed || 'N/A'}</p>
+                  <p className="text-sm text-gray-600"><span className="font-medium">Age:</span> {petInfo?.age ? `${petInfo.age} years` : 'N/A'}</p>
+                  <p className="text-sm text-gray-600"><span className="font-medium">Status:</span> {petInfo?.currentStatus || petInfo?.status || 'N/A'}</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+
+              {petOwner && (
+                <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 min-w-[320px]">
+                  <h4 className="font-bold text-blue-900 mb-3 text-sm uppercase tracking-wider">Owner Information</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-blue-700/70 font-medium">Name:</span>
+                      <span className="text-blue-900 font-semibold">{petOwner?.displayName || petOwner?.name || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-blue-700/70 font-medium">Email:</span>
+                      <span className="text-blue-900 underline decoration-blue-200">{petOwner?.email || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-blue-700/70 font-medium">Phone:</span>
+                      <span className="text-blue-900">{petOwner?.phone || petInfo?.ownerPhone || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
