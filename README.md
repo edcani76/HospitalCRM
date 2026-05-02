@@ -18,6 +18,7 @@ MediPaws is a modern, responsive veterinary clinic management system built to st
 - **Admin & Specialized Dashboards:** Role-based dashboards for Doctors, Pharmacists, and Lab Technicians.
 - **AI Integration:** Powered by Google Gemini for smart medical assistance and data insights.
 - **Progress Tracking:** See [PROGRESS.md](PROGRESS.md) for current development status and roadmap.
+- **Workflow Documentation:** See [WORKFLOW.md](WORKFLOW.md) for complete appointment lifecycle and service management.
 
 ## 🛠️ Technology Stack
 

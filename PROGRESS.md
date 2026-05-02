@@ -4,7 +4,7 @@ This document tracks the milestones, current development status, and roadmap for
 
 ## ✅ Completed Milestones
 
-### 🛡️ Core Infrastructure
+### 🏗️ Core Infrastructure
 - [x] **Firebase Integration**: Authentication (Google Sign-In) and Firestore setup.
 - [x] **Layout System**: Responsive side-navigation and theme-aware headers.
 - [x] **Theme System**: Full support for Light and Dark modes with persistent toggling.
@@ -14,20 +14,33 @@ This document tracks the milestones, current development status, and roadmap for
 - [x] **Owner Profiles**: Detailed views including contact info, registered pets, and status.
 - [x] **Patient Profiles**: Comprehensive pet records with medical history, vitals, and appointments.
 - [x] **EMR System**: Electronic Medical Records directory and detailed record views.
+- [x] **Firestore Migration**: Migrated all CRM pages from static `crm-data.ts` to Firestore.
+- [x] **Unified PetDialog**: Reusable Add/Edit dialog for patients across all CRM pages.
+- [x] **Appointment Workflow**: Complete lifecycle (pending → confirmed → in-progress → completed).
+- [x] **Service Management**: Auto-create EMR and invoice when starting appointments.
+- [x] **Auto No-Show**: Automatically tag past appointments as no-show.
 
 ### 🧭 Navigation & UX
 - [x] **Recursive Breadcrumbs**: Implementation of a dynamic breadcrumb resolver for deep-linking (Owner > Patient > EMR).
 - [x] **Standardized State Propagation**: Consistent use of `location.state` for reliable "Back" button behavior.
 - [x] **Premium Aesthetics**: Integrated modern typography, glassmorphism, and interactive micro-animations.
+- [x] **Dropdown Fixes**: Fixed transparency issues in dropdown menus.
+- [x] **Dialog Optimization**: Improved PetDialog sizing for mobile/tablet.
+- [x] **Notification Banners**: Show confirmation/success messages for actions.
 
 ### 💰 Billing & Admin
 - [x] **Medical Invoicing**: Interactive billing module with subtotal/tax calculations.
 - [x] **PDF Generation**: Browser-side PDF invoice generation for printing/downloading.
 - [x] **Specialized Dashboards**: Initial layouts for Doctor, Pharmacist, and Lab dashboards.
+- [x] **Draft Invoicing**: Auto-create draft invoice when starting appointments.
+
+### 🔔 Notification System
+- [x] **In-App Notifications**: Notify doctors and clients on appointment status changes.
+- [x] **Audit Trail**: Track all appointment actions with user ID and timestamp.
 
 ## 🚀 Current Focus
-- [ ] **Data Persistence**: Migrating hardcoded `crm-data.ts` to Firestore for real-time updates.
-- [ ] **CRUD Operations**: Finalizing forms for creating and editing Owners, Patients, and EMR records.
+- [ ] **Service Completion**: Allow completing individual services with end times.
+- [ ] **EMR Editing**: Build full EMR editing interface (vitals, diagnosis, prescriptions).
 - [ ] **AI Assistant**: Integrating Gemini for smart medical analysis and automated report generation.
 
 ## 📅 Roadmap
@@ -36,6 +49,7 @@ This document tracks the milestones, current development status, and roadmap for
 - [ ] **Lab Integration**: Real-time lab result tracking and notification system.
 - [ ] **Pharmacy Inventory**: Management system for medical supplies and prescriptions.
 - [ ] **Appointment Scheduling**: Full calendar integration with conflict detection.
+- [x] **Appointment Workflow**: Complete lifecycle with EMR and billing integration.
 
 ### Q3 2026
 - [ ] **Telemedicine**: Video consultation support for remote follow-ups.
@@ -43,4 +57,4 @@ This document tracks the milestones, current development status, and roadmap for
 - [ ] **Mobile App**: Dedicated iOS and Android applications for pet owners.
 
 ---
-*Last Updated: 2026-05-01*
+*Last Updated: 2026-05-02*
