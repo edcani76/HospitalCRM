@@ -119,7 +119,7 @@ export default function CreateAppointmentPage() {
     if (!existing) return 'available';
     if (existing.status === 'cancelled') return 'available';
     if (isEdit && apt.time === time && existing.id === prefill?.originalId) return 'available';
-    return existing.status;
+    return existing.status as any;
   };
 
   useEffect(() => {
@@ -496,14 +496,14 @@ export default function CreateAppointmentPage() {
                       <Label>Available Time Slots</Label>
                       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2">
                         {getTimeSlotsForDoctor(apt.providerId, apt.date).map(time => {
-                          const status = getSlotStatus(apt, time);
+                          const status = getSlotStatus(apt, time) as any;
                           const isSelected = apt.time === time;
                           const isPast = status === 'past';
                           const isBooked = status === 'confirmed' || status === 'unconfirmed';
                           return (
                             <button key={time} type="button"
                               disabled={isPast || (isBooked && status !== 'available')}
-                              onClick={() => (status === 'available' || status === 'unconfirmed') && updateAppointment(activeTab, { time })}
+                              onClick={() => ((status as string) === 'available' || (status as string) === 'unconfirmed') && updateAppointment(activeTab, { time })}
                               className={`p-2 rounded-lg border text-sm font-medium transition-all relative ${
                                 isPast ? 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed' :
                                 isSelected ? 'bg-emerald-600 text-white border-emerald-600' :

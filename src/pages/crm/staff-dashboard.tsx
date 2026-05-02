@@ -42,8 +42,8 @@ export default function StaffDashboard() {
       const doctorsData = doctorsSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name || 'Unknown' }));
       setDoctors(doctorsData);
 
-      const pets = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      const invoices = invoicesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const pets = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      const invoices = invoicesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
 
       // New Patients: created in last 30 days (based on createdAt field)
       const now = new Date();

@@ -109,7 +109,7 @@ export default function AppointmentsPage() {
   const fetchNotifications = async (userId: string) => {
     try {
       const notifs = await getNotifications(userId);
-      setNotifications(notifs);
+      setNotifications(notifs as Notification[]);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     }
