@@ -588,24 +588,6 @@ export default function CreateAppointmentPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>Appointment Type</Label>
-                  <Select value={appointmentType} onValueChange={setAppointmentType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="consultation">Consultation</SelectItem>
-                      <SelectItem value="grooming">Grooming</SelectItem>
-                      <SelectItem value="vaccination">Vaccination</SelectItem>
-                      <SelectItem value="procedure">Procedure</SelectItem>
-                      <SelectItem value="laboratory">Laboratory</SelectItem>
-                      <SelectItem value="emergency">Emergency</SelectItem>
-                      <SelectItem value="follow-up">Follow-up</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
                   <Label>Appointment Mode</Label>
                   <div className="flex gap-2 mt-2">
                     <Button
@@ -626,21 +608,33 @@ export default function CreateAppointmentPage() {
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Notes */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Additional Notes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Reason for visit, symptoms, special instructions..."
-                  rows={4}
-                />
+                <div>
+                  <Label>Appointment Type</Label>
+                  <Select value={appointmentType} onValueChange={setAppointmentType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="consultation">Consultation</SelectItem>
+                      <SelectItem value="grooming">Grooming</SelectItem>
+                      <SelectItem value="vaccination">Vaccination</SelectItem>
+                      <SelectItem value="procedure">Procedure</SelectItem>
+                      <SelectItem value="laboratory">Laboratory</SelectItem>
+                      <SelectItem value="emergency">Emergency</SelectItem>
+                      <SelectItem value="follow-up">Follow-up</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Additional Notes</Label>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Reason for visit, symptoms, special instructions..."
+                    rows={4}
+                  />
+                </div>
               </CardContent>
             </Card>
 

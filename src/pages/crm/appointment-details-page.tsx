@@ -234,6 +234,11 @@ export default function AppointmentDetailsPage() {
     return <div className="p-8 text-center">Appointment not found</div>;
   }
 
+  const additionalNotes = appointment.notes
+    ?.replace(/Type:\s*\w+/i, '')
+    .replace(/Mode:\s*\w+/i, '')
+    .trim();
+
   return (
     <div className="max-w-4xl mx-auto pb-12">
       <PageHeader 
@@ -312,7 +317,8 @@ export default function AppointmentDetailsPage() {
             <CardContent className="space-y-4">
               {!isEditMode ? (
                 // View Mode
-                <div className="grid grid-cols-2 gap-4">
+                <>
+                  <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Pet</p>
                     <button 
@@ -356,7 +362,16 @@ export default function AppointmentDetailsPage() {
                       {appointment.notes?.match(/Mode:\s*(\w+)/i)?.[1] === 'walk-in' ? 'Walk-in' : 'Scheduled'}
                     </Badge>
                   </div>
-                </div>
+                  {additionalNotes && (
+                    <div className="col-span-2">
+                      <p className="text-sm text-gray-500 mb-1">Additional Notes</p>
+                      <div className="p-3 bg-gray-50 rounded-lg text-sm whitespace-pre-wrap">
+                        {additionalNotes}
+                      </div>
+                    </div>
+                  )}
+                  </div>
+                </>
               ) : (
                 // Edit Mode
                 <div className="space-y-4">
@@ -454,19 +469,9 @@ export default function AppointmentDetailsPage() {
                     />
                   </div>
                 </div>
-              )}
+               )}
 
-              {/* Notes in view mode */}
-              {!isEditMode && appointment.notes && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Notes</p>
-                  <div className="p-3 bg-gray-50 rounded-lg text-sm">
-                    {appointment.notes}
-                  </div>
-                </div>
-              )}
-
-              {/* Cancel Reason in view mode */}
+               {/* Cancel Reason in view mode */}
               {!isEditMode && appointment.cancelReason && (
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Cancellation Reason</p>
