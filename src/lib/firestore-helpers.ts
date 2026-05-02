@@ -345,6 +345,109 @@ export async function fetchPayments(invoiceId: string) {
   return fetchWithCache(`payments_${invoiceId}`, queryFn);
 }
 
+// Create Invoice from Encounter
+export async function generateInvoiceFromEncounter(encounterId: string, appointmentServices: any[], patientId: string, ownerId: string) {
+  const now = serverTimestamp();
+  const invoiceNo = `INV-${Date.now()}`;
+
+  // Calculate totals
+  let subTotal = 0;
+  let discountTotal = 0;
+
+  const invoiceItems = appointmentServices.map(svc => {
+    const lineTotal = (svc.unitPrice || 0) * (svc.quantity || 1);
+    const discount = svc.discountAmount || 0;
+    subTotal += lineTotal;
+    discountTotal += discount;
+    return {
+      invoiceId: '', // Will be set after invoice creation
+      encounterId,
+      appointmentServiceId: svc.id,
+      itemType: svc.serviceType || 'service',
+      description: svc.serviceName,
+      quantity: svc.quantity || 1,
+      unitPrice: svc.unitPrice || 0,
+      discountAmount: discount,
+      taxRate: svc.taxRate || 0,
+      lineTotal: lineTotal - discount,
+      createdAt: now
+    };
+  });
+
+  const grandTotal = subTotal - discountTotal;
+
+  // Create invoice
+  const invoiceData = {
+    invoiceNo,
+    encounterId,
+    patientId,
+    ownerId,
+    subTotal,
+    discountTotal,
+    grandTotal,
+    amountPaid: 0,
+    balanceDue: grandTotal,
+    status: 'draft',
+    createdAt: now,
+    updatedAt: now
+  };
+
+  const invoiceRef = await addDoc(collection(db, 'invoices'), invoiceData);
+  const invoiceId = invoiceRef.id;
+
+  // Create invoice items
+  for (const item of invoiceItems) {
+    item.invoiceId = invoiceId;
+    await addDoc(collection(db, 'invoice_items'), item);
+  }
+
+  return { id: invoiceId, ...invoiceData };
+}
+
+// Record Payment
+export async function recordPayment(invoiceId: string, amount: number, paymentMethod: string, referenceNo?: string) {
+  const now = serverTimestamp();
+
+  const paymentData = {
+    invoiceId,
+    amount,
+    paymentMethod,
+    referenceNo: referenceNo || '',
+    paidAt: now,
+    createdAt: now
+  };
+
+  const paymentRef = await addDoc(collection(db, 'payments'), paymentData);
+
+  // Update invoice
+  const invoice = (await fetchInvoicesByEncounter('')).find(inv => inv.id === invoiceId);
+  if (invoice) {
+    const payments = await fetchPayments(invoiceId);
+    const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0) + amount;
+    const balanceDue = invoice.grandTotal - totalPaid;
+    const status = balanceDue <= 0 ? 'paid' : 'partially-paid';
+
+    const invoiceRef = doc(db, 'invoices', invoiceId);
+    await updateDoc(invoiceRef, {
+      amountPaid: totalPaid,
+      balanceDue,
+      status,
+      updatedAt: now
+    });
+  }
+
+  return { id: paymentRef.id, ...paymentData };
+}
+
+// Update Invoice Status
+export async function updateInvoiceStatus(invoiceId: string, status: string) {
+  const invoiceRef = doc(db, 'invoices', invoiceId);
+  await updateDoc(invoiceRef, {
+    status,
+    updatedAt: serverTimestamp()
+  });
+}
+
 // Attachments
 export async function fetchAttachments(encounterId: string) {
   const queryFn = async () => {

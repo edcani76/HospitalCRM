@@ -9,6 +9,7 @@ import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -18,7 +19,8 @@ import {
   fetchAppointmentServices, fetchTriageVitals, fetchClinicalNotes,
   fetchLabOrders, fetchPrescriptions, fetchDispensingRecords,
   fetchInvoicesByEncounter, fetchInvoiceItems, fetchPayments,
-  fetchAttachments, fetchAuditLogs
+  fetchAttachments, fetchAuditLogs,
+  generateInvoiceFromEncounter, recordPayment
 } from '../../lib/firestore-helpers';
 import { collection, addDoc, updateDoc, doc, serverTimestamp, db } from '../../firebase';
 import {
@@ -83,6 +85,10 @@ export default function EMRPage() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentData, setPaymentData] = useState({ amount: 0, method: 'cash', referenceNo: '' });
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
+  const [recordingPayment, setRecordingPayment] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -535,6 +541,82 @@ export default function EMRPage() {
       alert('Error uploading file. Please try again.');
     } finally {
       setUploadingFile(false);
+    }
+  };
+
+  const generateDraftInvoice = async () => {
+    if (!selectedEncounter?.id || !patient) return;
+
+    setGeneratingInvoice(true);
+    try {
+      if (invoice) {
+        alert('Invoice already exists for this encounter');
+        return;
+      }
+
+      const billableServices = appointmentServices.filter(s => s.billable !== false);
+
+      if (billableServices.length === 0) {
+        alert('No billable services found for this encounter');
+        return;
+      }
+
+      const newInvoice = await generateInvoiceFromEncounter(
+        selectedEncounter.id,
+        billableServices,
+        patientId || '',
+        selectedEncounter.ownerId || patient?.ownerUid || ''
+      );
+
+      const [inv, items, pays] = await Promise.all([
+        fetchInvoicesByEncounter(selectedEncounter.id),
+        fetchInvoiceItems(newInvoice.id),
+        fetchPayments(newInvoice.id)
+      ]);
+
+      setInvoice(inv[0] || null);
+      setInvoiceItems(items);
+      setPayments(pays);
+
+      alert('Draft invoice generated successfully!');
+    } catch (error) {
+      console.error('Error generating invoice:', error);
+      alert('Error generating invoice. Please try again.');
+    } finally {
+      setGeneratingInvoice(false);
+    }
+  };
+
+  const handleRecordPayment = async () => {
+    if (!invoice?.id) return;
+
+    setRecordingPayment(true);
+    try {
+      await recordPayment(
+        invoice.id,
+        paymentData.amount || invoice.balanceDue,
+        paymentData.method,
+        paymentData.referenceNo
+      );
+
+      const [inv, items, pays] = await Promise.all([
+        fetchInvoicesByEncounter(selectedEncounter.id),
+        fetchInvoiceItems(invoice.id),
+        fetchPayments(invoice.id)
+      ]);
+
+      setInvoice(inv[0] || null);
+      setInvoiceItems(items);
+      setPayments(pays);
+      setShowPaymentDialog(false);
+      setPaymentData({ amount: 0, method: 'cash', referenceNo: '' });
+
+      alert('Payment recorded successfully!');
+    } catch (error) {
+      console.error('Error recording payment:', error);
+      alert('Error recording payment. Please try again.');
+    } finally {
+      setRecordingPayment(false);
     }
   };
 
@@ -1247,7 +1329,18 @@ export default function EMRPage() {
 
         {activeTab === 'billing' && (
           <div className="p-6">
-            <h3 className="text-lg font-bold mb-4">Billing</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Billing</h3>
+              {invoice && invoice.status !== 'paid' && (
+                <Button
+                  onClick={() => setShowPaymentDialog(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  Record Payment
+                </Button>
+              )}
+            </div>
 
             {invoice ? (
               <div>
@@ -1332,8 +1425,19 @@ export default function EMRPage() {
               <div className="text-center py-8 text-gray-500">
                 <DollarSign className="w-12 h-12 mx-auto mb-2 text-gray-300" />
                 <p>No invoice generated yet.</p>
-                <Button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white">
-                  Generate Draft Invoice
+                <Button
+                  onClick={generateDraftInvoice}
+                  disabled={generatingInvoice}
+                  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {generatingInvoice ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating...
+                    </span>
+                  ) : (
+                    'Generate Draft Invoice'
+                  )}
                 </Button>
               </div>
             )}
@@ -1397,6 +1501,66 @@ export default function EMRPage() {
           </div>
         )}
       </div>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record Payment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Amount (₱)</Label>
+              <Input
+                type="number"
+                value={paymentData.amount || invoice?.balanceDue || 0}
+                onChange={(e) => setPaymentData({ ...paymentData, amount: parseFloat(e.target.value) || 0 })}
+                placeholder="0.00"
+              />
+              <p className="text-xs text-gray-500 mt-1">Balance due: ₱{invoice?.balanceDue?.toFixed(2) || '0.00'}</p>
+            </div>
+            <div>
+              <Label>Payment Method</Label>
+              <select
+                value={paymentData.method}
+                onChange={(e) => setPaymentData({ ...paymentData, method: e.target.value })}
+                className="w-full mt-1 p-2 border rounded-lg bg-white"
+              >
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="gcash">GCash</option>
+                <option value="bank-transfer">Bank Transfer</option>
+                <option value="check">Check</option>
+              </select>
+            </div>
+            <div>
+              <Label>Reference No. (Optional)</Label>
+              <Input
+                value={paymentData.referenceNo}
+                onChange={(e) => setPaymentData({ ...paymentData, referenceNo: e.target.value })}
+                placeholder="Transaction reference"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancel</Button>
+            <Button
+              onClick={handleRecordPayment}
+              disabled={recordingPayment}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {recordingPayment ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Recording...
+                </span>
+              ) : (
+                'Record Payment'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
