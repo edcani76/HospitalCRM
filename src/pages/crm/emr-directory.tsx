@@ -52,9 +52,7 @@ export default function EMRDirectory() {
   return (
     <div className="max-w-7xl mx-auto pb-12">
       <PageHeader 
-        title="Clinical Record Directory"
-        backTo={location.state?.from || '/crm/emr'}
-        backText={location.state?.backText || 'Back'} 
+        title="Clinical Record Directory" 
         subtitle={
           <div className="flex items-center gap-3">
             <span>Access and manage comprehensive medical histories for all patients.</span>

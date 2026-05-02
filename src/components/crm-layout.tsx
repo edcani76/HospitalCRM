@@ -21,12 +21,16 @@ import {
   ChevronRight,
   Sun,
   Moon,
-  History
+  History,
+  Wifi,
+  WifiOff,
+  RefreshCw
 } from 'lucide-react'
 import { signOut, auth } from '../firebase'
 import { useState, useEffect } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import { fetchPets, fetchUsers } from '../lib/firestore-helpers'
+import { isOnline, getQueuedMutations, syncMutations } from '../lib/offline-cache'
 
 interface CRMLayoutProps {
   children: React.ReactNode
@@ -37,6 +41,48 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
   const { theme, setTheme } = useTheme()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [online, setOnline] = useState(isOnline())
+  const [syncing, setSyncing] = useState(false)
+  const [queuedCount, setQueuedCount] = useState(0)
+
+  // Update online status and queued count
+  useEffect(() => {
+    const updateStatus = async () => {
+      setOnline(isOnline());
+      const mutations = await getQueuedMutations();
+      setQueuedCount(mutations.length);
+    };
+    updateStatus();
+
+    const cleanup = setupConnectivityListeners(
+      async () => {
+        setOnline(true);
+        const mutations = await getQueuedMutations();
+        setQueuedCount(mutations.length);
+      },
+      () => setOnline(false)
+    );
+
+    return cleanup;
+  }, []);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const result = await syncMutations(async (mutation) => {
+        // This is a simplified sync - in production, you'd call the actual Firestore functions
+        console.log('Syncing mutation:', mutation);
+        // You would implement actual sync logic here based on mutation.type
+      });
+      alert(`Sync complete: ${result.success} succeeded, ${result.failed} failed`);
+      const mutations = await getQueuedMutations();
+      setQueuedCount(mutations.length);
+    } catch (error) {
+      console.error('Sync failed:', error);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const isActive = (path: string) => location.pathname === path
 
@@ -318,6 +364,40 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
           </nav>
 
           <div className="flex items-center gap-3">
+            {/* Online/Offline Indicator */}
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl ${online ? 'bg-emerald-50' : 'bg-red-50'} transition-colors`}>
+              {online ? (
+                <Wifi size={16} className="text-emerald-600" />
+              ) : (
+                <WifiOff size={16} className="text-red-600" />
+              )}
+              <span className={`text-xs font-medium ${online ? 'text-emerald-700' : 'text-red-700'}`}>
+                {online ? 'Online' : 'Offline'}
+              </span>
+              {queuedCount > 0 && online && (
+                <button
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                  title="Sync offline changes"
+                >
+                  {syncing ? (
+                    <RefreshCw size={12} className="animate-spin" />
+                  ) : (
+                    <>
+                      <RefreshCw size={12} />
+                      Sync ({queuedCount})
+                    </>
+                  )}
+                </button>
+              )}
+              {queuedCount > 0 && !online && (
+                <span className="text-xs text-red-600">
+                  ({queuedCount} pending)
+                </span>
+              )}
+            </div>
+
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-muted/50">
               <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
                 <User size={16} className="text-emerald-600" />
