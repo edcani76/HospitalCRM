@@ -85,7 +85,7 @@ export default function Dashboard() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed': return 'bg-emerald-100 text-emerald-700';
-      case 'pending': return 'bg-yellow-100 text-yellow-700';
+      case 'unconfirmed': return 'bg-yellow-100 text-yellow-700';
       case 'cancelled': return 'bg-red-100 text-red-700';
       case 'completed': return 'bg-blue-100 text-blue-700';
       default: return 'bg-stone-100 text-stone-700';
@@ -95,7 +95,7 @@ export default function Dashboard() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'confirmed': return <CheckCircle className="w-4 h-4" />;
-      case 'pending': return <Clock className="w-4 h-4" />;
+      case 'unconfirmed': return <Clock className="w-4 h-4" />;
       case 'cancelled': return <XCircle className="w-4 h-4" />;
       case 'completed': return <CheckCircle className="w-4 h-4" />;
       default: return <AlertCircle className="w-4 h-4" />;

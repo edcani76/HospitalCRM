@@ -740,19 +740,17 @@ export default function AppointmentDetailsPage() {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Details */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Appointment Info Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Appointment Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!isEditMode ? (
-                // View Mode
-                <>
-                  <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-6">
+        {/* Appointment Info Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Appointment Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!isEditMode ? (
+              // View Mode
+              <>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Pet</p>
                     <button 
@@ -812,254 +810,248 @@ export default function AppointmentDetailsPage() {
                       </div>
                     </div>
                   )}
-                  </div>
-                </>
-              ) : (
-                // Edit Mode
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Doctor</label>
-                    {user?.role === 'doctor' ? (
-                      <p className="mt-1 p-2 bg-muted rounded-md">{appointment.doctorName}</p>
-                    ) : (
-                      <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select doctor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {doctors.map(doc => (
-                            <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">Date</label>
-                      <input 
-                        type="date" 
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="mt-1 w-full p-2 border rounded-md"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Time</label>
-                      <Select value={selectedTime} onValueChange={setSelectedTime}>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="09:00 AM">09:00 AM</SelectItem>
-                          <SelectItem value="09:30 AM">09:30 AM</SelectItem>
-                          <SelectItem value="10:00 AM">10:00 AM</SelectItem>
-                          <SelectItem value="10:30 AM">10:30 AM</SelectItem>
-                          <SelectItem value="11:00 AM">11:00 AM</SelectItem>
-                          <SelectItem value="02:00 PM">02:00 PM</SelectItem>
-                          <SelectItem value="02:30 PM">02:30 PM</SelectItem>
-                          <SelectItem value="03:00 PM">03:00 PM</SelectItem>
-                          <SelectItem value="03:30 PM">03:30 PM</SelectItem>
-                          <SelectItem value="04:00 PM">04:00 PM</SelectItem>
-                          <SelectItem value="04:30 PM">04:30 PM</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Appointment Type</label>
-                    <Select value={selectedType} onValueChange={(v) => setSelectedType(v as AppointmentType)}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="consultation">Consultation</SelectItem>
-                        <SelectItem value="grooming">Grooming</SelectItem>
-                        <SelectItem value="vaccination">Vaccination</SelectItem>
-                        <SelectItem value="procedure">Procedure</SelectItem>
-                        <SelectItem value="others">Others</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Status</label>
-                    <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                        <SelectItem value="no-show">No-Show</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Notes</label>
-                    <Textarea 
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Add notes about the appointment..."
-                      rows={3}
-                      className="mt-1"
-                    />
-                  </div>
                 </div>
-               )}
-
-               {/* Cancel Reason in view mode */}
-              {!isEditMode && appointment.cancelReason && (
+              </>
+            ) : (
+              // Edit Mode
+              <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Cancellation Reason</p>
-                  <div className="p-3 bg-red-50 rounded-lg text-sm text-red-700">
-                    {appointment.cancelReason}
-                  </div>
-                </div>
-              )}
-             </CardContent>
-          </Card>
-
-          {/* Services Table (visible when in-progress) */}
-          {appointment.status === 'in-progress' && (
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Services</CardTitle>
-                  {emrId && (
-                    <Button
-                      className="bg-gradient-to-r from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white animate-pulse"
-                      size="sm"
-                      onClick={() => navigate(`/crm/emr/${appointment.petId}`, { 
-                        state: { from: `/crm/appointments/${appointment.id}`, backText: 'Back to Appointment Details' }
-                      })}
-                    >
-                      <FileText className="w-4 h-4 mr-2" />
-                      View Medical Record →
-                    </Button>
+                  <label className="text-sm font-medium">Doctor</label>
+                  {user?.role === 'doctor' ? (
+                    <p className="mt-1 p-2 bg-muted rounded-md">{appointment.doctorName}</p>
+                  ) : (
+                    <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select doctor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {doctors.map(doc => (
+                          <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="text-left p-3 font-medium w-[200px]">Service</th>
-                        <th className="text-left p-3 font-medium">Start Time</th>
-                        <th className="text-left p-3 font-medium">End Time</th>
-                        <th className="text-left p-3 font-medium">Status</th>
-                        <th className="text-right p-3 font-medium">Fee</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b hover:bg-gray-50">
-                        <td className="p-3 font-medium">
-                           {(() => {
-                             const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
-                             if (types.length === 0) return 'Consultation';
-                             return types.map(type => type.charAt(0).toUpperCase() + type.slice(1)).join(', ');
-                           })()}
-                         </td>
-                        <td className="p-3 text-gray-600">
-                          {emrData?.services?.[0]?.startTime
-                            ? new Date(emrData.services[0].startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                            : '--'}
-                        </td>
-                        <td className="p-3 text-gray-400">--</td>
-                        <td className="p-3">
-                          <Badge className="bg-blue-600 text-white">In Progress</Badge>
-                        </td>
-                        <td className="p-3 text-right font-medium">
-                          ₱{(() => {
-                            const type = appointment.notes?.match(/Type: (\w+)/i)?.[1] || 'consultation';
-                            return type === 'consultation' ? '500' : 
-                                   type === 'grooming' ? '800' :
-                                   type === 'vaccination' ? '300' : '1000';
-                          })()}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Date</label>
+                    <input 
+                      type="date" 
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="mt-1 w-full p-2 border rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Time</label>
+                    <Select value={selectedTime} onValueChange={setSelectedTime}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="09:00 AM">09:00 AM</SelectItem>
+                        <SelectItem value="09:30 AM">09:30 AM</SelectItem>
+                        <SelectItem value="10:00 AM">10:00 AM</SelectItem>
+                        <SelectItem value="10:30 AM">10:30 AM</SelectItem>
+                        <SelectItem value="11:00 AM">11:00 AM</SelectItem>
+                        <SelectItem value="02:00 PM">02:00 PM</SelectItem>
+                        <SelectItem value="02:30 PM">02:30 PM</SelectItem>
+                        <SelectItem value="03:00 PM">03:00 PM</SelectItem>
+                        <SelectItem value="03:30 PM">03:30 PM</SelectItem>
+                        <SelectItem value="04:00 PM">04:00 PM</SelectItem>
+                        <SelectItem value="04:30 PM">04:30 PM</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                {emrData && emrData.services && emrData.services.length > 0 && (
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="text-sm text-gray-500 mb-1">Duration</p>
-                    <p className="text-lg font-semibold text-blue-700">
-                      {(() => {
-                        const startTime = new Date(emrData.services?.[0]?.startTime || Date.now());
-                        const now = new Date();
-                        const diffMs = now.getTime() - startTime.getTime();
-                        const hours = Math.floor(diffMs / (1000 * 60 * 60));
-                        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                        if (hours > 0) return `${hours}h ${minutes}m`;
-                        return `${minutes}m`;
-                      })()}
+
+                <div>
+                  <label className="text-sm font-medium">Appointment Type</label>
+                  <Select value={selectedType} onValueChange={(v) => setSelectedType(v as AppointmentType)}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="consultation">Consultation</SelectItem>
+                      <SelectItem value="grooming">Grooming</SelectItem>
+                      <SelectItem value="vaccination">Vaccination</SelectItem>
+                      <SelectItem value="procedure">Procedure</SelectItem>
+                      <SelectItem value="others">Others</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Status</label>
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="no-show">No-Show</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Notes</label>
+                  <Textarea 
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add notes about the appointment..."
+                    rows={3}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+             )}
+
+             {/* Cancel Reason in view mode */}
+            {!isEditMode && appointment.cancelReason && (
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Cancellation Reason</p>
+                <div className="p-3 bg-red-50 rounded-lg text-sm text-red-700">
+                  {appointment.cancelReason}
+                </div>
+              </div>
+            )}
+           </CardContent>
+        </Card>
+
+        {/* Services Table (visible when in-progress) */}
+        {appointment.status === 'in-progress' && (
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Services</CardTitle>
+                {emrId && (
+                  <Button
+                    className="bg-gradient-to-r from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white animate-pulse"
+                    size="sm"
+                    onClick={() => navigate(`/crm/emr/${appointment.petId}`, { 
+                      state: { from: `/crm/appointments/${appointment.id}`, backText: 'Back to Appointment Details' }
+                    })}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    View Medical Record →
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="text-left p-3 font-medium w-[200px]">Service</th>
+                      <th className="text-left p-3 font-medium">Start Time</th>
+                      <th className="text-left p-3 font-medium">End Time</th>
+                      <th className="text-left p-3 font-medium">Status</th>
+                      <th className="text-right p-3 font-medium">Fee</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b hover:bg-gray-50">
+                      <td className="p-3 font-medium">
+                         {(() => {
+                           const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
+                           if (types.length === 0) return 'Consultation';
+                           return types.map(type => type.charAt(0).toUpperCase() + type.slice(1)).join(', ');
+                         })()}
+                       </td>
+                      <td className="p-3 text-gray-600">
+                        {emrData?.services?.[0]?.startTime
+                          ? new Date(emrData.services[0].startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                          : '--'}
+                      </td>
+                      <td className="p-3 text-gray-400">--</td>
+                      <td className="p-3">
+                        <Badge className="bg-blue-600 text-white">In Progress</Badge>
+                      </td>
+                      <td className="p-3 text-right font-medium">
+                        ₱{(() => {
+                          const type = appointment.notes?.match(/Type: (\w+)/i)?.[1] || 'consultation';
+                          return type === 'consultation' ? '500' : 
+                                 type === 'grooming' ? '800' :
+                                 type === 'vaccination' ? '300' : '1000';
+                        })()}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              {emrData && emrData.services && emrData.services.length > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-sm text-gray-500 mb-1">Duration</p>
+                  <p className="text-lg font-semibold text-blue-700">
+                    {(() => {
+                      const startTime = new Date(emrData.services?.[0]?.startTime || Date.now());
+                      const now = new Date();
+                      const diffMs = now.getTime() - startTime.getTime();
+                      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                      if (hours > 0) return `${hours}h ${minutes}m`;
+                      return `${minutes}m`;
+                    })()}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Audit Trail */}
+        {appointment.audit && (appointment.audit as any[]).length > 0 && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold">Audit Trail</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {(appointment.audit as any[])
+                  .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                  .map((entry: any, idx: number) => (
+                  <div key={entry.id || idx} className="text-sm border-b border-gray-100 pb-2 last:border-0">
+                    <div className="flex justify-between items-start">
+                       <div>
+                         <span className="font-medium capitalize">{entry.action}</span>
+                         {entry.reason && <span className="text-gray-600 ml-2">{entry.reason}</span>}
+                         <span className="text-gray-500 ml-2">by {users[entry.userId] || entry.userId}</span>
+                       </div>
+                      <span className="text-xs text-gray-400">{new Date(entry.timestamp).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Notifications Sent */}
+        {notifications.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Notifications Sent</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {notifications.map((notif, idx) => (
+                  <div key={idx} className="p-3 bg-blue-50 rounded-lg">
+                    <p className="text-sm font-medium">{notif.message}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Sent: {notif.timestamp.toLocaleString()}
                     </p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Audit Trail */}
-          {appointment.audit && (appointment.audit as any[]).length > 0 && (
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold">Audit Trail</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {(appointment.audit as any[])
-                    .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                    .map((entry: any, idx: number) => (
-                    <div key={entry.id || idx} className="text-sm border-b border-gray-100 pb-2 last:border-0">
-                      <div className="flex justify-between items-start">
-                         <div>
-                           <span className="font-medium capitalize">{entry.action}</span>
-                           {entry.reason && <span className="text-gray-600 ml-2">{entry.reason}</span>}
-                           <span className="text-gray-500 ml-2">by {users[entry.userId] || entry.userId}</span>
-                         </div>
-                        <span className="text-xs text-gray-400">{new Date(entry.timestamp).toLocaleString()}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Notifications Sent */}
-          {notifications.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Notifications Sent</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {notifications.map((notif, idx) => (
-                    <div key={idx} className="p-3 bg-blue-50 rounded-lg">
-                      <p className="text-sm font-medium">{notif.message}</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Sent: {notif.timestamp.toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Right Column - Empty or other widgets can go here */}
-        <div className="space-y-6">
-          {/* Reserved for future widgets */}
-        </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Cancel Dialog */}

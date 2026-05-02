@@ -390,7 +390,7 @@ export const bills = [
     patientName: 'Oliver (Tabby Cat)',
     date: '2026-04-12',
     amount: 85.50,
-    status: 'Pending',
+    status: 'Unconfirmed',
     description: 'Ear Infection Treatment',
   },
   {

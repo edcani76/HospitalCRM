@@ -102,7 +102,7 @@ export default function BookAppointment() {
         doctorName: doctor?.name || 'Any Available Doctor',
         date: selectedDate,
         time: selectedTime,
-        status: 'pending',
+        status: 'unconfirmed',
         notes: notes,
         createdAt: serverTimestamp()
       });

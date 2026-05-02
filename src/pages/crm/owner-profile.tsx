@@ -96,7 +96,7 @@ export default function OwnerProfilePage() {
       case 'active':
       case 'confirmed': 
         return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-      case 'pending':
+      case 'unconfirmed':
       case 'scheduled': 
         return 'bg-amber-50 text-amber-600 border-amber-100';
       case 'inactive':
@@ -108,8 +108,8 @@ export default function OwnerProfilePage() {
   };
 
   const totalSpent = ownerBills.reduce((sum, b) => sum + (b.amount || 0), 0);
-  const pendingAmount = ownerBills
-    .filter(b => b.status === 'Pending')
+  const UnconfirmedAmount = ownerBills
+    .filter(b => b.status === 'Unconfirmed')
     .reduce((sum, b) => sum + (b.amount || 0), 0);
 
   if (loading) {
@@ -196,7 +196,7 @@ export default function OwnerProfilePage() {
                   </div>
                   <div className="text-center p-4 bg-amber-50/50 rounded-3xl border border-amber-100/50">
                     <p className="text-[10px] text-amber-600 uppercase font-bold tracking-wider mb-1">Pending</p>
-                    <p className="text-xl font-bold text-amber-700">${pendingAmount.toFixed(2)}</p>
+                    <p className="text-xl font-bold text-amber-700">${UnconfirmedAmount.toFixed(2)}</p>
                   </div>
                 </div>
               </div>

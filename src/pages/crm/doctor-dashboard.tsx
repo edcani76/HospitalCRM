@@ -138,10 +138,20 @@ export default function DoctorDashboard() {
               <div className="space-y-3">
                 {appointments.map(appointment => (
                   <div key={appointment.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div>
-                      <p className="font-medium">{appointment.petName || 'Patient'}</p>
-                      <p className="text-sm text-muted-foreground">{appointment.notes}</p>
-                    </div>
+                      <div>
+                        <p className="font-medium">{appointment.petName || 'Patient'}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(() => {
+                            const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
+                            if (types.length === 0) return <Badge variant="outline" className="border-blue-500 text-blue-600 text-xs">Consultation</Badge>;
+                            return types.map(type => (
+                              <Badge key={type} variant="outline" className="border-blue-500 text-blue-600 text-xs">
+                                {type.charAt(0).toUpperCase() + type.slice(1)}
+                              </Badge>
+                            ));
+                          })()}
+                        </div>
+                      </div>
                     <div className="text-right">
                       <p className="text-sm font-medium">{appointment.time}</p>
                       <span className={`text-xs px-2 py-1 rounded-full ${

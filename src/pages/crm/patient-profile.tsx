@@ -19,15 +19,14 @@ import {
   Upload,
   RefreshCw,
   Check,
-  BarChart2,
   Thermometer,
   Stethoscope,
   CreditCard
 } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
 import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -174,15 +173,14 @@ export default function PatientProfilePage() {
 
   const getAuditStats = () => {
     const stats: { [key: string]: number } = {};
-    (patient.auditTrail || []).forEach(item => {
-      stats[item.staff] = (stats[item.staff] || 0) + 1;
+    (patient.auditTrail || []).forEach((item: any) => {
+      const name = item.userId || item.staff || 'Unknown';
+      stats[name] = (stats[name] || 0) + 1;
     });
     return Object.entries(stats).map(([name, count]) => ({ name, count }));
   };
 
   const auditStats = getAuditStats();
-  // Premium harmonic colors for the chart
-  const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
 
   const startCamera = async () => {
     try {
@@ -467,7 +465,7 @@ export default function PatientProfilePage() {
               </div>
               <div className="flex items-center gap-3 text-left">
                 <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                  <BarChart2 className="w-5 h-5 text-green-400" />
+                  <Activity className="w-5 h-5 text-green-400" />
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Current Weight</p>
@@ -614,7 +612,7 @@ export default function PatientProfilePage() {
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <BarChart2 className="w-6 h-6 text-green-500" />
+                <Activity className="w-6 h-6 text-green-500" />
                 Weight History
               </h3>
               <Button 
@@ -658,22 +656,22 @@ export default function PatientProfilePage() {
             {sortedWeightHistory.length > 0 ? (
               <div className="mb-6">
                 <div className="h-[200px] w-full">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                    <BarChart data={sortedWeightHistory} barSize={32}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis 
+                  <div width="100%" height="100%" minWidth={0} minHeight={0}>
+                    <div data={sortedWeightHistory} barSize={32}>
+                      <div strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <div 
                         dataKey="date" 
                         axisLine={false} 
                         tickLine={false} 
                         tick={{ fontSize: 10, fill: '#64748b' }}
                       />
-                      <YAxis 
+                      <div 
                         axisLine={false} 
                         tickLine={false}
                         tick={{ fontSize: 10, fill: '#64748b' }}
                         domain={['dataMin - 1', 'dataMax + 1']}
                       />
-                      <Tooltip 
+                      <div 
                         cursor={{ fill: 'rgba(16, 185, 129, 0.1)' }}
                         contentStyle={{ 
                           borderRadius: '12px', 
@@ -684,22 +682,22 @@ export default function PatientProfilePage() {
                         itemStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#10b981' }}
                         formatter={(value: any) => [`${value} kg`, 'Weight']}
                       />
-                      <Bar 
+                      <div 
                         dataKey="weight" 
                         fill="#10b981" 
                         radius={[4, 4, 0, 0]}
                       >
                         {sortedWeightHistory.map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill="#10b981" />
+                          <div key={`cell-${index}`} fill="#10b981" />
                         ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
               <div className="text-center py-8 text-gray-400">
-                <BarChart2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No weight history recorded yet.</p>
               </div>
             )}
@@ -729,92 +727,30 @@ export default function PatientProfilePage() {
             )}
           </div>
 
-          {/* Audit History Log */}
-          <div className="bg-[#1E293B] rounded-[2rem] p-8 text-white shadow-xl">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold flex items-center gap-2">
-                <RefreshCw className="w-6 h-6 text-indigo-400" />
-                Audit Trail Log
-              </h3>
-              <Badge variant="outline" className="text-indigo-300 border-indigo-500/30">
-                Verified Records
-              </Badge>
-            </div>
-
-            {/* Activity Histogram */}
-            <div className="bg-white/5 rounded-2xl p-6 border border-white/10 mb-8">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h4 className="text-sm font-bold text-indigo-100 flex items-center gap-2">
-                    <BarChart2 className="w-4 h-4 text-indigo-400" />
-                    Staff Activity Distribution
-                  </h4>
-                  <p className="text-[10px] text-indigo-300/60 mt-1 uppercase tracking-wider">Updates by staff member</p>
-                </div>
-                <Badge variant="outline" className="bg-indigo-500/10 text-indigo-300 border-indigo-500/20 text-[10px]">
-                  {(patient.auditTrail || []).length} Actions
-                </Badge>
-              </div>
-              
-              <div className="h-[160px] w-full">
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                  <BarChart data={auditStats}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }}
-                      dy={10}
-                    />
-                    <YAxis hide />
-                    <Tooltip 
-                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                      contentStyle={{ 
-                        borderRadius: '12px', 
-                        border: 'none', 
-                        backgroundColor: '#1e293b',
-                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.3)',
-                        padding: '8px 12px'
-                      }}
-                      itemStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#fff' }}
-                      labelStyle={{ fontSize: '9px', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}
-                    />
-                    <Bar 
-                      dataKey="count" 
-                      radius={[4, 4, 0, 0]} 
-                      barSize={32}
-                    >
-                      {auditStats.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              {(patient.auditTrail || []).slice().reverse().map((log: any, idx: number) => (
-                <div key={log.id} className="group relative pl-6 border-l border-indigo-500/20 last:border-0 pb-6 last:pb-0">
-                  <div className="absolute -left-1.5 top-0 w-3 h-3 rounded-full bg-indigo-500 ring-4 ring-[#1E293B] shadow-[0_0_15px_rgba(99,102,241,0.4)]" />
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="font-bold text-indigo-100">{log.event}</span>
-                    <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">
-                      {log.timestamp.split(',')[0]}
-                    </span>
+          {/* Audit Trail */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold">Audit Trail</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {(patient.auditTrail || [])
+                  .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                  .map((log: any, idx: number) => (
+                  <div key={log.id || idx} className="text-sm border-b border-gray-100 pb-2 last:border-0">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="font-medium capitalize">{log.action || log.event}</span>
+                        {log.reason && <span className="text-gray-600 ml-2">{log.reason}</span>}
+                        <span className="text-gray-500 ml-2">by {log.userId || log.staff}</span>
+                      </div>
+                      <span className="text-xs text-gray-400">{new Date(log.timestamp).toLocaleString()}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-indigo-300/60">
-                    <User className="w-3 h-3" />
-                    <span>Updated by <span className="text-indigo-200 font-medium">{log.staff}</span></span>
-                    <span className="mx-1">•</span>
-                    <Clock className="w-3 h-3" />
-                    <span>{log.timestamp.includes(',') ? log.timestamp.split(',')[1].trim() : log.timestamp}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 

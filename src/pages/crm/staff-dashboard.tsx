@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/ui/page-header';
 import { StatsCard } from '../../components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Badge } from '../../components/ui/badge';
 import { Users, Calendar, CreditCard, FileText } from 'lucide-react';
 import { db, collection, getDocs } from '../../firebase';
 import { format } from 'date-fns';
@@ -23,7 +24,7 @@ export default function StaffDashboard() {
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [doctors, setDoctors] = useState<{ id: string; name: string }[]>([]);
-  const [stats, setStats] = useState({ newPatients: 0, pendingBills: 0, totalPets: 0 });
+  const [stats, setStats] = useState({ newPatients: 0, UnconfirmedBills: 0, totalPets: 0 });
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -55,12 +56,12 @@ export default function StaffDashboard() {
       }).length;
 
       // Pending Bills: invoices not marked as paid
-      const pendingBillsCount = invoices.filter(inv => inv.status !== 'paid').length;
+      const UnconfirmedBillsCount = invoices.filter(inv => inv.status !== 'paid').length;
 
       // Total Pets registered
       const totalPetsCount = pets.length;
 
-      setStats({ newPatients: newPatientsCount, pendingBills: pendingBillsCount, totalPets: totalPetsCount });
+      setStats({ newPatients: newPatientsCount, UnconfirmedBills: UnconfirmedBillsCount, totalPets: totalPetsCount });
     } catch (error) {
       console.error('Error fetching staff dashboard data:', error);
     } finally {
@@ -73,7 +74,24 @@ export default function StaffDashboard() {
   }, [fetchData]);
 
   const today = new Date().toISOString().split('T')[0];
-  const todayAppointments = appointments.filter(app => app.date === today);
+  const todayAppointments = React.useMemo(() => {
+    return appointments
+      .filter(app => app.date === today)
+      .sort((a, b) => {
+        // Parse time strings (handle both "HH:MM AM/PM" and "HH:MM" formats)
+        const parseTime = (timeStr: string) => {
+          const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+          if (!match) return 0;
+          let hours = parseInt(match[1]);
+          const minutes = parseInt(match[2]);
+          const period = match[3]?.toUpperCase();
+          if (period === 'PM' && hours < 12) hours += 12;
+          if (period === 'AM' && hours === 12) hours = 0;
+          return hours * 60 + minutes;
+        };
+        return parseTime(a.time) - parseTime(b.time);
+      });
+  }, [appointments, today]);
 
   if (loading) {
     return <div className="p-8 text-center">Loading staff dashboard...</div>;
@@ -99,7 +117,7 @@ export default function StaffDashboard() {
         />
         <StatsCard
           title="Pending Bills"
-          value={stats.pendingBills}
+          value={stats.UnconfirmedBills}
           icon={CreditCard}
         />
         <StatsCard
@@ -116,38 +134,49 @@ export default function StaffDashboard() {
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-2">Time</th>
-                  <th className="text-left p-2">Patient</th>
-                  <th className="text-left p-2">Doctor</th>
-                  <th className="text-left p-2">Reason</th>
-                  <th className="text-left p-2">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {todayAppointments.map((appointment) => {
-                  const doctor = doctors.find(d => d.id === appointment.doctorId);
-                  return (
-                    <tr key={appointment.id} className="border-b hover:bg-muted/50">
-                      <td className="p-2">{appointment.time}</td>
-                      <td className="p-2">{appointment.petName || 'Unknown Pet'}</td>
-                      <td className="p-2">{doctor?.name || 'Unknown Doctor'}</td>
-                      <td className="p-2">{appointment.notes || '-'}</td>
-                      <td className="p-2">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                          appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          appointment.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                          appointment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100'
-                        }`}>
-                          {appointment.status}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
+               <thead>
+                 <tr className="border-b">
+                   <th className="text-left p-2">Time</th>
+                   <th className="text-left p-2">Patient</th>
+                   <th className="text-left p-2">Doctor</th>
+                   <th className="text-left p-2">Type</th>
+                   <th className="text-left p-2">Status</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 {todayAppointments.map((appointment) => {
+                   const doctor = doctors.find(d => d.id === appointment.doctorId);
+                   return (
+                     <tr key={appointment.id} className="border-b hover:bg-muted/50">
+                       <td className="p-2">{appointment.time}</td>
+                       <td className="p-2">{appointment.petName || 'Unknown Pet'}</td>
+                       <td className="p-2">{doctor?.name || 'Unknown Doctor'}</td>
+                        <td className="p-2">
+                          <div className="flex flex-wrap gap-1">
+                            {(() => {
+                              const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
+                              if (types.length === 0) return <Badge variant="outline" className="border-blue-500 text-blue-600 text-xs">Consultation</Badge>;
+                              return types.map(type => (
+                                <Badge key={type} variant="outline" className="border-blue-500 text-blue-600 text-xs">
+                                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                                </Badge>
+                              ));
+                            })()}
+                          </div>
+                        </td>
+                       <td className="p-2">
+                         <Badge variant={appointment.status === 'confirmed' ? 'success' : 'secondary'} 
+                           className={appointment.status === 'unconfirmed' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : ''}>
+                           {appointment.status === 'unconfirmed' ? 'Unconfirmed' : 
+                            appointment.status === 'confirmed' ? 'Confirmed' :
+                            appointment.status === 'cancelled' ? 'Cancelled' :
+                            appointment.status === 'completed' ? 'Completed' : 
+                            appointment.status}
+                         </Badge>
+                       </td>
+                     </tr>
+                   );
+                 })}
               </tbody>
             </table>
           </div>

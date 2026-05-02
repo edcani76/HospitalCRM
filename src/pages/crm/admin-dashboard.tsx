@@ -50,7 +50,7 @@ interface Doctor {
 interface DashboardStats {
   totalPatients: number
   appointmentsToday: number
-  pendingLabReports: number
+  UnconfirmedLabReports: number
   monthlyRevenue: number
   appointmentsTrend: { date: string; count: number }[]
   patientsByDepartment: { department: string; count: number }[]
@@ -64,7 +64,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalPatients: 0,
     appointmentsToday: 0,
-    pendingLabReports: 0,
+    UnconfirmedLabReports: 0,
     monthlyRevenue: 0,
     appointmentsTrend: [],
     patientsByDepartment: [],
@@ -101,7 +101,7 @@ export default function AdminDashboard() {
       // Calculate stats
       const totalPatients = pets.length
       const appointmentsToday = appointments.filter(app => app.date === today).length
-      const pendingLabReports = reports.filter(r => r.status === 'pending' || r.status === 'in_progress').length
+      const UnconfirmedLabReports = reports.filter(r => r.status === 'unconfirmed' || r.status === 'in_progress').length
 
       // Monthly revenue (sum of paid invoices for current month)
       const now = new Date()
@@ -155,7 +155,7 @@ export default function AdminDashboard() {
       setStats({
         totalPatients,
         appointmentsToday,
-        pendingLabReports,
+        UnconfirmedLabReports,
         monthlyRevenue,
         appointmentsTrend,
         patientsByDepartment,
@@ -201,7 +201,7 @@ export default function AdminDashboard() {
         />
         <StatsCard
           title="Pending Lab Reports"
-          value={stats.pendingLabReports}
+          value={stats.UnconfirmedLabReports}
           icon={Receipt}
           trend={{ value: 3, isPositive: false }}
         />
@@ -310,7 +310,7 @@ export default function AdminDashboard() {
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             appointment.status === 'confirmed'
                               ? 'bg-green-100 text-green-800'
-                              : appointment.status === 'pending'
+                              : appointment.status === 'unconfirmed'
                               ? 'bg-yellow-100 text-yellow-800'
                               : 'bg-gray-100 text-gray-800'
                           }`}>

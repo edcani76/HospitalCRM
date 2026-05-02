@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Input } from '../../components/ui/input';
 import { Plus, CalendarClock, Filter, Clock, User, Stethoscope, Search, CheckCircle, XCircle } from 'lucide-react';
 import { format, startOfToday } from 'date-fns';
-import { db, collection, getDocs, doc, updateDoc } from '../../firebase';
+import { db, collection, getDocs, doc } from '../../firebase';
+import { updateDocument } from '../../lib/firestore-helpers';
 import { arrayUnion } from 'firebase/firestore';
 import { auth } from '../../firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
@@ -170,10 +171,9 @@ export default function AppointmentsPage() {
       );
       
       for (const apt of pastConfirmed) {
-        const aptRef = doc(db, 'appointments', apt.id);
         const userUid = auth.currentUser?.uid || 'system';
         const auditEntry = { action: 'no-show', userId: userUid, timestamp: new Date().toISOString(), reason: 'Auto-tagged: past date' };
-        await updateDoc(aptRef, { 
+        await updateDocument('appointments', apt.id, { 
           status: 'no-show', 
           audit: arrayUnion(auditEntry),
           autoNoShow: true 
@@ -198,10 +198,8 @@ export default function AppointmentsPage() {
 
   const handleStatusChange = async (appointmentId: string, newStatus: 'confirmed' | 'cancelled' | 'completed' | 'no-show', reason?: string) => {
     try {
-      const aptRef = doc(db, 'appointments', appointmentId);
-      
       // Get current appointment data first
-      const aptSnap = await getDoc(aptRef);
+      const aptSnap = await getDoc(doc(db, 'appointments', appointmentId));
       const oldData = aptSnap.data();
       
       const userUid = auth.currentUser?.uid || 'unknown';
@@ -210,10 +208,10 @@ export default function AppointmentsPage() {
       if (newStatus === 'cancelled' && reason) {
         updateData.cancelReason = reason;
       }
-      await updateDoc(aptRef, updateData);
+      await updateDocument('appointments', appointmentId, updateData);
       
       // Get updated appointment details for notification
-      const aptData = (await getDoc(aptRef)).data();
+      const aptData = (await getDoc(doc(db, 'appointments', appointmentId))).data();
       if (aptData) {
         if (newStatus === 'cancelled') {
           // Notify doctor
@@ -236,7 +234,7 @@ export default function AppointmentsPage() {
           const statusMessages: any = {
             'no-show': 'marked as No-Show',
             'completed': 'marked as Completed',
-            'pending': 'changed to Pending',
+            'unconfirmed': 'changed to Unconfirmed',
             'confirmed': 'confirmed'
           };
           const statusText = statusMessages[newStatus] || `changed to ${newStatus}`;
@@ -275,8 +273,8 @@ export default function AppointmentsPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'pending':
-        return <Badge variant="secondary">Pending</Badge>;
+       case 'unconfirmed':
+         return <Badge variant="secondary">Unconfirmed</Badge>;
       case 'confirmed':
         return <Badge variant="success">Confirmed</Badge>;
       case 'in-progress':
@@ -402,7 +400,7 @@ export default function AppointmentsPage() {
                         <TableHead className="text-xs lg:text-sm">Pet</TableHead>
                         <TableHead className="text-xs lg:text-sm">Doctor</TableHead>
                         <TableHead className="text-xs lg:text-sm">Status</TableHead>
-                        <TableHead className="text-xs lg:text-sm">Notes</TableHead>
+                        <TableHead className="text-xs lg:text-sm">Type</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -446,10 +444,20 @@ export default function AppointmentsPage() {
                                 <span className="text-xs lg:text-sm">{appointment.doctorName}</span>
                               </div>
                             </TableCell>
-                            <TableCell>{getStatusBadge(appointment.status)}</TableCell>
-                            <TableCell className="max-w-[200px] truncate text-xs lg:text-sm">
-                              {appointment.notes || '-'}
-                             </TableCell>
+                             <TableCell>{getStatusBadge(appointment.status)}</TableCell>
+                              <TableCell className="text-xs lg:text-sm">
+                                <div className="flex flex-wrap gap-1">
+                                  {(() => {
+                                    const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
+                                    if (types.length === 0) return <Badge variant="outline" className="border-blue-500 text-blue-600">Consultation</Badge>;
+                                    return types.map(type => (
+                                      <Badge key={type} variant="outline" className="border-blue-500 text-blue-600">
+                                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                                      </Badge>
+                                    ));
+                                  })()}
+                                </div>
+                              </TableCell>
                            </TableRow>
                         );
                       })}
