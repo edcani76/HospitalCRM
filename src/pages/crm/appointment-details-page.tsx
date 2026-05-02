@@ -9,10 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from '../../components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import { db, auth } from '../../firebase';
-import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion } from '../../firebase';
+import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion, addDoc, serverTimestamp } from '../../firebase';
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
 import { format } from 'date-fns';
-import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft } from 'lucide-react';
+import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft, Play } from 'lucide-react';
 import { Appointment, Doctor } from '../../types';
 
 type AppointmentType = 'consultation' | 'grooming' | 'vaccination' | 'procedure' | 'others';
@@ -51,6 +51,7 @@ export default function AppointmentDetailsPage() {
   // Notifications history
   const [notifications, setNotifications] = useState<{ message: string; timestamp: Date }[]>([]);
   const [notificationSent, setNotificationSent] = useState('');
+  const [emrId, setEmrId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -88,6 +89,81 @@ export default function AppointmentDetailsPage() {
       fetchData();
     }
   }, [appointmentId]);
+
+  // Auto No-Show check
+  useEffect(() => {
+    const checkNoShow = async () => {
+      if (!appointment) return;
+      const status = appointment.status;
+      if (status === 'completed' || status === 'cancelled' || status === 'in-progress') return;
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const aptDate = new Date(appointment.date);
+      aptDate.setHours(0, 0, 0, 0);
+      
+      if (aptDate < today) {
+        // Past appointment, mark as no-show
+        try {
+          const userUid = auth.currentUser?.uid || 'unknown';
+          const aptRef = doc(db, 'appointments', appointment.id);
+          const auditEntry = {
+            action: 'no-show',
+            userId: userUid,
+            timestamp: new Date().toISOString(),
+            reason: 'Automatically marked as no-show (missed appointment)'
+          };
+          
+          await updateDoc(aptRef, {
+            status: 'no-show',
+            audit: arrayUnion(auditEntry),
+            updatedAt: new Date().toISOString()
+          });
+
+          // Send notifications
+          await notifyDoctor(appointment.doctorId, 'appointment_no_show', 'Appointment No-Show',
+            `Appointment for ${appointment.petName} on ${appointment.date} was automatically marked as No-Show.`);
+          
+          if (appointment.clientUid) {
+            await notifyClient(appointment.clientUid, 'appointment_no_show', 'Appointment No-Show',
+              `Your appointment for ${appointment.petName} on ${appointment.date} was marked as No-Show.`);
+          }
+
+          // Refresh data
+          const updatedSnap = await getDoc(aptRef);
+          if (updatedSnap.exists()) {
+            setAppointment({ id: updatedSnap.id, ...updatedSnap.data() } as Appointment);
+          }
+        } catch (error) {
+          console.error('Error marking no-show:', error);
+        }
+      }
+    };
+    
+    checkNoShow();
+  }, [appointment?.id]);
+
+  // Fetch EMR ID when appointment is in-progress
+  useEffect(() => {
+    const fetchEMR = async () => {
+      if (!appointment || appointment.status !== 'in-progress') {
+        setEmrId(null);
+        return;
+      }
+      
+      try {
+        const q = query(collection(db, 'emrRecords'), where('appointmentId', '==', appointment.id));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          setEmrId(snapshot.docs[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching EMR:', error);
+      }
+    };
+    
+    fetchEMR();
+  }, [appointment?.id, appointment?.status]);
 
   const handleSave = async () => {
     if (!appointment) return;
@@ -209,12 +285,166 @@ export default function AppointmentDetailsPage() {
     }
   };
 
+  const [starting, setStarting] = useState(false);
+
+  const confirmAppointment = async () => {
+    if (!appointment) return;
+    setSaving(true);
+    try {
+      const userUid = auth.currentUser?.uid || 'unknown';
+      const aptRef = doc(db, 'appointments', appointment.id);
+      const auditEntry = {
+        action: 'confirmed',
+        userId: userUid,
+        timestamp: new Date().toISOString(),
+        reason: 'Appointment confirmed'
+      };
+      
+      await updateDoc(aptRef, {
+        status: 'confirmed',
+        audit: arrayUnion(auditEntry),
+        updatedAt: new Date().toISOString()
+      });
+
+      // Send notifications
+      await notifyDoctor(appointment.doctorId, 'appointment_confirmed', 'Appointment Confirmed',
+        `Appointment for ${appointment.petName} on ${appointment.date} at ${appointment.time} has been confirmed.`);
+      
+      if (appointment.clientUid) {
+        await notifyClient(appointment.clientUid, 'appointment_confirmed', 'Appointment Confirmed',
+          `Your appointment for ${appointment.petName} on ${appointment.date} at ${appointment.time} has been confirmed.`);
+      }
+
+      // Refresh appointment data
+      const updatedSnap = await getDoc(aptRef);
+      if (updatedSnap.exists()) {
+        setAppointment({ id: updatedSnap.id, ...updatedSnap.data() } as Appointment);
+      }
+
+      setNotificationSent('Appointment confirmed');
+      setTimeout(() => setNotificationSent(''), 5000);
+    } catch (error) {
+      console.error('Error confirming appointment:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startAppointment = async () => {
+    if (!appointment) return;
+    setStarting(true);
+    try {
+      const userUid = auth.currentUser?.uid || 'unknown';
+      const aptRef = doc(db, 'appointments', appointment.id);
+      const startTime = new Date().toISOString();
+      
+      // Update appointment status to in-progress
+      const auditEntry = {
+        action: 'started',
+        userId: userUid,
+        timestamp: startTime,
+        reason: 'Appointment started'
+      };
+      
+      await updateDoc(aptRef, {
+        status: 'in-progress',
+        audit: arrayUnion(auditEntry),
+        updatedAt: startTime
+      });
+
+      // Get appointment type for the service
+      const aptType = appointment.notes?.match(/Type: (\w+)/i)?.[1] || 'consultation';
+
+      // Create EMR record with initial service
+      const emrData = {
+        petId: appointment.petId,
+        petName: appointment.petName,
+        clientUid: appointment.clientUid,
+        doctorId: appointment.doctorId,
+        doctorName: appointment.doctorName,
+        appointmentId: appointment.id,
+        date: appointment.date,
+        time: appointment.time,
+        status: 'in-progress',
+        type: aptType,
+        vitals: {},
+        diagnosis: '',
+        treatment: '',
+        prescriptions: [],
+        labResults: [],
+        notes: '',
+        services: [
+          {
+            id: Date.now().toString(),
+            name: aptType.charAt(0).toUpperCase() + aptType.slice(1),
+            startTime: startTime,
+            endTime: null,
+            status: 'in-progress',
+            fee: aptType === 'consultation' ? 500 : aptType === 'grooming' ? 800 : aptType === 'vaccination' ? 300 : 1000
+          }
+        ],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      const emrRef = await addDoc(collection(db, 'emrRecords'), emrData);
+
+      // Create draft invoice with the service
+      const serviceFee = aptType === 'consultation' ? 500 : aptType === 'grooming' ? 800 : aptType === 'vaccination' ? 300 : 1000;
+      const invoiceData = {
+        petId: appointment.petId,
+        petName: appointment.petName,
+        clientUid: appointment.clientUid,
+        doctorId: appointment.doctorId,
+        doctorName: appointment.doctorName,
+        appointmentId: appointment.id,
+        emrId: emrRef.id,
+        date: startTime,
+        status: 'draft',
+        items: [
+          {
+            description: aptType.charAt(0).toUpperCase() + aptType.slice(1),
+            amount: serviceFee,
+            quantity: 1
+          }
+        ],
+        total: serviceFee,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      await addDoc(collection(db, 'invoices'), invoiceData);
+
+      // Send notifications
+      await notifyDoctor(appointment.doctorId, 'appointment_started', 'Appointment Started',
+        `Appointment for ${appointment.petName} has started. EMR and billing initialized.`);
+      
+      if (appointment.clientUid) {
+        await notifyClient(appointment.clientUid, 'appointment_started', 'Appointment Started',
+          `Your pet ${appointment.petName}'s appointment has started.`);
+      }
+
+      // Refresh appointment data
+      const updatedSnap = await getDoc(aptRef);
+      if (updatedSnap.exists()) {
+        setAppointment({ id: updatedSnap.id, ...updatedSnap.data() } as Appointment);
+      }
+
+      setNotificationSent('Appointment started - EMR and billing initialized');
+      setTimeout(() => setNotificationSent(''), 5000);
+    } catch (error) {
+      console.error('Error starting appointment:', error);
+    } finally {
+      setStarting(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
         return <Badge variant="secondary">Pending</Badge>;
       case 'confirmed':
         return <Badge variant="success">Confirmed</Badge>;
+      case 'in-progress':
+        return <Badge className="bg-blue-600 hover:bg-blue-700 text-white">In Progress</Badge>;
       case 'cancelled':
         return <Badge variant="destructive">Cancelled</Badge>;
       case 'completed':
@@ -242,12 +472,12 @@ export default function AppointmentDetailsPage() {
   return (
     <div className="max-w-4xl mx-auto pb-12">
       <PageHeader 
-        title="Appointment Details"
+        title={appointment.status === 'in-progress' ? "Appointment Details (Ongoing)" : "Appointment Details"}
         subtitle={`${appointment.petName} - ${format(new Date(appointment.date), 'MMM dd, yyyy')} at ${appointment.time}`}
         onBack={() => navigate('/crm/appointments')}
         backText="Back to Appointments"
         actions={
-          canEdit && (
+          canEdit && appointment.status !== 'in-progress' && (
             <div className="flex gap-2">
               {!isEditMode ? (
                 <>
@@ -258,6 +488,57 @@ export default function AppointmentDetailsPage() {
                     <Pencil className="w-4 h-4 mr-2" />
                     Edit
                   </Button>
+                  {appointment.status === 'pending' && (
+                    <Button
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={confirmAppointment}
+                      disabled={saving}
+                    >
+                      {saving ? (
+                        <span className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Confirming...
+                        </span>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Confirm
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {appointment.status === 'confirmed' && (() => {
+                    const today = new Date().toISOString().split('T')[0];
+                    const isToday = appointment.date === today;
+                    return isToday ? (
+                      <Button
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={startAppointment}
+                        disabled={starting}
+                      >
+                        {starting ? (
+                          <span className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Starting...
+                          </span>
+                        ) : (
+                          <>
+                            <Play className="w-4 h-4 mr-2" />
+                            Start Appointment
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        disabled={true}
+                        title="Can only start appointment on the scheduled date"
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        Start Appointment
+                      </Button>
+                    );
+                  })()}
                   {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
                   <Button
                     className="bg-red-600 hover:bg-red-700 text-white"
@@ -480,8 +761,66 @@ export default function AppointmentDetailsPage() {
                   </div>
                 </div>
               )}
-            </CardContent>
+             </CardContent>
           </Card>
+
+          {/* Services Table (visible when in-progress) */}
+          {appointment.status === 'in-progress' && (
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Services</CardTitle>
+                  {emrId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/crm/patients/${appointment.petId}/emr/${emrId}`)}
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      View Medical Record
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="text-left p-3 font-medium">Service</th>
+                        <th className="text-left p-3 font-medium">Start Time</th>
+                        <th className="text-left p-3 font-medium">End Time</th>
+                        <th className="text-left p-3 font-medium">Status</th>
+                        <th className="text-right p-3 font-medium">Fee</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b hover:bg-gray-50">
+                        <td className="p-3 font-medium">
+                          {appointment.notes?.match(/Type: (\w+)/i)?.[1]?.charAt(0).toUpperCase() || 'Consultation'}
+                        </td>
+                        <td className="p-3 text-gray-600">
+                          {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </td>
+                        <td className="p-3 text-gray-400">--</td>
+                        <td className="p-3">
+                          <Badge className="bg-blue-600 text-white">In Progress</Badge>
+                        </td>
+                        <td className="p-3 text-right font-medium">
+                          ₱{appointment.notes?.match(/Type: (\w+)/i)?.[1] === 'consultation' ? '500' : 
+                             appointment.notes?.match(/Type: (\w+)/i)?.[1] === 'grooming' ? '800' :
+                             appointment.notes?.match(/Type: (\w+)/i)?.[1] === 'vaccination' ? '300' : '1000'}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-gray-500 mt-3">
+                  Service automatically added when appointment started. Click "View Medical Record" to add more services, update status, or complete the service.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Audit Trail */}
           <Card>
