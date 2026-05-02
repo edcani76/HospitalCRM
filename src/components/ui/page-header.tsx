@@ -16,6 +16,9 @@ export function PageHeader({ title, subtitle, actions, onBack, backText, backTo 
   const navigate = useNavigate();
   const location = useLocation();
   
+  // Only show back button if explicitly configured
+  const showBackButton = onBack || backTo || location.state?.from;
+  
   const handleBack = () => {
     if (onBack) {
       onBack();
@@ -36,14 +39,16 @@ export function PageHeader({ title, subtitle, actions, onBack, backText, backTo 
 
   return (
     <div className="mb-6">
-      <Button 
-        variant="ghost" 
-        onClick={handleBack}
-        className="mb-4 -ml-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 group transition-all"
-      >
-        <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-        {getBackText()}
-      </Button>
+      {showBackButton && (
+        <Button 
+          variant="ghost" 
+          onClick={handleBack}
+          className="mb-4 -ml-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 group transition-all"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+          {getBackText()}
+        </Button>
+      )}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{title}</h1>

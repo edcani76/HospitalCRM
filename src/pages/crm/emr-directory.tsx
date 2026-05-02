@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, User, Clock, ArrowRight, Filter, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
@@ -9,6 +9,7 @@ import { fetchPets } from '../../lib/firestore-helpers';
 
 export default function EMRDirectory() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [pets, setPets] = useState<any[]>([]);
@@ -51,7 +52,9 @@ export default function EMRDirectory() {
   return (
     <div className="max-w-7xl mx-auto pb-12">
       <PageHeader 
-        title="Clinical Record Directory" 
+        title="Clinical Record Directory"
+        backTo={location.state?.from || '/crm/emr'}
+        backText={location.state?.backText || 'Back'} 
         subtitle={
           <div className="flex items-center gap-3">
             <span>Access and manage comprehensive medical histories for all patients.</span>
