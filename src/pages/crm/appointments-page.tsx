@@ -279,6 +279,8 @@ export default function AppointmentsPage() {
         return <Badge variant="secondary">Pending</Badge>;
       case 'confirmed':
         return <Badge variant="success">Confirmed</Badge>;
+      case 'in-progress':
+        return <Badge className="bg-gradient-to-r from-blue-500 to-blue-700 text-white animate-pulse">In Progress</Badge>;
       case 'cancelled':
         return <Badge variant="destructive">Cancelled</Badge>;
       case 'completed':

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from '../../components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import { db, auth } from '../../firebase';
-import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion, addDoc, serverTimestamp } from '../../firebase';
+import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion, addDoc, serverTimestamp, query, where } from '../../firebase';
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
 import { format } from 'date-fns';
 import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft, Play } from 'lucide-react';
@@ -52,6 +52,7 @@ export default function AppointmentDetailsPage() {
   const [notifications, setNotifications] = useState<{ message: string; timestamp: Date }[]>([]);
   const [notificationSent, setNotificationSent] = useState('');
   const [emrId, setEmrId] = useState<string | null>(null);
+  const [addingService, setAddingService] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -437,6 +438,61 @@ export default function AppointmentDetailsPage() {
     }
   };
 
+  const addService = async (serviceType: string) => {
+    if (!appointment || !emrId) return;
+    setAddingService(serviceType);
+    try {
+      const serviceFee = serviceType === 'consultation' ? 500 : 
+                         serviceType === 'grooming' ? 800 : 
+                         serviceType === 'vaccination' ? 300 : 1000;
+      const serviceName = serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
+      const startTime = new Date().toISOString();
+      
+      // Add service to EMR
+      const emrRef = doc(db, 'emrRecords', emrId);
+      const newService = {
+        id: Date.now().toString(),
+        name: serviceName,
+        startTime: startTime,
+        endTime: null,
+        status: 'in-progress',
+        fee: serviceFee
+      };
+      
+      await updateDoc(emrRef, {
+        services: arrayUnion(newService),
+        updatedAt: new Date().toISOString()
+      });
+
+      // Add to invoice
+      const invoiceQuery = query(collection(db, 'invoices'), where('appointmentId', '==', appointment.id), where('status', '==', 'draft'));
+      const invoiceSnap = await getDocs(invoiceQuery);
+      if (!invoiceSnap.empty) {
+        const invoiceRef = doc(db, 'invoices', invoiceSnap.docs[0].id);
+        await updateDoc(invoiceRef, {
+          items: arrayUnion({
+            description: serviceName,
+            amount: serviceFee,
+            quantity: 1
+          }),
+          total: (invoiceSnap.docs[0].data().total || 0) + serviceFee,
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      // Send notification to doctor
+      await notifyDoctor(appointment.doctorId, 'service_added', 'Service Added',
+        `${serviceName} has been added to the appointment for ${appointment.petName}.`);
+
+      setNotificationSent(`${serviceName} added to appointment`);
+      setTimeout(() => setNotificationSent(''), 5000);
+    } catch (error) {
+      console.error('Error adding service:', error);
+    } finally {
+      setAddingService(null);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -472,7 +528,16 @@ export default function AppointmentDetailsPage() {
   return (
     <div className="max-w-4xl mx-auto pb-12">
       <PageHeader 
-        title={appointment.status === 'in-progress' ? "Appointment Details (Ongoing)" : "Appointment Details"}
+        title={
+          <div className="flex items-center gap-3">
+            Appointment Details
+            {appointment.status === 'in-progress' && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-blue-500 to-blue-700 text-white animate-pulse">
+                ● Ongoing
+              </span>
+            )}
+          </div>
+        }
         subtitle={`${appointment.petName} - ${format(new Date(appointment.date), 'MMM dd, yyyy')} at ${appointment.time}`}
         onBack={() => navigate('/crm/appointments')}
         backText="Back to Appointments"
@@ -772,12 +837,12 @@ export default function AppointmentDetailsPage() {
                   <CardTitle>Services</CardTitle>
                   {emrId && (
                     <Button
-                      variant="outline"
+                      className="bg-gradient-to-r from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white animate-pulse"
                       size="sm"
                       onClick={() => navigate(`/crm/patients/${appointment.petId}/emr/${emrId}`)}
                     >
                       <FileText className="w-4 h-4 mr-2" />
-                      View Medical Record
+                      View Medical Record →
                     </Button>
                   )}
                 </div>
@@ -787,7 +852,7 @@ export default function AppointmentDetailsPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b">
                       <tr>
-                        <th className="text-left p-3 font-medium">Service</th>
+                        <th className="text-left p-3 font-medium w-[200px]">Service</th>
                         <th className="text-left p-3 font-medium">Start Time</th>
                         <th className="text-left p-3 font-medium">End Time</th>
                         <th className="text-left p-3 font-medium">Status</th>
@@ -797,7 +862,10 @@ export default function AppointmentDetailsPage() {
                     <tbody>
                       <tr className="border-b hover:bg-gray-50">
                         <td className="p-3 font-medium">
-                          {appointment.notes?.match(/Type: (\w+)/i)?.[1]?.charAt(0).toUpperCase() || 'Consultation'}
+                          {(() => {
+                            const type = appointment.notes?.match(/Type: (\w+)/i)?.[1] || 'consultation';
+                            return type.charAt(0).toUpperCase() + type.slice(1);
+                          })()}
                         </td>
                         <td className="p-3 text-gray-600">
                           {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -807,17 +875,100 @@ export default function AppointmentDetailsPage() {
                           <Badge className="bg-blue-600 text-white">In Progress</Badge>
                         </td>
                         <td className="p-3 text-right font-medium">
-                          ₱{appointment.notes?.match(/Type: (\w+)/i)?.[1] === 'consultation' ? '500' : 
-                             appointment.notes?.match(/Type: (\w+)/i)?.[1] === 'grooming' ? '800' :
-                             appointment.notes?.match(/Type: (\w+)/i)?.[1] === 'vaccination' ? '300' : '1000'}
+                          ₱{(() => {
+                            const type = appointment.notes?.match(/Type: (\w+)/i)?.[1] || 'consultation';
+                            return type === 'consultation' ? '500' : 
+                                   type === 'grooming' ? '800' :
+                                   type === 'vaccination' ? '300' : '1000';
+                          })()}
                         </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
-                <p className="text-xs text-gray-500 mt-3">
-                  Service automatically added when appointment started. Click "View Medical Record" to add more services, update status, or complete the service.
-                </p>
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-sm font-medium mb-3">Add Additional Service</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant="outline"
+                      className="h-16 flex-col gap-1"
+                      onClick={() => addService('laboratory')}
+                      disabled={addingService === 'laboratory'}
+                    >
+                      {addingService === 'laboratory' ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <FileText className="w-5 h-5" />
+                          Laboratory
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-16 flex-col gap-1"
+                      onClick={() => addService('procedure')}
+                      disabled={addingService === 'procedure'}
+                    >
+                      {addingService === 'procedure' ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Stethoscope className="w-5 h-5" />
+                          Procedure
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-16 flex-col gap-1"
+                      onClick={() => addService('vaccination')}
+                      disabled={addingService === 'vaccination'}
+                    >
+                      {addingService === 'vaccination' ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle className="w-5 h-5" />
+                          Vaccination
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-16 flex-col gap-1"
+                      onClick={() => addService('grooming')}
+                      disabled={addingService === 'grooming'}
+                    >
+                      {addingService === 'grooming' ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <User className="w-5 h-5" />
+                          Grooming
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-16 flex-col gap-1 col-span-2"
+                      onClick={() => {
+                        const service = prompt('Enter service name:');
+                        if (service) addService(service.toLowerCase());
+                      }}
+                      disabled={addingService !== null}
+                    >
+                      {addingService ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <FileText className="w-5 h-5" />
+                          Others...
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
