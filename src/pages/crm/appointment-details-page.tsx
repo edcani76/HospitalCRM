@@ -839,7 +839,7 @@ export default function AppointmentDetailsPage() {
                     <Button
                       className="bg-gradient-to-r from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white animate-pulse"
                       size="sm"
-                      onClick={() => navigate(`/crm/patients/${appointment.petId}/emr/${emrId}`)}
+                      onClick={() => navigate(`/crm/emr/${appointment.petId}`)}
                     >
                       <FileText className="w-4 h-4 mr-2" />
                       View Medical Record →
