@@ -70,12 +70,15 @@ export default function SeedDoctorAvailabilityPage() {
       const weeklyAvailability = generateWeeklyAvailability();
 
       for (const document of snapshot.docs) {
+        let doctorData: any = null;
+        let doctorName = 'Unknown';
+        
         try {
-          const doctorData = document.data();
-          const doctorName = doctorData.name || 'Unknown';
+          doctorData = document.data();
+          doctorName = doctorData.name || 'Unknown';
 
           // Check if already has availability
-          if (doctorData.availability && 
+          if (doctorData.availability &&
               typeof doctorData.availability === 'object' &&
               !Array.isArray(doctorData.availability) &&
               Object.keys(doctorData.availability).length > 0) {
@@ -91,7 +94,7 @@ export default function SeedDoctorAvailabilityPage() {
           success++;
           console.log(`✓ Updated availability for Dr. ${doctorName}`);
         } catch (err: any) {
-          errors.push(`Failed to update ${doctorData.name}: ${err.message}`);
+          errors.push(`Failed to update ${doctorName}: ${err.message}`);
         }
       }
 

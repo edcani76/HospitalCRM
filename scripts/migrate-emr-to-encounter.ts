@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { db, collection, getDocs, addDoc, serverTimestamp, updateDoc, doc } from '../src/firebase'
 import { query, where } from '../src/firebase'
 

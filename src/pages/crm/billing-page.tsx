@@ -9,7 +9,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Plus, Eye, FileText, X, Loader2 } from 'lucide-react';
 import { fetchInvoices, fetchPets, fetchUsers } from '../../lib/firestore-helpers';
-import { collection, addDoc, serverTimestamp } from '../../firebase';
+import { collection, addDoc, serverTimestamp, db } from '../../firebase';
 
 export default function BillingPage() {
   const [bills, setBills] = useState<any[]>([]);

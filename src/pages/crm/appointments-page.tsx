@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Input } from '../../components/ui/input';
 import { Plus, CalendarClock, Filter, Clock, User, Stethoscope, Search, CheckCircle, XCircle } from 'lucide-react';
 import { format, startOfToday } from 'date-fns';
-import { db, collection, getDocs, doc } from '../../firebase';
+import { db, collection, getDocs, doc, getDoc } from '../../firebase';
 import { updateDocument } from '../../lib/firestore-helpers';
 import { arrayUnion } from 'firebase/firestore';
 import { auth } from '../../firebase';
