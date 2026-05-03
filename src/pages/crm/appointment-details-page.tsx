@@ -736,10 +736,28 @@ export default function AppointmentDetailsPage() {
     return <div className="p-8 text-center">Appointment not found</div>;
   }
 
-  const additionalNotes = appointment.notes
-    ?.replace(/Type:\s*\w+/i, '')
-    .replace(/Mode:\s*\w+/i, '')
-    .trim();
+  // Parse services and general notes from appointment.notes
+  const getServicesFromNotes = () => {
+    if (!appointment.notes) return [];
+    // New format: "Services: consultation, grooming"
+    const servicesMatch = appointment.notes.match(/Services:\s*([^\n]+)/i);
+    if (servicesMatch) {
+      return servicesMatch[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+    // Old format: "Type: X" 
+    const typeMatches = [...(appointment.notes.matchAll(/Type:\s*(\w+)/gi) || [])];
+    return typeMatches.map(m => m[1].toLowerCase());
+  };
+
+  const getGeneralNotes = () => {
+    if (!appointment.notes) return '';
+    // Get everything after "Mode: ..." line
+    const parts = appointment.notes.split(/Mode:\s*\w+/i);
+    return parts[1] ? parts[1].trim() : '';
+  };
+
+  const serviceTypes = getServicesFromNotes();
+  const generalNotes = getGeneralNotes();
 
   return (
     <div className="max-w-4xl mx-auto pb-12">
@@ -978,24 +996,22 @@ export default function AppointmentDetailsPage() {
                     </Badge>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Type(s)</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {(() => {
-                        const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
-                        if (types.length === 0) return <Badge variant="outline" className="border-blue-500 text-blue-600">Consultation</Badge>;
-                        return types.map(type => (
-                          <Badge key={type} variant="outline" className="border-blue-500 text-blue-600">
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                          </Badge>
-                        ));
-                      })()}
+                    <p className="text-sm text-gray-500">Services</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {serviceTypes.length > 0 ? serviceTypes.map(type => (
+                        <Badge key={type} variant="outline" className="border-blue-500 text-blue-600">
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </Badge>
+                      )) : (
+                        <Badge variant="outline" className="border-blue-500 text-blue-600">Consultation</Badge>
+                      )}
                     </div>
                   </div>
-                  {additionalNotes && (
+                  {generalNotes && (
                     <div className="col-span-2">
                       <p className="text-sm text-gray-500 mb-1">Additional Notes</p>
                       <div className="p-3 bg-gray-50 rounded-lg text-sm whitespace-pre-wrap">
-                        {additionalNotes}
+                        {generalNotes}
                       </div>
                     </div>
                   )}
