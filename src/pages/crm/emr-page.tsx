@@ -183,6 +183,7 @@ export default function EMRPage() {
   }, [selectedEncounter?.id]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    if (mode === 'view') return; // Ignore changes in view mode
     const { name, value } = e.target;
     setFormData((prev: any) => ({ ...prev, [name]: value }));
   };
