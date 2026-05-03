@@ -163,7 +163,7 @@ export default function EMRPage() {
         date: dateStr,
         time: timeStr,
         status: 'unconfirmed',
-        notes: `Type: Consultation
+        notes: `Services: consultation
 Mode: Walk-in`,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -196,30 +196,35 @@ Mode: Walk-in`,
       const encRef = await addDoc(collection(db, 'encounters'), encounterData);
       const encounterId = encRef.id;
       
-      // 4. Create initial service
-      const serviceData = {
-        appointmentId: aptId,
-        encounterId: encounterId,
-        petId: patientId,
-        ownerId: patient.ownerUid || '',
-        serviceCatalogId: '',
-        serviceCode: 'CON',
-        serviceName: 'Consultation',
-        serviceType: 'consultation',
-        status: 'in-progress',
-        source: 'walk-in',
-        billable: true,
-        quantity: 1,
-        unitPrice: 500,
-        discountAmount: 0,
-        taxRate: 0,
-        performedBy: selectedDoctorId || userUid,
-        completedAt: null,
-        createdBy: userUid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      await addDoc(collection(db, 'appointment_services'), serviceData);
+      // 4. Create service records for ALL services
+      const serviceTypes = ['consultation']; // Default for Quick Start
+      
+      for (const svcType of serviceTypes) {
+        const serviceFee = svcType === 'consultation' ? 500 : svcType === 'grooming' ? 800 : svcType === 'vaccination' ? 300 : 1000;
+        const serviceData = {
+          appointmentId: aptId,
+          encounterId: encounterId,
+          petId: patientId,
+          ownerId: patient.ownerUid || '',
+          serviceCatalogId: '',
+          serviceCode: svcType.toUpperCase().slice(0, 3),
+          serviceName: svcType.charAt(0).toUpperCase() + svcType.slice(1),
+          serviceType: svcType,
+          status: 'in-progress',
+          source: 'walk-in',
+          billable: true,
+          quantity: 1,
+          unitPrice: serviceFee,
+          discountAmount: 0,
+          taxRate: 0,
+          performedBy: selectedDoctorId || userUid,
+          completedAt: null,
+          createdBy: userUid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+        await addDoc(collection(db, 'appointment_services'), serviceData);
+      }
       
       // 5. Navigate directly to EMR with encounterId
       setShowDoctorDialog(false);

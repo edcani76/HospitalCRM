@@ -530,141 +530,40 @@ export default function AppointmentDetailsPage() {
       const encounterRef = await addDoc(collection(db, 'encounters'), encounterData);
       const encounterId = encounterRef.id;
 
-      // Create appointment_service record for the initial service
-      const serviceFee = aptType === 'consultation' ? 500 : aptType === 'grooming' ? 800 : aptType === 'vaccination' ? 300 : 1000;
-      const serviceData = {
-        appointmentId: appointment.id,
-        encounterId: encounterId,
-        petId: appointment.petId,
-        clientUid: appointment.clientUid,
-        serviceCatalogId: '', // Will be populated from service_catalog
-        serviceCode: aptType.toUpperCase().slice(0, 3),
-        serviceName: aptType.charAt(0).toUpperCase() + aptType.slice(1),
-        serviceType: aptType as AppointmentType,
-        status: 'in-progress',
-        source: 'pre-booked',
-        billable: true,
-        quantity: 1,
-        unitPrice: serviceFee,
-        discountAmount: 0,
-        taxRate: 0,
-        performedBy: appointment.doctorId,
-        completedAt: null,
-        createdBy: userUid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      const serviceRef = await addDoc(collection(db, 'appointment_services'), serviceData);
-
-      // Create draft invoice linked to encounter
-      const invoiceData = {
-        invoiceNo: `INV-${Date.now().toString().slice(-6)}`,
-        appointmentId: appointment.id,
-        encounterId: encounterId,
-        petId: appointment.petId,
-        petName: appointment.petName,
-        clientUid: appointment.clientUid,
-        status: 'draft',
-        subTotal: serviceFee,
-        discountTotal: 0,
-        taxTotal: 0,
-        grandTotal: serviceFee,
-        amountPaid: 0,
-        balanceDue: serviceFee,
-        createdBy: userUid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      const invoiceRef = await addDoc(collection(db, 'invoices'), invoiceData);
-
-      // Create invoice item for the service
-      const invoiceItemData = {
-        invoiceId: invoiceRef.id,
-        appointmentServiceId: serviceRef.id,
-        serviceCatalogId: '',
-        description: aptType.charAt(0).toUpperCase() + aptType.slice(1),
-        itemType: 'service',
-        quantity: 1,
-        unitPrice: serviceFee,
-        discountAmount: 0,
-        taxRate: 0,
-        taxAmount: 0,
-        lineTotal: serviceFee,
-        createdAt: serverTimestamp()
-      };
-      await addDoc(collection(db, 'invoice_items'), invoiceItemData);
-
-      // Send notifications
-      await notifyDoctor(appointment.doctorId, 'appointment_started', 'Appointment Started',
-        `Appointment for ${appointment.petName} has started. Encounter and billing initialized.`);
+      // Create appointment_service records for ALL services from Services: line in notes
+      const serviceTypes = appointment.notes?.match(/Services:\s*([^\n]+)/i)?.[1]?.split(',').map((s: string) => s.trim()).filter(Boolean) || [aptType];
+      const createdServices: Array<{serviceCode: string, serviceName: string, serviceFee: number}> = [];
       
-      if (appointment.clientUid) {
-        await notifyClient(appointment.clientUid, 'appointment_started', 'Appointment Started',
-          `Your pet ${appointment.petName}'s appointment has started.`);
+      for (const svcType of serviceTypes) {
+        const serviceFee = svcType === 'consultation' ? 500 : svcType === 'grooming' ? 800 : svcType === 'vaccination' ? 300 : 1000;
+        const serviceName = svcType.charAt(0).toUpperCase() + svcType.slice(1);
+        const serviceData = {
+          appointmentId: appointment.id,
+          encounterId: encounterId,
+          petId: appointment.petId,
+          clientUid: appointment.clientUid,
+          serviceCatalogId: '',
+          serviceCode: svcType.toUpperCase().slice(0, 3),
+          serviceName: serviceName,
+          serviceType: svcType as AppointmentType,
+          status: 'in-progress',
+          source: 'pre-booked',
+          billable: true,
+          quantity: 1,
+          unitPrice: serviceFee,
+          discountAmount: 0,
+          taxRate: 0,
+          performedBy: appointment.doctorId,
+          completedAt: null,
+          createdBy: userUid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+        
+        const serviceRef = await addDoc(collection(db, 'appointment_services'), serviceData);
+        createdServices.push({ serviceCode: svcType.toUpperCase().slice(0, 3), serviceName, serviceFee });
       }
-
-      // Refresh appointment data
-      const updatedSnap = await getDoc(aptRef);
-      if (updatedSnap.exists()) {
-        setAppointment({ id: updatedSnap.id, ...updatedSnap.data() } as Appointment);
-      }
-
-      // Set emrId to encounterId for backward compatibility
-      setEmrId(encounterId);
-
-       // Navigate directly to EMR page with active encounter
-      navigate(`/crm/emr/${appointment.petId}`, {
-        state: { encounterId: encounterId }
-      });
       
-      // Also set emrId state for the "Visit Medical Record" button
-      setEmrId(encounterId);
-
-      setNotificationSent('Appointment started - Encounter and billing initialized');
-      setTimeout(() => setNotificationSent(''), 5000);
-    } catch (error) {
-      console.error('Error starting appointment:', error);
-    } finally {
-      setStarting(false);
-    }
-  };
-
-  const addServiceToEncounter = async (serviceType: string) => {
-    if (!appointment || !emrId) return;
-    setAddingService(serviceType);
-    try {
-      const userUid = auth.currentUser?.uid || 'unknown';
-      const serviceFee = serviceType === 'consultation' ? 500 : 
-                         serviceType === 'grooming' ? 800 : 
-                         serviceType === 'vaccination' ? 300 : 1000;
-      const serviceName = serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
-      
-      // Add to appointment_services collection
-      const serviceData = {
-        appointmentId: appointment.id,
-        encounterId: emrId,
-        petId: appointment.petId,
-        clientUid: appointment.clientUid,
-        serviceCatalogId: '',
-        serviceCode: serviceType.toUpperCase().slice(0, 3),
-        serviceName: serviceName,
-        serviceType: serviceType,
-        status: 'in-progress',
-        source: 'doctor-added',
-        billable: true,
-        quantity: 1,
-        unitPrice: serviceFee,
-        discountAmount: 0,
-        taxRate: 0,
-        performedBy: userUid,
-        completedAt: null,
-        createdBy: userUid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      
-      await addDoc(collection(db, 'appointment_services'), serviceData);
-
       // Create or update invoice
       const invoiceQuery = query(collection(db, 'invoices'), where('appointmentId', '==', appointment.id), where('status', '==', 'draft'));
       const invoiceSnap = await getDocs(invoiceQuery);
@@ -672,36 +571,43 @@ export default function AppointmentDetailsPage() {
       if (!invoiceSnap.empty) {
         const invoiceRef = doc(db, 'invoices', invoiceSnap.docs[0].id);
         const currentTotal = invoiceSnap.docs[0].data().grandTotal || 0;
+        let newTotal = currentTotal;
         
-        // Add invoice item
-        await addDoc(collection(db, 'invoice_items'), {
-          invoiceId: invoiceSnap.docs[0].id,
-          appointmentServiceId: serviceData.serviceCode,
-          description: serviceName,
-          itemType: 'service',
-          quantity: 1,
-          unitPrice: serviceFee,
-          discountAmount: 0,
-          taxRate: 0,
-          taxAmount: 0,
-          lineTotal: serviceFee,
-          createdAt: serverTimestamp()
-        });
+        // Add invoice items for all created services
+        for (const svc of createdServices) {
+          await addDoc(collection(db, 'invoice_items'), {
+            invoiceId: invoiceSnap.docs[0].id,
+            appointmentServiceId: svc.serviceCode,
+            description: svc.serviceName,
+            itemType: 'service',
+            quantity: 1,
+            unitPrice: svc.serviceFee,
+            discountAmount: 0,
+            taxRate: 0,
+            taxAmount: 0,
+            lineTotal: svc.serviceFee,
+            createdAt: serverTimestamp()
+          });
+          newTotal += svc.serviceFee;
+        }
         
         // Update invoice total
         await updateDoc(invoiceRef, {
-          grandTotal: currentTotal + serviceFee,
-          balanceDue: currentTotal + serviceFee,
+          grandTotal: newTotal,
+          balanceDue: newTotal,
           updatedAt: serverTimestamp()
         });
       }
 
-      // Send notification to doctor
-      await notifyDoctor(appointment.doctorId, 'service_added', 'Service Added',
-        `${serviceName} has been added to the appointment for ${appointment.petName}.`);
+      // Send notification to doctor (for the last created service)
+      if (createdServices.length > 0) {
+        const lastService = createdServices[createdServices.length - 1];
+        await notifyDoctor(appointment.doctorId, 'service_added', 'Service Added',
+          `${lastService.serviceName} has been added to the appointment for ${appointment.petName}.`);
 
-      setNotificationSent(`${serviceName} added to appointment`);
-      setTimeout(() => setNotificationSent(''), 5000);
+        setNotificationSent(`${lastService.serviceName} added to appointment`);
+        setTimeout(() => setNotificationSent(''), 5000);
+      }
     } catch (error) {
       console.error('Error adding service:', error);
     } finally {

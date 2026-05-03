@@ -387,7 +387,7 @@ export default function PatientProfilePage() {
         date: dateStr,
         time: timeStr,
         status: 'unconfirmed',
-        notes: `Type: Consultation\nMode: Walk-in`,
+        notes: `Services: consultation\nMode: Walk-in`,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
@@ -419,30 +419,37 @@ export default function PatientProfilePage() {
       const encRef = await addDoc(collection(db, 'encounters'), encounterData);
       const encounterId = encRef.id;
       
-      // 4. Create initial service
-      const serviceData = {
-        appointmentId: aptId,
-        encounterId: encounterId,
-        petId: patient.id,
-        ownerId: patient.ownerUid || '',
-        serviceCatalogId: '',
-        serviceCode: 'CON',
-        serviceName: 'Consultation',
-        serviceType: 'consultation',
-        status: 'in-progress',
-        source: 'walk-in',
-        billable: true,
-        quantity: 1,
-        unitPrice: 500,
-        discountAmount: 0,
-        taxRate: 0,
-        performedBy: selectedDoctorId || userUid,
-        completedAt: null,
-        createdBy: userUid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      await addDoc(collection(db, 'appointment_services'), serviceData);
+      // 4. Create initial services
+      // Parse services from notes (Services: consultation, grooming) or default to consultation
+      const notesStr = `Services: consultation\nMode: Walk-in`;
+      const serviceTypes = notesStr.match(/Services:\s*([^\n]+)/i)?.[1]?.split(',').map((s: string) => s.trim()).filter(Boolean) || ['consultation'];
+      
+      for (const svcType of serviceTypes) {
+        const serviceFee = svcType === 'consultation' ? 500 : svcType === 'grooming' ? 800 : svcType === 'vaccination' ? 300 : 1000;
+        const serviceData = {
+          appointmentId: aptId,
+          encounterId: encounterId,
+          petId: patient.id,
+          ownerId: patient.ownerUid || '',
+          serviceCatalogId: '',
+          serviceCode: svcType.toUpperCase().slice(0, 3),
+          serviceName: svcType.charAt(0).toUpperCase() + svcType.slice(1),
+          serviceType: svcType,
+          status: 'in-progress',
+          source: 'walk-in',
+          billable: true,
+          quantity: 1,
+          unitPrice: serviceFee,
+          discountAmount: 0,
+          taxRate: 0,
+          performedBy: selectedDoctorId || userUid,
+          completedAt: null,
+          createdBy: userUid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+        await addDoc(collection(db, 'appointment_services'), serviceData);
+      }
       
       // 5. Navigate directly to EMR with encounterId
       navigate(`/crm/emr/${patient.id}`, {
