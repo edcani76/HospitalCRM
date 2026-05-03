@@ -45,10 +45,19 @@ This document tracks the milestones, current development status, and roadmap for
 - [x] **Offline-Aware Writes**: Queue mutations when offline, sync when online.
 - [x] **Online/Offline Indicator**: Visual indicator in CRM layout with sync button.
 
+## ✅ Completed (PR-1)
+  - [x] **EMR Mode Detection**: Active mode (in-progress encounter with `startedAt`) vs View mode (no active encounter).
+  - [x] **Quick Start Visit**: Available on Patient Profile + EMR pages with doctor selector dialog.
+  - [x] **Service Management UI**: Full Create Appointment-style UI in Edit Appointment (department tabs, add/remove/edit).
+  - [x] **Timestamp Fix**: Uses `startedAt` (not `createdAt`) for encounters, migration complete.
+  - [x] **Notes Display**: "Type(s)" → "Services", Additional Notes shows combined service + general notes.
+  - [x] **Mode Display**: Handles "Walk-in" with hyphen correctly in UI.
+
 ## 🚀 Current Focus
-- [ ] **Service Completion**: Allow completing individual services with end times.
-- [ ] **EMR Editing**: Build full EMR editing interface (vitals, diagnosis, prescriptions).
-- [ ] **AI Assistant**: Integrating Gemini for smart medical analysis and automated report generation.
+  - [ ] **Testing**: Test Quick Start Visit flow, Edit Appointment service management.
+  - [ ] **Service Completion**: Allow completing individual services with end times.
+  - [ ] **EMR Editing**: Build full EMR editing interface (vitals, diagnosis, prescriptions).
+  - [ ] **AI Assistant**: Integrating Gemini for smart medical analysis and automated report generation.
 
 ## 📅 Roadmap
 

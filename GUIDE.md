@@ -74,13 +74,31 @@ Appointments are now organized by **Provider Groups**:
    [Cancelled]   [No-Show]
 ```
 
-### Starting an Appointment
+### Starting an Appointment (Scheduled)
 1. Go to **Appointment Details** page
 2. Click **"Start Appointment"** (only enabled on appointment day)
 3. System automatically:
    - Creates Electronic Medical Record (EMR)
    - Initializes draft invoice
    - Sends notifications to doctor and client
+
+### Quick Start Visit (Walk-in / Emergency)
+1. **From Patient Profile:**
+   - Click **"Quick Start Visit"** (when no scheduled appointment exists)
+   - Doctor selector dialog appears with ALL doctors
+   - Select a doctor (current user pre-selected if doctor)
+   - System creates: Appointment (confirmed) → Encounter (in-progress) → Service
+   - Navigates to EMR with encounterId in state
+
+2. **From EMR Page:**
+   - Click **"Quick Start Visit"** button
+   - Same doctor selector dialog appears
+   - Follow same flow as above
+
+3. **EMR Mode Detection:**
+   - **Active Mode:** `encounter.status === 'in-progress'` AND `encounter.startedAt` exists
+   - **View Mode:** No active encounter found
+   - PageHeader shows "🟢 Active Visit in Progress" or "⚪ No Active Visit"
 
 ### Editing Appointments
 - Click **"Edit"** button on Appointment Details page

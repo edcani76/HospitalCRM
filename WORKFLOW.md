@@ -102,81 +102,152 @@ This document describes the complete workflow for appointment management in the 
 ---
 
 ### 3. Starting an Appointment
-
+ 
 **Prerequisites:**
 - Status must be `confirmed`
 - Must be the day of the appointment (checked via date comparison)
-
+ 
 **Location:** `/crm/appointments/:appointmentId`
-
+ 
 **Process (when "Start Appointment" clicked):**
-
+ 
 1. **Update Appointment Status:**
-   ```
-   status: 'confirmed' → 'in-progress'
-   Audit: { action: 'started', userId, timestamp, reason: 'Appointment started' }
-   ```
-
+    ```
+    status: 'confirmed' → 'in-progress'
+    Audit: { action: 'started', userId, timestamp, reason: 'Appointment started' }
+    ```
+ 
 2. **Create EMR Record (Electronic Medical Record):**
-   ```typescript
-   {
-     petId, petName, clientUid, doctorId, doctorName,
-     appointmentId: appointment.id,
-     date, time,
-     status: 'in-progress',
-     type: services[0].type,  // First service type from notes
-     vitals: {},
-     diagnosis: '',
-     treatment: '',
-     prescriptions: [],
-     labResults: [],
-     services: [  // Based on all services in appointment
-       {
-         id: timestamp,
-         name: 'Consultation' | 'Grooming' | etc.,
-         startTime: timestamp,
-         endTime: null,
-         status: 'in-progress',
-         fee: 500 | 800 | 300 | 1000  // Based on type
-       }
-     ],
-     createdAt, updatedAt
-   }
-   ```
-
-3. **Create Draft Invoice:**
-   ```typescript
-   {
-     petId, petName, clientUid, doctorId, doctorName,
-     appointmentId: appointment.id,
-     emrId: emrRecord.id,
-     date: timestamp,
-     status: 'draft',
-     items: [{
-       description: 'Consultation' | etc.,
-       amount: serviceFee,
-       quantity: 1
-     }],
-     total: serviceFee,
-     createdAt, updatedAt
-   }
-   ```
-
-4. **Send Notifications:**
-   - **Doctor:** "Appointment Started - EMR and billing initialized"
-   - **Client:** "Your pet's appointment has started"
-
-5. **UI Updates:**
-   - Status badge changes to blue "In Progress" (with white text)
-   - Header shows: "Appointment Details (Ongoing)"
-   - "Start Appointment" button disappears
-   - "Edit" and "Cancel" buttons hidden (appointment is now in-progress)
-   - "Services" table appears showing the initial service
-   - "View Medical Record" button appears (links to EMR)
-
+    ```typescript
+    {
+      petId, petName, clientUid, doctorId, doctorName,
+      appointmentId: appointment.id,
+      date, time,
+      status: 'in-progress',
+      startedAt: serverTimestamp(),  // Fixed: using startedAt (not createdAt)
+      vitals: { weightKg: 0, temperatureC: 0, heartRateBpm: 0, ... },
+      clinicalNotes: { subjective: '', objective: '', assessment: '', ... },
+      services: [],  // Created separately in appointment_services
+      createdBy, createdAt, updatedAt
+    }
+    ```
+ 
+3. **Create Initial Service** (from `Services:` line in notes):
+    ```typescript
+    {
+      appointmentId, encounterId, petId, clientUid,
+      serviceCatalogId: '',
+      serviceCode: 'CON',
+      serviceName: 'Consultation',
+      serviceType: 'consultation',
+      status: 'in-progress',
+      source: 'pre-booked',
+      performedBy: doctorId,
+      unitPrice: 500,
+      createdBy, createdAt, updatedAt
+    }
+    ```
+ 
+4. **Create Draft Invoice:**
+    ```typescript
+    {
+      petId, petName, clientUid, doctorId, doctorName,
+      appointmentId: appointment.id,
+      encounterId: emrRecord.id,
+      date: timestamp,
+      status: 'draft',
+      items: [{
+        description: 'Consultation',
+        amount: serviceFee,
+        quantity: 1
+      }],
+      total: serviceFee,
+      createdAt, updatedAt
+    }
+    ```
+ 
+5. **Send Notifications:**
+    - **Doctor:** "Appointment Started - EMR and billing initialized"
+    - **Client:** "Your pet's appointment has started"
+ 
+6. **UI Updates:**
+    - Status badge changes to blue "In Progress" (with white text)
+    - Header shows: "Appointment Details (Ongoing)"
+    - "Start Appointment" button disappears
+    - "Edit" and "Cancel" buttons hidden (appointment is now in-progress)
+    - "Services" table appears showing the initial service
+    - "View Medical Record" button appears (links to EMR)
+ 
 ---
-
-### 4. Service Management (During Appointment)
+ 
+### 3.5 Quick Start Visit (Walk-in / Emergency)
+ 
+**Locations:**
+- **Patient Profile page:** `/crm/patients/:petId`
+- **EMR page:** `/crm/emr/:petId`
+ 
+**Process (when "Quick Start Visit" clicked):**
+ 
+1. **Show Doctor Selector Dialog:**
+    - Fetches ALL doctors (for emergency/walk-in flexibility)
+    - Pre-selects current logged-in doctor if they are a doctor
+    - Doctor can override and select any available doctor
+ 
+2. **Create Appointment (auto-confirmed):**
+    ```typescript
+    {
+      clientUid, petId, petName,
+      doctorId: selectedDoctorId,
+      doctorName: selectedDoctorName,
+      date: today,
+      time: currentTime,
+      status: 'unconfirmed' → 'confirmed',
+      notes: "Services: consultation\nMode: Walk-in"
+    }
+    ```
+ 
+3. **Create Encounter (Quick Start):**
+    ```typescript
+    {
+      appointmentId, petId, petName, clientUid,
+      doctorId: selectedDoctorId,
+      doctorName: selectedDoctorName,
+      startedAt: serverTimestamp(),  // EMR mode detection uses this
+      status: 'in-progress',
+      vitals: { ... },
+      clinicalNotes: { ... },
+      createdBy, createdAt, updatedAt
+    }
+    ```
+ 
+4. **Create Initial Service:**
+    ```typescript
+    {
+      appointmentId, encounterId, petId, ownerId,
+      serviceCatalogId: '',
+      serviceCode: 'CON',
+      serviceName: 'Consultation',
+      serviceType: 'consultation',
+      status: 'in-progress',
+      source: 'walk-in',
+      performedBy: selectedDoctorId,
+      unitPrice: 500,
+      createdBy, createdAt, updatedAt
+    }
+    ```
+ 
+5. **Navigate to EMR:**
+    - Navigates to `/crm/emr/:petId` with `encounterId` in state
+    - EMR page detects active encounter (has `startedAt`) → shows "Active Visit" mode
+ 
+6. **EMR Mode Detection:**
+    - **Active Mode:** `encounter.status === 'in-progress'` AND `encounter.startedAt` exists
+    - **View Mode:** No active encounter found
+    - PageHeader shows "🟢 Active Visit in Progress" or "⚪ No Active Visit"
+ 
+---
+ 
+### 4. Service Management (Edit Appointment)
 
 **Location:** `/crm/appointments/:appointmentId` (Services table) and `/crm/patients/:petId/emr/:emrId`
 
