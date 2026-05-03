@@ -445,19 +445,30 @@ export default function AppointmentsPage() {
                               </div>
                             </TableCell>
                              <TableCell>{getStatusBadge(appointment.status)}</TableCell>
-                              <TableCell className="text-xs lg:text-sm">
-                                <div className="flex flex-wrap gap-1">
-                                  {(() => {
-                                    const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
-                                    if (types.length === 0) return <Badge variant="outline" className="border-blue-500 text-blue-600">Consultation</Badge>;
-                                    return types.map(type => (
-                                      <Badge key={type} variant="outline" className="border-blue-500 text-blue-600">
-                                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                                      </Badge>
-                                    ));
-                                  })()}
-                                </div>
-                              </TableCell>
+                               <TableCell className="text-xs lg:text-sm">
+                                 <div className="flex flex-wrap gap-1">
+                                   {(() => {
+                                     // Try new format: "Services: consultation, grooming, others"
+                                     const servicesMatch = appointment.notes?.match(/Services:\s*([^\n]+)/i);
+                                     if (servicesMatch) {
+                                       const types = servicesMatch[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+                                       return types.map((type: string) => (
+                                         <Badge key={type} variant="outline" className="border-blue-500 text-blue-600">
+                                           {type.charAt(0).toUpperCase() + type.slice(1)}
+                                         </Badge>
+                                       ));
+                                     }
+                                     // Fallback to old format: "Type: X" lines
+                                     const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
+                                     if (types.length === 0) return <Badge variant="outline" className="border-blue-500 text-blue-600">Consultation</Badge>;
+                                     return types.map(type => (
+                                       <Badge key={type} variant="outline" className="border-blue-500 text-blue-600">
+                                         {type.charAt(0).toUpperCase() + type.slice(1)}
+                                       </Badge>
+                                     ));
+                                   })()}
+                                 </div>
+                               </TableCell>
                            </TableRow>
                         );
                       })}
