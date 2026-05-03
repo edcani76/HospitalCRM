@@ -491,10 +491,6 @@ export default function AppointmentDetailsPage() {
         updatedAt: startTime
       });
 
-      // Get appointment types for the service (use first type for EMR)
-      const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
-      const aptType = types[0] || 'consultation';
-
       // Create ENCOUNTER record
       const encounterData = {
         appointmentId: appointment.id,
@@ -530,8 +526,16 @@ export default function AppointmentDetailsPage() {
       const encounterRef = await addDoc(collection(db, 'encounters'), encounterData);
       const encounterId = encounterRef.id;
 
-      // Create appointment_service records for ALL services from Services: line in notes
-      const serviceTypes = appointment.notes?.match(/Services:\s*([^\n]+)/i)?.[1]?.split(',').map((s: string) => s.trim()).filter(Boolean) || [aptType];
+      // Create appointment_service records for ALL services
+      // First try new format: "Services: consultation, vaccination"
+      let serviceTypes = appointment.notes?.match(/Services:\s*([^\n]+)/i)?.[1]?.split(',').map((s: string) => s.trim()).filter(Boolean) || [];
+
+      // Fallback to old format: multiple "Type: X" lines
+      if (serviceTypes.length === 0) {
+        const typeMatches = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1].toLowerCase());
+        serviceTypes = typeMatches.length > 0 ? typeMatches : ['consultation'];
+      }
+
       const createdServices: Array<{serviceCode: string, serviceName: string, serviceFee: number}> = [];
       
       for (const svcType of serviceTypes) {

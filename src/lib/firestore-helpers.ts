@@ -258,12 +258,12 @@ export async function fetchServiceCatalog(category?: string) {
 
 // Appointment Services
 export async function fetchAppointmentServices(encounterId: string) {
-  const queryFn = async () => {
-    const q = query(collection(db, 'appointment_services'), where('encounterId', '==', encounterId));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  };
-  return fetchWithCache(`appointment_services_${encounterId}`, queryFn);
+  const q = query(collection(db, 'appointment_services'), where('encounterId', '==', encounterId));
+  const snapshot = await getDocs(q);
+  const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  // Update cache in background without blocking
+  setManyCached('appointment_services', data).catch(() => {});
+  return data;
 }
 
 // Triage Vitals
