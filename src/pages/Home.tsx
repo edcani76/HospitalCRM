@@ -81,12 +81,12 @@ export default function Home() {
               >
                 Schedule Consultation <ArrowRight className="w-6 h-6" />
               </Link>
-              <Link 
-                to="/doctors" 
-                className="px-10 py-6 bg-white text-slate-900 border border-slate-100 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 hover:bg-slate-50 transition-all shadow-xl"
-              >
-                Meet Our Vets
-              </Link>
+                <Link 
+                  to="/departments" 
+                  className="px-10 py-6 bg-white text-slate-900 border border-slate-100 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 hover:bg-slate-50 transition-all shadow-xl"
+                >
+                  Check Our Services
+                </Link>
             </motion.div>
           </div>
         </div>
