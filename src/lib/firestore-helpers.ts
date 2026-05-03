@@ -214,18 +214,8 @@ export async function fetchMedications() {
   return fetchWithCache('medications', queryFn);
 }
 
+// EMR Records (now uses encounters collection)
 export async function fetchEmrRecords(petId?: string) {
-  const queryFn = async () => {
-    let q = query(collection(db, 'emrRecords'));
-    if (petId) q = query(collection(db, 'emrRecords'), where('petId', '==', petId));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  };
-  return fetchWithCache('emrRecords', queryFn);
-}
-
-// Encounters
-export async function fetchEncounters(petId?: string) {
   const queryFn = async () => {
     let q = query(collection(db, 'encounters'), orderBy('startedAt', 'desc'));
     if (petId) q = query(collection(db, 'encounters'), where('petId', '==', petId), orderBy('startedAt', 'desc'));
@@ -235,13 +225,24 @@ export async function fetchEncounters(petId?: string) {
   return fetchWithCache('encounters', queryFn);
 }
 
+// Encounters - bypass cache to always get fresh data
+export async function fetchEncounters(petId?: string) {
+  const queryFn = async () => {
+    let q = query(collection(db, 'encounters'), orderBy('startedAt', 'desc'));
+    if (petId) q = query(collection(db, 'encounters'), where('petId', '==', petId), orderBy('startedAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  
+  // Bypass cache - always fetch fresh data for encounters
+  return queryFn();
+}
+
+// Fetch single encounter by ID - bypass cache
 export async function fetchEncounterById(encounterId: string) {
   const docRef = doc(db, 'encounters', encounterId);
   const snapshot = await getDoc(docRef);
-  if (snapshot.exists()) {
-    return { id: snapshot.id, ...snapshot.data() };
-  }
-  return null;
+  return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
 }
 
 // Service Catalog

@@ -21,7 +21,6 @@ import {
   RefreshCw,
   Check,
   Thermometer,
-  Stethoscope,
   CreditCard
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -32,7 +31,7 @@ import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
-import { db, doc, getDoc, collection, getDocs, query, where, updateDoc } from '../../firebase';
+import { db, auth, collection, getDocs, getDoc, addDoc, updateDoc, doc, serverTimestamp } from '../../firebase';
 import PetDialog from '../../components/crm/pet-dialog';
 import { uploadPetPhoto, deletePetPhoto } from '../../lib/storage';
 
@@ -73,7 +72,6 @@ export default function PatientProfilePage() {
   const [users, setUsers] = useState<{ [uid: string]: any }>({});
   const [isPhotoActionModalOpen, setIsPhotoActionModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
-  const [isTriageModalOpen, setIsTriageModalOpen] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [loading, setLoading] = useState(true);
@@ -83,6 +81,8 @@ export default function PatientProfilePage() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [scheduledAppointment, setScheduledAppointment] = useState<any>(null);
+  const [startingVisit, setStartingVisit] = useState(false);
   const [tempPhoto, setTempPhoto] = useState<string | null>(null);
 
   useEffect(() => {
@@ -125,6 +125,15 @@ export default function PatientProfilePage() {
           const appQuery = query(collection(db, 'appointments'), where('petId', '==', foundPet.id));
           const appSnapshot = await getDocs(appQuery);
           setAppointments(appSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          
+          // Check for scheduled appointments (unconfirmed/confirmed) that haven't started
+          const { fetchEncounters } = require('../../lib/firestore-helpers');
+          const encounters = await fetchEncounters(foundPet.id);
+          const scheduled = appSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).find((apt: any) =>
+            (apt.status === 'unconfirmed' || apt.status === 'confirmed') &&
+            !encounters.some((enc: any) => enc.appointmentId === apt.id)
+          );
+          setScheduledAppointment(scheduled || null);
 
           const repQuery = query(collection(db, 'reports'), where('petId', '==', foundPet.id));
           const repSnapshot = await getDocs(repQuery);
@@ -325,6 +334,93 @@ export default function PatientProfilePage() {
     }
   };
 
+  const handleQuickStartVisit = async () => {
+    if (!patient) return;
+    setStartingVisit(true);
+    try {
+      const userUid = auth.currentUser?.uid || 'unknown';
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      // 1. Create appointment
+      const aptData = {
+        clientUid: patient.ownerUid || '',
+        petId: patient.id,
+        petName: patient.name,
+        doctorId: '',
+        doctorName: '',
+        date: dateStr,
+        time: timeStr,
+        status: 'unconfirmed',
+        notes: `Type: Consultation\nMode: Walk-in`,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      const aptRef = await addDoc(collection(db, 'appointments'), aptData);
+      const aptId = aptRef.id;
+
+      // 2. Auto-confirm appointment
+      await updateDoc(doc(db, 'appointments', aptId), {
+        status: 'confirmed',
+        updatedAt: serverTimestamp()
+      });
+
+      // 3. Create encounter (Quick Start)
+      const encounterData = {
+        appointmentId: aptId,
+        petId: patient.id,
+        petName: patient.name,
+        clientUid: patient.ownerUid || '',
+        doctorId: '',
+        doctorName: '',
+        startedAt: serverTimestamp(),
+        status: 'in-progress',
+        vitals: { weightKg: 0, temperatureC: 0, heartRateBpm: 0, respiratoryRateRpm: 0, mmColor: '', crtSeconds: 0, notes: '' },
+        clinicalNotes: { subjective: '', objective: '', assessment: '', plan: '', diagnosis: '', doctorNotes: '', followUpInstructions: '' },
+        createdBy: userUid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      const encRef = await addDoc(collection(db, 'encounters'), encounterData);
+      const encounterId = encRef.id;
+
+      // 4. Create initial service
+      const serviceData = {
+        appointmentId: aptId,
+        encounterId: encounterId,
+        petId: patient.id,
+        ownerId: patient.ownerUid || '',
+        serviceCatalogId: '',
+        serviceCode: 'CON',
+        serviceName: 'Consultation',
+        serviceType: 'consultation',
+        status: 'in-progress',
+        source: 'walk-in',
+        billable: true,
+        quantity: 1,
+        unitPrice: 500,
+        discountAmount: 0,
+        taxRate: 0,
+        performedBy: userUid,
+        completedAt: null,
+        createdBy: userUid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      await addDoc(collection(db, 'appointment_services'), serviceData);
+
+      // 5. Navigate directly to EMR with encounterId
+      navigate(`/crm/emr/${patient.id}`, {
+        state: { encounterId }
+      });
+    } catch (error) {
+      console.error('Error quick starting visit:', error);
+      alert('Error starting visit. Please try again.');
+      setStartingVisit(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto pb-12">
       <PageHeader 
@@ -343,13 +439,6 @@ export default function PatientProfilePage() {
               Edit Profile
             </Button>
             <Button 
-              className="bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200 rounded-xl px-6"
-              onClick={() => setIsTriageModalOpen(true)}
-            >
-              <Activity className="w-4 h-4 mr-2" />
-              Triage Check
-            </Button>
-            <Button 
               variant="outline"
               className="text-emerald-600 border-emerald-200 rounded-xl hover:bg-emerald-50"
               onClick={() => navigate(`/crm/emr/${patient.id}`, { 
@@ -359,6 +448,38 @@ export default function PatientProfilePage() {
               <FileText className="w-4 h-4 mr-2" />
               EMR
             </Button>
+            {scheduledAppointment ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-2 rounded-lg">
+                  ⚠️ Scheduled: {scheduledAppointment.date} at {scheduledAppointment.time}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/crm/appointments/${scheduledAppointment.id}`)}
+                >
+                  View Appointment
+                </Button>
+              </div>
+            ) : (
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={handleQuickStartVisit}
+                disabled={startingVisit}
+              >
+                {startingVisit ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Starting Visit...
+                  </span>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Quick Start Visit
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         }
       />
@@ -920,146 +1041,6 @@ export default function PatientProfilePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Triage Dialog */}
-      <Dialog open={isTriageModalOpen} onOpenChange={setIsTriageModalOpen}>
-        <DialogContent className="max-w-2xl rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-              <Stethoscope className="w-6 h-6 text-green-600" />
-              Triage Check - {patient.name}
-            </DialogTitle>
-            <DialogDescription>
-              Record vital signs and weight. This will update the patient's weight history and medical records.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={(e: React.FormEvent) => {
-            e.preventDefault();
-            const formData = new FormData(e.currentTarget as HTMLFormElement);
-            const newWeight = parseFloat(formData.get('triage-weight') as string);
-            const temperature = formData.get('temperature') as string;
-            const heartRate = formData.get('heart-rate') as string;
-            const respiratoryRate = formData.get('respiratory-rate') as string;
-            const bloodPressure = formData.get('blood-pressure') as string;
-            const notes = formData.get('triage-notes') as string;
-            
-            const weightHistory = [...(patient.weightHistory || [])];
-            if (newWeight && newWeight !== patient.weight) {
-              weightHistory.push({
-                date: new Date().toISOString().split('T')[0],
-                weight: newWeight,
-                notes: `Triage: ${temperature ? temperature + '°C' : ''} ${heartRate ? ', HR: ' + heartRate + 'bpm' : ''}`.trim() || 'Triage check'
-              });
-            }
-
-            const updatedPatient = {
-              ...patient,
-              weight: newWeight || patient.weight,
-              weightHistory,
-              auditTrail: [
-                ...(patient.auditTrail || []),
-                {
-                  id: Date.now().toString(),
-                  event: 'Triage Check Recorded',
-                  staff: 'Admin User',
-                  timestamp: new Date().toLocaleString('en-US', { 
-                    year: 'numeric', month: 'short', day: 'numeric', 
-                    hour: '2-digit', minute: '2-digit', hour12: true 
-                  })
-                }
-              ]
-            };
-            setPatient(updatedPatient);
-            setIsTriageModalOpen(false);
-          }} className="space-y-6 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="triage-weight" className="font-bold text-gray-700">Weight (kg)</Label>
-                <Input 
-                  id="triage-weight" 
-                  name="triage-weight" 
-                  type="number" 
-                  step="0.1" 
-                  min="0"
-                  defaultValue={patient.weight || ''} 
-                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                  placeholder="0.0" 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="temperature" className="font-bold text-gray-700">Temperature (°C)</Label>
-                <Input 
-                  id="temperature" 
-                  name="temperature" 
-                  type="number" 
-                  step="0.1" 
-                  min="35" 
-                  max="45"
-                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                  placeholder="38.5" 
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="heart-rate" className="font-bold text-gray-700">Heart Rate (bpm)</Label>
-                <Input 
-                  id="heart-rate" 
-                  name="heart-rate" 
-                  type="number" 
-                  min="50" 
-                  max="250"
-                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                  placeholder="120" 
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="respiratory-rate" className="font-bold text-gray-700">Respiratory Rate (/min)</Label>
-                <Input 
-                  id="respiratory-rate" 
-                  name="respiratory-rate" 
-                  type="number" 
-                  min="10" 
-                  max="60"
-                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                  placeholder="20" 
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="blood-pressure" className="font-bold text-gray-700">Blood Pressure (mmHg)</Label>
-              <Input 
-                id="blood-pressure" 
-                name="blood-pressure" 
-                className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
-                placeholder="120/80" 
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="triage-notes" className="font-bold text-gray-700">Notes</Label>
-              <textarea 
-                id="triage-notes" 
-                name="triage-notes" 
-                className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white p-3 text-sm min-h-[80px]"
-                placeholder="Additional observations..."
-              />
-            </div>
-
-            <DialogFooter className="pt-4 flex gap-3 border-t border-gray-50">
-              <Button type="button" variant="ghost" onClick={() => setIsTriageModalOpen(false)} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
-              <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-green-100 flex-1">
-                <Stethoscope className="w-4 h-4 mr-2" />
-                Save Triage Record
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

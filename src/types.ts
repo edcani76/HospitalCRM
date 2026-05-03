@@ -80,10 +80,25 @@ export interface Notification {
   id?: string;
   userId: string;
   userRole?: string;
-  type: 'appointment_cancelled' | 'appointment_updated' | 'appointment_created' | 'appointment_confirmed' | 'appointment_no_show';
+  type: 'appointment_cancelled' | 'appointment_updated' | 'appointment_created' | 'appointment_confirmed' | 'appointment_no_show' | 'appointment_reminder' | 'appointment_started' | 'service_added';
   title: string;
   message: string;
   appointmentId?: string;
   read: boolean;
   createdAt: any;
+}
+
+export interface ServiceCatalogItem {
+  id?: string;
+  code: string;
+  name: string;
+  category: 'consultation' | 'vaccination' | 'lab' | 'diagnostic' | 'procedure' | 'grooming' | 'medication' | 'supply';
+  description: string;
+  defaultPrice: number;
+  taxable: boolean;
+  active: boolean;
+  requiresClinicalRecord: boolean;
+  inventoryItemId?: string;
+  createdAt?: any;
+  updatedAt?: any;
 }

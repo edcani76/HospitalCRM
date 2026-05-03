@@ -216,8 +216,10 @@ Mode: Walk-in`,
         const encounterData = await fetchEncounters(patientId);
         setEncounters(encounterData);
 
-        // Check for active encounter (in-progress)
-        const activeEncounter = encounterData.find((e: any) => e.status === 'in-progress');
+        // Check for active encounter (in-progress with startedAt)
+        const activeEncounter = encounterData.find((e: any) => 
+          e.status === 'in-progress' && e.startedAt
+        );
         const hasActiveEncounter = !!activeEncounter;
 
         // Set mode based on active encounter

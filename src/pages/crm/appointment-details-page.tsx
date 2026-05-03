@@ -53,7 +53,27 @@ export default function AppointmentDetailsPage() {
   const [notificationSent, setNotificationSent] = useState('');
   const [emrId, setEmrId] = useState<string | null>(null);
   const [emrData, setEmrData] = useState<any | null>(null);
+  const [encounterServices, setEncounterServices] = useState<any[]>([]);
   const [addingService, setAddingService] = useState<string | null>(null);
+  // Fetch encounter services when emrId changes
+  useEffect(() => {
+    const fetchServices = async () => {
+      if (!emrId) {
+        setEncounterServices([]);
+        return;
+      }
+      try {
+        const q = query(collection(db, 'appointment_services'), where('encounterId', '==', emrId));
+        const snapshot = await getDocs(q);
+        const services = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setEncounterServices(services);
+      } catch (error) {
+        console.error('Error fetching encounter services:', error);
+      }
+    };
+    fetchServices();
+  }, [emrId]);
+
   const [users, setUsers] = useState<{ [uid: string]: any }>({});
   const [petInfo, setPetInfo] = useState<any>(null);
   const [petOwner, setPetOwner] = useState<any>(null);
@@ -183,9 +203,9 @@ export default function AppointmentDetailsPage() {
     checkNoShow();
   }, [appointment?.id]);
 
-  // Fetch EMR ID when appointment is in-progress
+  // Fetch encounter ID when appointment is in-progress
   useEffect(() => {
-    const fetchEMR = async () => {
+    const fetchEncounter = async () => {
       if (!appointment || appointment.status !== 'in-progress') {
         setEmrId(null);
         setEmrData(null);
@@ -193,19 +213,19 @@ export default function AppointmentDetailsPage() {
       }
 
       try {
-        const q = query(collection(db, 'emrRecords'), where('appointmentId', '==', appointment.id));
+        const q = query(collection(db, 'encounters'), where('appointmentId', '==', appointment.id));
         const snapshot = await getDocs(q);
         if (!snapshot.empty) {
-          const emrDoc = snapshot.docs[0];
-          setEmrId(emrDoc.id);
-          setEmrData({ id: emrDoc.id, ...emrDoc.data() });
+          const encDoc = snapshot.docs[0];
+          setEmrId(encDoc.id);
+          setEmrData({ id: encDoc.id, ...encDoc.data() });
         }
       } catch (error) {
-        console.error('Error fetching EMR:', error);
+        console.error('Error fetching encounter:', error);
       }
     };
 
-    fetchEMR();
+    fetchEncounter();
   }, [appointment?.id, appointment?.status]);
 
   const handleSave = async () => {
@@ -399,7 +419,7 @@ export default function AppointmentDetailsPage() {
       const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
       const aptType = types[0] || 'consultation';
 
-      // Create ENCOUNTER record (replaces emrRecords)
+      // Create ENCOUNTER record
       const encounterData = {
         appointmentId: appointment.id,
         petId: appointment.petId,
@@ -407,7 +427,6 @@ export default function AppointmentDetailsPage() {
         clientUid: appointment.clientUid,
         doctorId: appointment.doctorId,
         doctorName: appointment.doctorName,
-        startedAt: startTime,
         completedAt: null,
         status: 'in-progress',
         vitals: {
@@ -517,10 +536,13 @@ export default function AppointmentDetailsPage() {
       // Set emrId to encounterId for backward compatibility
       setEmrId(encounterId);
 
-      // Navigate directly to EMR page with active encounter
+       // Navigate directly to EMR page with active encounter
       navigate(`/crm/emr/${appointment.petId}`, {
         state: { encounterId: encounterId }
       });
+      
+      // Also set emrId state for the "Visit Medical Record" button
+      setEmrId(encounterId);
 
       setNotificationSent('Appointment started - Encounter and billing initialized');
       setTimeout(() => setNotificationSent(''), 5000);
@@ -535,41 +557,66 @@ export default function AppointmentDetailsPage() {
     if (!appointment || !emrId) return;
     setAddingService(serviceType);
     try {
+      const userUid = auth.currentUser?.uid || 'unknown';
       const serviceFee = serviceType === 'consultation' ? 500 : 
                          serviceType === 'grooming' ? 800 : 
                          serviceType === 'vaccination' ? 300 : 1000;
       const serviceName = serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
-      const startTime = new Date().toISOString();
       
-      // Add service to EMR
-      const emrRef = doc(db, 'emrRecords', emrId);
-      const newService = {
-        id: Date.now().toString(),
-        name: serviceName,
-        startTime: startTime,
-        endTime: null,
+      // Add to appointment_services collection
+      const serviceData = {
+        appointmentId: appointment.id,
+        encounterId: emrId,
+        petId: appointment.petId,
+        clientUid: appointment.clientUid,
+        serviceCatalogId: '',
+        serviceCode: serviceType.toUpperCase().slice(0, 3),
+        serviceName: serviceName,
+        serviceType: serviceType,
         status: 'in-progress',
-        fee: serviceFee
+        source: 'doctor-added',
+        billable: true,
+        quantity: 1,
+        unitPrice: serviceFee,
+        discountAmount: 0,
+        taxRate: 0,
+        performedBy: userUid,
+        completedAt: null,
+        createdBy: userUid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
       
-      await updateDoc(emrRef, {
-        services: arrayUnion(newService),
-        updatedAt: new Date().toISOString()
-      });
+      await addDoc(collection(db, 'appointment_services'), serviceData);
 
-      // Add to invoice
+      // Create or update invoice
       const invoiceQuery = query(collection(db, 'invoices'), where('appointmentId', '==', appointment.id), where('status', '==', 'draft'));
       const invoiceSnap = await getDocs(invoiceQuery);
+      
       if (!invoiceSnap.empty) {
         const invoiceRef = doc(db, 'invoices', invoiceSnap.docs[0].id);
+        const currentTotal = invoiceSnap.docs[0].data().grandTotal || 0;
+        
+        // Add invoice item
+        await addDoc(collection(db, 'invoice_items'), {
+          invoiceId: invoiceSnap.docs[0].id,
+          appointmentServiceId: serviceData.serviceCode,
+          description: serviceName,
+          itemType: 'service',
+          quantity: 1,
+          unitPrice: serviceFee,
+          discountAmount: 0,
+          taxRate: 0,
+          taxAmount: 0,
+          lineTotal: serviceFee,
+          createdAt: serverTimestamp()
+        });
+        
+        // Update invoice total
         await updateDoc(invoiceRef, {
-          items: arrayUnion({
-            description: serviceName,
-            amount: serviceFee,
-            quantity: 1
-          }),
-          total: (invoiceSnap.docs[0].data().total || 0) + serviceFee,
-          updatedAt: new Date().toISOString()
+          grandTotal: currentTotal + serviceFee,
+          balanceDue: currentTotal + serviceFee,
+          updatedAt: serverTimestamp()
         });
       }
 
@@ -1008,41 +1055,36 @@ export default function AppointmentDetailsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b hover:bg-gray-50">
-                      <td className="p-3 font-medium">
-                         {(() => {
-                           const types = [...(appointment.notes?.matchAll(/Type:\s*(\w+)/gi) || [])].map(m => m[1]);
-                           if (types.length === 0) return 'Consultation';
-                           return types.map(type => type.charAt(0).toUpperCase() + type.slice(1)).join(', ');
-                         })()}
-                       </td>
-                      <td className="p-3 text-gray-600">
-                        {emrData?.services?.[0]?.startTime
-                          ? new Date(emrData.services[0].startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                          : '--'}
-                      </td>
-                      <td className="p-3 text-gray-400">--</td>
-                      <td className="p-3">
-                        <Badge className="bg-blue-600 text-white">In Progress</Badge>
-                      </td>
-                      <td className="p-3 text-right font-medium">
-                        ₱{(() => {
-                          const type = appointment.notes?.match(/Type: (\w+)/i)?.[1] || 'consultation';
-                          return type === 'consultation' ? '500' : 
-                                 type === 'grooming' ? '800' :
-                                 type === 'vaccination' ? '300' : '1000';
-                        })()}
-                      </td>
-                    </tr>
+                    {encounterServices.length > 0 ? encounterServices.map((service: any) => (
+                      <tr key={service.id} className="border-b hover:bg-gray-50">
+                        <td className="p-3 font-medium">{service.serviceName}</td>
+                        <td className="p-3 text-gray-600">
+                          {service.createdAt?.toDate?.()?.toLocaleTimeString?.([], {hour: '2-digit', minute:'2-digit'}) || '--'}
+                        </td>
+                        <td className="p-3 text-gray-400">
+                          {service.completedAt?.toDate?.()?.toLocaleTimeString?.([], {hour: '2-digit', minute:'2-digit'}) || '--'}
+                        </td>
+                        <td className="p-3">
+                          <Badge className={service.status === 'completed' ? '' : 'bg-blue-600 text-white'}>
+                            {service.status === 'completed' ? 'Completed' : 'In Progress'}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-right font-medium">₱{service.unitPrice * service.quantity}</td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan={5} className="p-3 text-center text-gray-400">No services added yet</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
-              {emrData && emrData.services && emrData.services.length > 0 && (
+              {emrData && (
                 <div className="mt-4 pt-4 border-t">
                   <p className="text-sm text-gray-500 mb-1">Duration</p>
                   <p className="text-lg font-semibold text-blue-700">
                     {(() => {
-                      const startTime = new Date(emrData.services?.[0]?.startTime || Date.now());
+                      const startTime = emrData.startedAt?.toDate?.() || new Date();
                       const now = new Date();
                       const diffMs = now.getTime() - startTime.getTime();
                       const hours = Math.floor(diffMs / (1000 * 60 * 60));
