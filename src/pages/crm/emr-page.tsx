@@ -121,9 +121,27 @@ export default function EMRPage() {
 
   const handleQuickStartVisit = async () => {
     if (!patientId || !patient) return;
-    // Show doctor selector first
-    await fetchAvailableDoctors();
-    setShowDoctorDialog(true);
+    try {
+      // Fetch ALL doctors for Quick Start (emergency/walk-in visits)
+      const snapshot = await getDocs(collection(db, 'doctors'));
+      const doctors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      
+      setAvailableDoctors(doctors);
+      
+      // Pre-select current user if they're a doctor
+      const userUid = auth.currentUser?.uid;
+      const currentDoctor = doctors.find(d => d.uid === userUid);
+      if (currentDoctor) {
+        setSelectedDoctorId(currentDoctor.id);
+        setSelectedDoctorName(currentDoctor.name);
+      }
+      
+      // Show doctor selector dialog
+      setShowDoctorDialog(true);
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+      alert('Error loading doctors. Please try again.');
+    }
   };
 
   const confirmQuickStart = async () => {

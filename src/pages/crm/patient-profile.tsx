@@ -342,12 +342,13 @@ export default function PatientProfilePage() {
     }
   };
 
-  const fetchAvailableDoctors = async () => {
+  const handleQuickStartVisit = async () => {
+    if (!patient) return;
     try {
+      // Fetch ALL doctors for Quick Start (emergency/walk-in visits)
       const snapshot = await getDocs(collection(db, 'doctors'));
       const doctors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       
-      // Show ALL doctors for Quick Start (emergency/walk-in visits)
       setAvailableDoctors(doctors);
       
       // Pre-select current user if they're a doctor
@@ -357,16 +358,13 @@ export default function PatientProfilePage() {
         setSelectedDoctorId(currentDoctor.id);
         setSelectedDoctorName(currentDoctor.name);
       }
+      
+      // Show doctor selector dialog
+      setShowDoctorDialog(true);
     } catch (error) {
       console.error('Error fetching doctors:', error);
+      alert('Error loading doctors. Please try again.');
     }
-  };
-
-  const handleQuickStartVisit = async () => {
-    if (!patient) return;
-    // Show doctor selector first
-    await fetchAvailableDoctors();
-    setShowDoctorDialog(true);
   };
 
   const confirmQuickStart = async () => {
