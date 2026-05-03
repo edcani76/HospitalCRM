@@ -55,6 +55,8 @@ export default function AppointmentDetailsPage() {
   const [emrData, setEmrData] = useState<any | null>(null);
   const [encounterServices, setEncounterServices] = useState<any[]>([]);
   const [addingService, setAddingService] = useState<string | null>(null);
+  const [appointmentServices, setAppointmentServices] = useState<Array<{ type: string; notes: string; labCenter?: string }>>([]);
+  
   // Fetch encounter services when emrId changes
   useEffect(() => {
     const fetchServices = async () => {
