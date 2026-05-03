@@ -86,7 +86,13 @@ export default function PatientProfilePage() {
   const [scheduledAppointment, setScheduledAppointment] = useState<any>(null);
   const [startingVisit, setStartingVisit] = useState(false);
   const [tempPhoto, setTempPhoto] = useState<string | null>(null);
-
+  
+  // Doctor selector for Quick Start
+  const [showDoctorDialog, setShowDoctorDialog] = useState(false);
+  const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string; availability?: any }>>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState('');
+  const [selectedDoctorName, setSelectedDoctorName] = useState('');
+  
   useEffect(() => {
     const fetchPatient = async () => {
       try {
@@ -129,7 +135,7 @@ export default function PatientProfilePage() {
           setAppointments(appSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
           
           // Check for scheduled appointments (unconfirmed/confirmed) that haven't started
-          const { fetchEncounters } = require('../../lib/firestore-helpers');
+          const { fetchEncounters } = await import('../../lib/firestore-helpers');
           const encounters = await fetchEncounters(foundPet.id);
           const scheduled = appSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).find((apt: any) =>
             (apt.status === 'unconfirmed' || apt.status === 'confirmed') &&

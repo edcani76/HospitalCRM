@@ -1008,7 +1008,7 @@ export default function AppointmentDetailsPage() {
                   <div>
                     <p className="text-sm text-gray-500">Mode</p>
                     <Badge variant="outline" className="border-purple-500 text-purple-600">
-                      {appointment.notes?.match(/Mode:\s*(\w+)/i)?.[1] === 'walk-in' ? 'Walk-in' : 'Scheduled'}
+                      {appointment.notes?.match(/Mode:\s*([\w-]+)/i)?.[1]?.toLowerCase() === 'walk-in' ? 'Walk-in' : 'Scheduled'}
                     </Badge>
                   </div>
                   <div>
