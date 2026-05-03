@@ -118,45 +118,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Services Section */}
-      <section className="py-32 bg-slate-50 rounded-[5rem] mx-4 relative overflow-hidden">
-        <div className="container mx-auto px-6 relative z-10 max-w-7xl">
-          <div className="flex flex-col lg:flex-row items-end justify-between gap-12 mb-20">
-            <div className="max-w-2xl space-y-6">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white rounded-full text-emerald-600 text-[10px] font-black uppercase tracking-[0.2em] shadow-sm border border-slate-100">
-                Clinical Excellence
-              </div>
-              <h2 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter leading-[0.9]">
-                Specialized <br />
-                <span className="text-emerald-500">Medical Ecosystem</span>
-              </h2>
-            </div>
-            <p className="text-slate-500 font-medium text-lg max-w-sm lg:text-right">
-              Explore our range of clinical departments equipped with the latest medical advancements.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {services.map((service, index) => (
-              <motion.div
-                key={service.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-white p-10 rounded-[3rem] shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group border border-slate-100"
-              >
-                <div className="text-4xl mb-8 group-hover:scale-125 transition-transform duration-500 inline-block">{service.icon}</div>
-                <h3 className="text-xl font-black text-slate-900 mb-3 uppercase tracking-tight">{service.title}</h3>
-                <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">{service.description}</p>
-                <Link to="/doctors" className="text-emerald-600 font-black text-xs uppercase tracking-widest flex items-center gap-2 group-hover:gap-4 transition-all">
-                  Meet Team <ArrowRight className="w-4 h-4" />
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Services Section removed */}
 
       {/* CTA Section */}
       <section className="container mx-auto px-6 max-w-7xl">
