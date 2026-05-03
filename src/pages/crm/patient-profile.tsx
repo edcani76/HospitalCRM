@@ -336,22 +336,67 @@ export default function PatientProfilePage() {
     }
   };
 
+  // Doctor selector for Quick Start
+  const [showDoctorDialog, setShowDoctorDialog] = useState(false);
+  const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string; availability?: any }>>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState('');
+  const [selectedDoctorName, setSelectedDoctorName] = useState('');
+
+  const fetchAvailableDoctors = async () => {
+    try {
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, etc.
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      
+      const snapshot = await getDocs(collection(db, 'doctors'));
+      const doctors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      
+      // Filter doctors who have this time slot in their weekly availability
+      const available = doctors.filter(doc => {
+        const avail = doc.availability as { [key: string]: string[] } | undefined;
+        if (!avail) return true; // If no availability set, assume available
+        const daySlots = avail[dayOfWeek.toString()] || [];
+        return daySlots.includes(timeStr);
+      });
+      
+      setAvailableDoctors(available);
+      
+      // Pre-select current user if they're a doctor
+      const userUid = auth.currentUser?.uid;
+      const currentDoctor = available.find(d => d.uid === userUid);
+      if (currentDoctor) {
+        setSelectedDoctorId(currentDoctor.id);
+        setSelectedDoctorName(currentDoctor.name);
+      }
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+    }
+  };
+
   const handleQuickStartVisit = async () => {
     if (!patient) return;
+    // Show doctor selector first
+    await fetchAvailableDoctors();
+    setShowDoctorDialog(true);
+  };
+
+  const confirmQuickStart = async () => {
+    if (!patient) return;
     setStartingVisit(true);
+    setShowDoctorDialog(false);
     try {
       const userUid = auth.currentUser?.uid || 'unknown';
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0];
       const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-
+      
       // 1. Create appointment
       const aptData = {
         clientUid: patient.ownerUid || '',
         petId: patient.id,
         petName: patient.name,
-        doctorId: '',
-        doctorName: '',
+        doctorId: selectedDoctorId,
+        doctorName: selectedDoctorName,
         date: dateStr,
         time: timeStr,
         status: 'unconfirmed',
@@ -361,21 +406,21 @@ export default function PatientProfilePage() {
       };
       const aptRef = await addDoc(collection(db, 'appointments'), aptData);
       const aptId = aptRef.id;
-
+      
       // 2. Auto-confirm appointment
       await updateDoc(doc(db, 'appointments', aptId), {
         status: 'confirmed',
         updatedAt: serverTimestamp()
       });
-
+      
       // 3. Create encounter (Quick Start)
       const encounterData = {
         appointmentId: aptId,
         petId: patient.id,
         petName: patient.name,
         clientUid: patient.ownerUid || '',
-        doctorId: '',
-        doctorName: '',
+        doctorId: selectedDoctorId,
+        doctorName: selectedDoctorName,
         startedAt: serverTimestamp(),
         status: 'in-progress',
         vitals: { weightKg: 0, temperatureC: 0, heartRateBpm: 0, respiratoryRateRpm: 0, mmColor: '', crtSeconds: 0, notes: '' },
@@ -386,7 +431,7 @@ export default function PatientProfilePage() {
       };
       const encRef = await addDoc(collection(db, 'encounters'), encounterData);
       const encounterId = encRef.id;
-
+      
       // 4. Create initial service
       const serviceData = {
         appointmentId: aptId,
@@ -404,14 +449,14 @@ export default function PatientProfilePage() {
         unitPrice: 500,
         discountAmount: 0,
         taxRate: 0,
-        performedBy: userUid,
+        performedBy: selectedDoctorId || userUid,
         completedAt: null,
         createdBy: userUid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
       await addDoc(collection(db, 'appointment_services'), serviceData);
-
+      
       // 5. Navigate directly to EMR with encounterId
       navigate(`/crm/emr/${patient.id}`, {
         state: { encounterId }
@@ -973,7 +1018,69 @@ export default function PatientProfilePage() {
           </div>
         </DialogContent>
       </Dialog>
-
+      
+      {/* Doctor Selector Dialog for Quick Start Visit */}
+      <Dialog open={showDoctorDialog} onOpenChange={setShowDoctorDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Doctor for Quick Start</DialogTitle>
+            <DialogDescription>
+              Choose a doctor who is scheduled to be on-duty at this time. 
+              Quick Start is for walk-in/emergency visits.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {availableDoctors.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">No doctors available at this time.</p>
+              ) : (
+                availableDoctors.map(doc => (
+                  <div
+                    key={doc.id}
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                      selectedDoctorId === doc.id 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                    onClick={() => {
+                      setSelectedDoctorId(doc.id);
+                      setSelectedDoctorName(doc.name);
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{doc.name}</p>
+                        <p className="text-xs text-gray-500">{doc.specialization || 'General'}</p>
+                      </div>
+                      {selectedDoctorId === doc.id && (
+                        <Check className="w-5 h-5 text-blue-600" />
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDoctorDialog(false)}>Cancel</Button>
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={!selectedDoctorId}
+              onClick={confirmQuickStart}
+            >
+              {startingVisit ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Starting Visit...
+                </span>
+              ) : (
+                'Confirm Quick Start'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       {/* Quick Photo Update Modal */}
       <Dialog open={isPhotoActionModalOpen} onOpenChange={setIsPhotoActionModalOpen}>
         <DialogContent className="max-w-md rounded-3xl">

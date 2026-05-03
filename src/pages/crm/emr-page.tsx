@@ -3,14 +3,14 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus, Loader2, Mail, Phone, User, Stethoscope, Activity, Thermometer,
   Heart, Wind, Droplets, Clock, FileText, DollarSign, History,
-  ClipboardList, Pill, FlaskConical, Upload, Printer, Eye, Bell
+  ClipboardList, Pill, FlaskConical, Upload, Printer, Eye, Bell, Check
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { format } from 'date-fns';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../../components/ui/dialog';
 import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -23,7 +23,7 @@ import {
   fetchAttachments, fetchAuditLogs,
   generateInvoiceFromEncounter, recordPayment
 } from '../../lib/firestore-helpers';
-import { collection, addDoc, updateDoc, doc, serverTimestamp, db, auth } from '../../firebase';
+import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp, db, auth } from '../../firebase';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -93,7 +93,51 @@ export default function EMRPage() {
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
   const [recordingPayment, setRecordingPayment] = useState(false);
 
+  // Doctor selector for Quick Start
+  const [showDoctorDialog, setShowDoctorDialog] = useState(false);
+  const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string; specialization?: string }>>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState('');
+  const [selectedDoctorName, setSelectedDoctorName] = useState('');
+
+  const fetchAvailableDoctors = async () => {
+    try {
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, etc.
+      const timeStr = format(now, 'hh:mm a');
+      
+      const snapshot = await getDocs(collection(db, 'doctors'));
+      const doctors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      
+      // Filter doctors who have this time slot in their weekly availability
+      const available = doctors.filter(doc => {
+        const avail = doc.availability as { [key: string]: string[] } | undefined;
+        if (!avail) return true; // If no availability set, assume available
+        const daySlots = avail[dayOfWeek.toString()] || [];
+        return daySlots.includes(timeStr);
+      });
+      
+      setAvailableDoctors(available);
+      
+      // Pre-select current user if they're a doctor
+      const userUid = auth.currentUser?.uid;
+      const currentDoctor = available.find(d => d.uid === userUid);
+      if (currentDoctor) {
+        setSelectedDoctorId(currentDoctor.id);
+        setSelectedDoctorName(currentDoctor.name);
+      }
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+    }
+  };
+
   const handleQuickStartVisit = async () => {
+    if (!patientId || !patient) return;
+    // Show doctor selector first
+    await fetchAvailableDoctors();
+    setShowDoctorDialog(true);
+  };
+
+  const confirmQuickStart = async () => {
     if (!patientId || !patient) return;
     try {
       setLoading(true);
@@ -101,14 +145,14 @@ export default function EMRPage() {
       const now = new Date();
       const dateStr = format(now, 'yyyy-MM-dd');
       const timeStr = format(now, 'hh:mm a');
-
+      
       // 1. Create appointment
       const aptData = {
         clientUid: patient.ownerUid || '',
         petId: patientId,
         petName: patient.name,
-        doctorId: '',
-        doctorName: '',
+        doctorId: selectedDoctorId,
+        doctorName: selectedDoctorName,
         date: dateStr,
         time: timeStr,
         status: 'unconfirmed',
@@ -119,21 +163,21 @@ Mode: Walk-in`,
       };
       const aptRef = await addDoc(collection(db, 'appointments'), aptData);
       const aptId = aptRef.id;
-
+      
       // 2. Auto-confirm appointment
       await updateDoc(doc(db, 'appointments', aptId), {
         status: 'confirmed',
         updatedAt: serverTimestamp()
       });
-
+      
       // 3. Create encounter (Quick Start)
       const encounterData = {
         appointmentId: aptId,
         petId: patientId,
         petName: patient.name,
         clientUid: patient.ownerUid || '',
-        doctorId: '',
-        doctorName: '',
+        doctorId: selectedDoctorId,
+        doctorName: selectedDoctorName,
         startedAt: serverTimestamp(),
         status: 'in-progress',
         vitals: { weightKg: 0, temperatureC: 0, heartRateBpm: 0, respiratoryRateRpm: 0, mmColor: '', crtSeconds: 0, notes: '' },
@@ -144,7 +188,7 @@ Mode: Walk-in`,
       };
       const encRef = await addDoc(collection(db, 'encounters'), encounterData);
       const encounterId = encRef.id;
-
+      
       // 4. Create initial service
       const serviceData = {
         appointmentId: aptId,
@@ -162,15 +206,16 @@ Mode: Walk-in`,
         unitPrice: 500,
         discountAmount: 0,
         taxRate: 0,
-        performedBy: userUid,
+        performedBy: selectedDoctorId || userUid,
         completedAt: null,
         createdBy: userUid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
       await addDoc(collection(db, 'appointment_services'), serviceData);
-
+      
       // 5. Navigate directly to EMR with encounterId
+      setShowDoctorDialog(false);
       navigate(`/crm/emr/${patientId}`, {
         state: { encounterId }
       });
@@ -1750,6 +1795,68 @@ Mode: Walk-in`,
                 </span>
               ) : (
                 'Record Payment'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Doctor Selector Dialog for Quick Start Visit */}
+      <Dialog open={showDoctorDialog} onOpenChange={setShowDoctorDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Doctor for Quick Start</DialogTitle>
+            <DialogDescription>
+              Choose a doctor who is scheduled to be on-duty at this time. 
+              Quick Start is for walk-in/emergency visits.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {availableDoctors.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">No doctors available at this time.</p>
+              ) : (
+                availableDoctors.map(doc => (
+                  <div
+                    key={doc.id}
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                      selectedDoctorId === doc.id 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                    onClick={() => {
+                      setSelectedDoctorId(doc.id);
+                      setSelectedDoctorName(doc.name);
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{doc.name}</p>
+                        <p className="text-xs text-gray-500">{doc.specialization || 'General'}</p>
+                      </div>
+                      {selectedDoctorId === doc.id && (
+                        <Check className="w-5 h-5 text-blue-600" />
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDoctorDialog(false)}>Cancel</Button>
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={!selectedDoctorId || loading}
+              onClick={confirmQuickStart}
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Starting Visit...
+                </span>
+              ) : (
+                'Confirm Quick Start'
               )}
             </Button>
           </DialogFooter>
