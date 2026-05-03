@@ -101,30 +101,15 @@ export default function EMRPage() {
 
   const fetchAvailableDoctors = async () => {
     try {
-      const now = new Date();
-      const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, etc.
-      // Normalize time to match availability format (e.g., "09:00 AM")
-      const timeStr = format(now, 'hh:mm a');
-      const normalizedTimeStr = timeStr.replace(/\s+/g, ' ').trim();
-      
       const snapshot = await getDocs(collection(db, 'doctors'));
       const doctors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       
-      // Filter doctors who have this time slot in their weekly availability
-      const available = doctors.filter(doc => {
-        const avail = doc.availability as { [key: string]: string[] } | undefined;
-        if (!avail) return true; // If no availability set, assume available
-        const daySlots = avail[dayOfWeek.toString()] || [];
-        // Normalize slots for comparison
-        const normalizedSlots = daySlots.map((s: string) => s.replace(/\s+/g, ' ').trim());
-        return normalizedSlots.includes(normalizedTimeStr);
-      });
-      
-      setAvailableDoctors(available);
+      // Show ALL doctors for Quick Start (emergency/walk-in visits)
+      setAvailableDoctors(doctors);
       
       // Pre-select current user if they're a doctor
       const userUid = auth.currentUser?.uid;
-      const currentDoctor = available.find(d => d.uid === userUid);
+      const currentDoctor = doctors.find(d => d.uid === userUid);
       if (currentDoctor) {
         setSelectedDoctorId(currentDoctor.id);
         setSelectedDoctorName(currentDoctor.name);
