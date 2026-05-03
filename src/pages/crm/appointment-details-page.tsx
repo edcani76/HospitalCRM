@@ -12,7 +12,7 @@ import { db, auth } from '../../firebase';
 import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion, addDoc, serverTimestamp, query, where } from '../../firebase';
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
 import { format } from 'date-fns';
-import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft, Play } from 'lucide-react';
+import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft, Play, Plus } from 'lucide-react';
 import { Appointment, Doctor } from '../../types';
 
 type AppointmentType = 'consultation' | 'grooming' | 'vaccination' | 'procedure' | 'others';
@@ -55,7 +55,45 @@ export default function AppointmentDetailsPage() {
   const [emrData, setEmrData] = useState<any | null>(null);
   const [encounterServices, setEncounterServices] = useState<any[]>([]);
   const [addingService, setAddingService] = useState<string | null>(null);
+  
+  // Services management (matching Create Appointment)
   const [appointmentServices, setAppointmentServices] = useState<Array<{ type: string; notes: string; labCenter?: string }>>([]);
+  const [showServiceSelector, setShowServiceSelector] = useState(false);
+  const [serviceDepartment, setServiceDepartment] = useState<'doctor' | 'grooming' | 'laboratory'>('doctor');
+  
+  // Service catalogs
+  const doctorServices = [
+    { type: 'consultation', label: 'Consultation' },
+    { type: 'vaccination', label: 'Vaccination' },
+    { type: 'procedure', label: 'Procedure' },
+    { type: 'others', label: 'Others' }
+  ];
+  
+  const groomingServices = [
+    { type: 'grooming', label: 'Grooming - Basic' },
+    { type: 'grooming-full', label: 'Grooming - Full' },
+    { type: 'grooming-special', label: 'Grooming - Special' }
+  ];
+  
+  const laboratoryServices = [
+    { type: 'laboratory', label: 'Laboratory Test' },
+    { type: 'diagnostic', label: 'Diagnostic Imaging' }
+  ];
+  
+  const addService = (serviceType: string) => {
+    setAppointmentServices([...appointmentServices, { type: serviceType, notes: '', labCenter: undefined }]);
+    setShowServiceSelector(false);
+  };
+  
+  const removeService = (index: number) => {
+    setAppointmentServices(appointmentServices.filter((_, i) => i !== index));
+  };
+  
+  const updateService = (index: number, updates: any) => {
+    const newServices = [...appointmentServices];
+    newServices[index] = { ...newServices[index], ...updates };
+    setAppointmentServices(newServices);
+  };
   
   // Fetch encounter services when emrId changes
   useEffect(() => {
@@ -75,6 +113,31 @@ export default function AppointmentDetailsPage() {
     };
     fetchServices();
   }, [emrId]);
+
+  // Parse services from notes when entering edit mode
+  useEffect(() => {
+    if (!isEditMode || !appointment) return;
+    
+    // Try new format: "Services: consultation, grooming"
+    const servicesMatch = appointment.notes?.match(/Services:\s*([^\n]+)/i);
+    if (servicesMatch) {
+      const serviceTypes = servicesMatch[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+      setAppointmentServices(serviceTypes.map((type: string) => ({ 
+        type, 
+        notes: '', 
+        labCenter: undefined 
+      })));
+      setSelectedType((serviceTypes[0] as AppointmentType) || 'consultation');
+    } else {
+       // Try old format: "Type: Consultation"
+        const typeMatch = appointment.notes?.match(/Type:\s*(\w+)/i);
+        if (typeMatch) {
+          const type = typeMatch[1].toLowerCase() as AppointmentType;
+          setAppointmentServices([{ type, notes: '', labCenter: undefined }]);
+          setSelectedType(type);
+        }
+    }
+  }, [isEditMode]);
 
   const [users, setUsers] = useState<{ [uid: string]: any }>({});
   const [petInfo, setPetInfo] = useState<any>(null);
@@ -134,11 +197,20 @@ export default function AppointmentDetailsPage() {
           setSelectedTime(data.time || '');
           setSelectedStatus(data.status || 'pending');
 
-          // Extract multiple types from notes
-          const typeMatches = [...(data.notes?.matchAll(/Type:\s*(\w+)/gi) || [])];
-          const types = typeMatches.map(m => m[1].toLowerCase());
-          setSelectedType((types[0] as AppointmentType) || 'consultation');
-          setNotes(data.notes?.replace(/Type:\s*\w+/gi, '').replace(/Mode:\s*\w+/i, '').trim() || '');
+          // Extract services and general notes
+          const servicesMatch = data.notes?.match(/Services:\s*([^\n]+)/i);
+          if (servicesMatch) {
+            const serviceTypes = servicesMatch[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+            setAppointmentServices(serviceTypes.map((type: string) => ({ type, notes: '', labCenter: undefined })));
+          } else {
+            // Old format: Type: Consultation
+            const typeMatch = data.notes?.match(/Type:\s*(\w+)/i);
+            if (typeMatch) {
+              setAppointmentServices([{ type: typeMatch[1].toLowerCase(), notes: '', labCenter: undefined }]);
+            }
+          }
+          // General notes (excluding Services: and Type: lines)
+          setNotes(data.notes?.replace(/Services:\s*[^\n]+/i, '').replace(/Type:\s*\w+/gi, '').replace(/Mode:\s*\w+/i, '').trim() || '');
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -237,8 +309,11 @@ export default function AppointmentDetailsPage() {
       const userUid = auth.currentUser?.uid || 'unknown';
       const changes: string[] = [];
       
-      // Build updated notes with type
-      const updatedNotes = `Type: ${selectedType}${notes ? ' ' + notes : ''}`;
+      // Build updated notes with services
+      const serviceTypes = appointmentServices.map(s => s.type).join(', ');
+      const servicesLine = serviceTypes ? `Services: ${serviceTypes}` : '';
+      const generalNotes = notes || '';
+      const updatedNotes = [servicesLine, generalNotes].filter(Boolean).join('\n');
       
       const updateData: any = {
         doctorId: selectedDoctorId,
@@ -252,7 +327,6 @@ export default function AppointmentDetailsPage() {
       // Track changes for notification
       if (selectedDoctorId !== appointment.doctorId) changes.push('doctor');
       if (selectedDate !== appointment.date || selectedTime !== appointment.time) changes.push('schedule');
-      if (selectedType !== (appointment.notes?.match(/Type: (\w+)/i)?.[1] || 'consultation')) changes.push('appointment type');
       if (selectedStatus !== appointment.status) changes.push(`status to ${selectedStatus}`);
       
       const aptRef = doc(db, 'appointments', appointment.id);
@@ -555,7 +629,7 @@ export default function AppointmentDetailsPage() {
     }
   };
 
-  const addService = async (serviceType: string) => {
+  const addServiceToEncounter = async (serviceType: string) => {
     if (!appointment || !emrId) return;
     setAddingService(serviceType);
     try {
@@ -946,20 +1020,55 @@ export default function AppointmentDetailsPage() {
                       </SelectContent>
                     </Select>
                   )}
+                 </div>
+
+                {/* Services Section */}
+                <div className="col-span-2">
+                  <label className="text-sm font-medium">Services</label>
+                  <div className="mt-2 space-y-2">
+                    {appointmentServices.map((service, idx) => (
+                      <div key={idx} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                        <span className="flex-1">{service.type.charAt(0).toUpperCase() + service.type.slice(1)}</span>
+                        {service.type === 'laboratory' && (
+                          <input
+                            type="text"
+                            placeholder="Lab center..."
+                            value={service.labCenter || ''}
+                            onChange={(e) => updateService(idx, { labCenter: e.target.value })}
+                            className="px-2 py-1 text-sm border rounded"
+                          />
+                        )}
+                        <input
+                          type="text"
+                          placeholder="Notes..."
+                          value={service.notes || ''}
+                          onChange={(e) => updateService(idx, { notes: e.target.value })}
+                          className="px-2 py-1 text-sm border rounded flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeService(idx)}
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowServiceSelector(true)}
+                      className="w-full"
+                    >
+                      + Add Service
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Date</label>
-                    <input 
-                      type="date" 
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      className="mt-1 w-full p-2 border rounded-md"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Time</label>
+                <div>
+                  <label className="text-sm font-medium">Time</label>
                     <Select value={selectedTime} onValueChange={setSelectedTime}>
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Select time" />
@@ -979,39 +1088,9 @@ export default function AppointmentDetailsPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium">Appointment Type</label>
-                  <Select value={selectedType} onValueChange={(v) => setSelectedType(v as AppointmentType)}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="consultation">Consultation</SelectItem>
-                      <SelectItem value="grooming">Grooming</SelectItem>
-                      <SelectItem value="vaccination">Vaccination</SelectItem>
-                      <SelectItem value="procedure">Procedure</SelectItem>
-                      <SelectItem value="others">Others</SelectItem>
-                    </SelectContent>
-                  </Select>
-                 </div>
-                 
-                {/* Services (simple text input) */}
-                <div className="col-span-2">
-                  <label className="text-sm font-medium">Services (comma-separated)</label>
-                  <input
-                    type="text"
-                    value={appointmentServices.map(s => s.type).join(', ')}
-                    onChange={(e) => {
-                      const types = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                      setAppointmentServices(types.map(t => ({ type: t, notes: '', labCenter: undefined })));
-                    }}
-                    placeholder="e.g., consultation, grooming, vaccination"
-                    className="mt-1 w-full p-2 border rounded-md"
-                  />
-                </div>
-                 
+                
+                {/* Services are managed via the service list above */}
+                  
                 <div>
                   <label className="text-sm font-medium">Status</label>
                   <Select value={selectedStatus} onValueChange={setSelectedStatus}>
@@ -1164,6 +1243,74 @@ export default function AppointmentDetailsPage() {
           </Card>
         )}
       </div>
+
+      {/* Service Selector Dialog */}
+      <Dialog open={showServiceSelector} onOpenChange={setShowServiceSelector}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Service</DialogTitle>
+            <DialogDescription>
+              Select a service to add to this appointment. Services are saved to the appointment notes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {/* Department Tabs */}
+            <div className="flex gap-2 mb-4">
+              {(['doctor', 'grooming', 'laboratory'] as const).map((dept) => (
+                <Button
+                  key={dept}
+                  variant={serviceDepartment === dept ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setServiceDepartment(dept)}
+                >
+                  {dept.charAt(0).toUpperCase() + dept.slice(1)}
+                </Button>
+              ))}
+            </div>
+            {/* Service Buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              {serviceDepartment === 'doctor' && doctorServices.map((srv) => (
+                <Button
+                  key={srv.type}
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => addService(srv.type)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {srv.label}
+                </Button>
+              ))}
+              {serviceDepartment === 'grooming' && groomingServices.map((srv) => (
+                <Button
+                  key={srv.type}
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => addService(srv.type)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {srv.label}
+                </Button>
+              ))}
+              {serviceDepartment === 'laboratory' && laboratoryServices.map((srv) => (
+                <Button
+                  key={srv.type}
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => addService(srv.type)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {srv.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowServiceSelector(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Cancel Dialog */}
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
