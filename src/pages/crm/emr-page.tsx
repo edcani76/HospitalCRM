@@ -6,6 +6,7 @@ import {
   ClipboardList, Pill, FlaskConical, Upload, Printer, Eye, Bell
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { format } from 'date-fns';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
@@ -22,7 +23,7 @@ import {
   fetchAttachments, fetchAuditLogs,
   generateInvoiceFromEncounter, recordPayment
 } from '../../lib/firestore-helpers';
-import { collection, addDoc, updateDoc, doc, serverTimestamp, db } from '../../firebase';
+import { collection, addDoc, updateDoc, doc, serverTimestamp, db, auth } from '../../firebase';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -92,10 +93,92 @@ export default function EMRPage() {
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
   const [recordingPayment, setRecordingPayment] = useState(false);
 
-  const handleStartAppointment = () => {
-    navigate('/crm/appointments/new', {
-      state: { prefill: { petId: patientId, patientName: patient?.name } }
-    });
+  const handleQuickStartVisit = async () => {
+    if (!patientId || !patient) return;
+    try {
+      setLoading(true);
+      const userUid = auth.currentUser?.uid || 'unknown';
+      const now = new Date();
+      const dateStr = format(now, 'yyyy-MM-dd');
+      const timeStr = format(now, 'hh:mm a');
+
+      // 1. Create appointment
+      const aptData = {
+        clientUid: patient.ownerUid || '',
+        petId: patientId,
+        petName: patient.name,
+        doctorId: '',
+        doctorName: '',
+        date: dateStr,
+        time: timeStr,
+        status: 'unconfirmed',
+        notes: `Type: Consultation
+Mode: Walk-in`,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      const aptRef = await addDoc(collection(db, 'appointments'), aptData);
+      const aptId = aptRef.id;
+
+      // 2. Auto-confirm appointment
+      await updateDoc(doc(db, 'appointments', aptId), {
+        status: 'confirmed',
+        updatedAt: serverTimestamp()
+      });
+
+      // 3. Create encounter (Quick Start)
+      const encounterData = {
+        appointmentId: aptId,
+        petId: patientId,
+        petName: patient.name,
+        clientUid: patient.ownerUid || '',
+        doctorId: '',
+        doctorName: '',
+        startedAt: serverTimestamp(),
+        status: 'in-progress',
+        vitals: { weightKg: 0, temperatureC: 0, heartRateBpm: 0, respiratoryRateRpm: 0, mmColor: '', crtSeconds: 0, notes: '' },
+        clinicalNotes: { subjective: '', objective: '', assessment: '', plan: '', diagnosis: '', doctorNotes: '', followUpInstructions: '' },
+        createdBy: userUid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      const encRef = await addDoc(collection(db, 'encounters'), encounterData);
+      const encounterId = encRef.id;
+
+      // 4. Create initial service
+      const serviceData = {
+        appointmentId: aptId,
+        encounterId: encounterId,
+        petId: patientId,
+        ownerId: patient.ownerUid || '',
+        serviceCatalogId: '',
+        serviceCode: 'CON',
+        serviceName: 'Consultation',
+        serviceType: 'consultation',
+        status: 'in-progress',
+        source: 'walk-in',
+        billable: true,
+        quantity: 1,
+        unitPrice: 500,
+        discountAmount: 0,
+        taxRate: 0,
+        performedBy: userUid,
+        completedAt: null,
+        createdBy: userUid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      await addDoc(collection(db, 'appointment_services'), serviceData);
+
+      // 5. Navigate directly to EMR with encounterId
+      navigate(`/crm/emr/${patientId}`, {
+        state: { encounterId }
+      });
+    } catch (error) {
+      console.error('Error quick starting visit:', error);
+      alert('Error starting visit. Please try again.');
+      setLoading(false);
+    }
   };
 
   const handleSendReminder = async () => {
@@ -741,11 +824,21 @@ export default function EMRPage() {
             </Button>
           ) : (
             <Button
-              onClick={handleStartAppointment}
+              onClick={handleQuickStartVisit}
+              disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Start New Appointment
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Starting Visit...
+                </span>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Quick Start Visit
+                </>
+              )}
             </Button>
           )}
           <Button
