@@ -429,7 +429,7 @@ export default function AppointmentDetailsPage() {
           followUpInstructions: ''
         },
         createdBy: userUid,
-        createdAt: serverTimestamp(),
+        startedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
       const encounterRef = await addDoc(collection(db, 'encounters'), encounterData);
