@@ -517,6 +517,11 @@ export default function AppointmentDetailsPage() {
       // Set emrId to encounterId for backward compatibility
       setEmrId(encounterId);
 
+      // Navigate directly to EMR page with active encounter
+      navigate(`/crm/emr/${appointment.petId}`, {
+        state: { encounterId: encounterId }
+      });
+
       setNotificationSent('Appointment started - Encounter and billing initialized');
       setTimeout(() => setNotificationSent(''), 5000);
     } catch (error) {
