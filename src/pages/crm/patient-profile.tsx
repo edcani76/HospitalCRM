@@ -21,7 +21,9 @@ import {
   RefreshCw,
   Check,
   Thermometer,
-  CreditCard
+  CreditCard,
+  Plus,
+  Loader2
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
@@ -31,7 +33,7 @@ import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
-import { db, auth, collection, getDocs, getDoc, addDoc, updateDoc, doc, serverTimestamp } from '../../firebase';
+import { db, auth, collection, getDocs, getDoc, addDoc, updateDoc, doc, query, where, serverTimestamp } from '../../firebase';
 import PetDialog from '../../components/crm/pet-dialog';
 import { uploadPetPhoto, deletePetPhoto } from '../../lib/storage';
 
