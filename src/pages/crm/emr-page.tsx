@@ -663,7 +663,6 @@ export default function EMRPage() {
     { id: 'diagnostics-files' as TabType, label: 'Diagnostics', icon: FlaskConical },
     { id: 'billing' as TabType, label: 'Billing', icon: DollarSign },
     { id: 'history' as TabType, label: 'History', icon: History },
-    { id: 'audit-trail' as TabType, label: 'Audit Trail', icon: Eye },
   ];
 
   return (
@@ -1478,34 +1477,44 @@ export default function EMRPage() {
           </div>
         )}
 
-        {activeTab === 'audit-trail' && (
-          <div className="p-6">
-            <h3 className="text-lg font-bold mb-4">Audit Trail</h3>
-            <div className="space-y-3">
-              {auditLogs
-                .sort((a: any, b: any) => {
-                  const aTime = a.timestamp?.toDate?.()?.getTime() || 0;
-                  const bTime = b.timestamp?.toDate?.()?.getTime() || 0;
-                  return bTime - aTime;
-                })
-                .map((log: any, idx: number) => (
-                  <div key={log.id || idx} className="text-sm border-b border-gray-100 pb-3 last:border-0">
-                    <div className="flex justify-between items-start">
+      </div>
+
+      {/* Compact Audit Trail Card */}
+      {auditLogs.length > 0 && (
+        <div className="mt-6 mx-6 mb-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Eye className="w-4 h-4" />
+                Audit Trail
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {auditLogs
+                  .sort((a: any, b: any) => {
+                    const aTime = a.timestamp?.toDate?.()?.getTime() || 0;
+                    const bTime = b.timestamp?.toDate?.()?.getTime() || 0;
+                    return bTime - aTime;
+                  })
+                  .slice(0, 10)
+                  .map((log: any, idx: number) => (
+                    <div key={log.id || idx} className="text-sm flex justify-between items-start py-2 border-b border-gray-100 last:border-0">
                       <div>
                         <span className="font-medium capitalize">{log.action || log.event}</span>
-                        {log.details && <span className="text-gray-600 ml-2">{log.details}</span>}
-                        <span className="text-gray-500 ml-2">by {log.userId || log.staff}</span>
+                        {log.details && <span className="text-gray-600 ml-2 text-xs">{log.details}</span>}
+                        <span className="text-gray-500 ml-2 text-xs">by {log.userId || log.staff}</span>
                       </div>
-                      <span className="text-xs text-gray-400">
-                        {log.timestamp?.toDate?.()?.toLocaleString?.() || 'N/A'}
+                      <span className="text-xs text-gray-400 whitespace-nowrap">
+                        {log.timestamp?.toDate?.()?.toLocaleDateString?.() || 'N/A'}
                       </span>
                     </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-      </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
