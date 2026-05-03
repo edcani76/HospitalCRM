@@ -995,8 +995,23 @@ export default function AppointmentDetailsPage() {
                       <SelectItem value="others">Others</SelectItem>
                     </SelectContent>
                   </Select>
+                 </div>
+                 
+                {/* Services (simple text input) */}
+                <div className="col-span-2">
+                  <label className="text-sm font-medium">Services (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={appointmentServices.map(s => s.type).join(', ')}
+                    onChange={(e) => {
+                      const types = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                      setAppointmentServices(types.map(t => ({ type: t, notes: '', labCenter: undefined })));
+                    }}
+                    placeholder="e.g., consultation, grooming, vaccination"
+                    className="mt-1 w-full p-2 border rounded-md"
+                  />
                 </div>
-
+                 
                 <div>
                   <label className="text-sm font-medium">Status</label>
                   <Select value={selectedStatus} onValueChange={setSelectedStatus}>
