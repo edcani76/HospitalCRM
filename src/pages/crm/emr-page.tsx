@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus, Loader2, Mail, Phone, User, Stethoscope, Activity, Thermometer,
   Heart, Wind, Droplets, Clock, FileText, DollarSign, History,
-  ClipboardList, Pill, FlaskConical, Upload, Printer, Eye
+  ClipboardList, Pill, FlaskConical, Upload, Printer, Eye, Bell
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
@@ -728,6 +728,35 @@ export default function EMRPage() {
         backTo={location.state?.from || '/crm/emr'}
         backText="Back to Previous Page"
       />
+
+      {mode === 'view' && (
+        <div className="flex gap-2 mb-4">
+          {scheduledAppointment ? (
+            <Button
+              onClick={handleSendReminder}
+              className="bg-yellow-600 hover:bg-yellow-700 text-white"
+            >
+              <Bell className="w-4 h-4 mr-2" />
+              Send Reminder
+            </Button>
+          ) : (
+            <Button
+              onClick={handleStartAppointment}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Start New Appointment
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            onClick={() => setActiveTab('history')}
+          >
+            <History className="w-4 h-4 mr-2" />
+            View Past Visits
+          </Button>
+        </div>
+      )}
 
       {/* Patient Info Header */}
       <div className="bg-white rounded-lg p-6 shadow mb-8">
