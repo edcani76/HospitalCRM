@@ -870,7 +870,8 @@ export default function EMRPage() {
                   <div>
                     <p className="text-sm text-gray-500">Started At</p>
                     <p className="font-medium">
-                      {selectedEncounter.startedAt?.toDate?.()?.toLocaleString?.() || 'N/A'}
+                      {selectedEncounter.startedAt?.toDate?.()?.toLocaleString?.() || 
+                       selectedEncounter.createdAt?.toDate?.()?.toLocaleString?.() || 'N/A'}
                     </p>
                   </div>
                   <div>
