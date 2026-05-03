@@ -60,6 +60,8 @@ export default function EMRPage() {
   const [owner, setOwner] = useState<any>(null);
   const [encounters, setEncounters] = useState<any[]>([]);
   const [selectedEncounter, setSelectedEncounter] = useState<any>(null);
+  const [mode, setMode] = useState<'active' | 'view'>('view');
+  const [scheduledAppointment, setScheduledAppointment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   // Service catalog
@@ -90,6 +92,30 @@ export default function EMRPage() {
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
   const [recordingPayment, setRecordingPayment] = useState(false);
 
+  const handleStartAppointment = () => {
+    navigate('/crm/appointments/new', {
+      state: { prefill: { petId: patientId, patientName: patient?.name } }
+    });
+  };
+
+  const handleSendReminder = async () => {
+    if (!scheduledAppointment) return;
+    
+    try {
+      const { notifyClient } = await import('../../lib/notifications');
+      await notifyClient(
+        scheduledAppointment.clientUid,
+        'appointment_reminder',
+        'Appointment Reminder',
+        `Reminder: You have an upcoming appointment for ${patient?.name} on ${scheduledAppointment.date} at ${scheduledAppointment.time}.`
+      );
+      alert('Reminder sent successfully!');
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      alert('Error sending reminder. Please try again.');
+    }
+  };
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -107,15 +133,30 @@ export default function EMRPage() {
         const encounterData = await fetchEncounters(patientId);
         setEncounters(encounterData);
 
-        // Select encounter from navigation state or default to first
+        // Check for active encounter (in-progress)
+        const activeEncounter = encounterData.find((e: any) => e.status === 'in-progress');
+        const hasActiveEncounter = !!activeEncounter;
+
+        // Set mode based on active encounter
+        if (hasActiveEncounter) {
+          setMode('active');
+        } else {
+          setMode('view');
+        }
+
+        // Select encounter from navigation state, active encounter, or default to first
         const stateEncounterId = (location.state as any)?.encounterId;
         if (stateEncounterId) {
           const enc = encounterData.find((e: any) => e.id === stateEncounterId);
           if (enc) {
             setSelectedEncounter(enc);
+          } else if (activeEncounter) {
+            setSelectedEncounter(activeEncounter);
           } else if (encounterData.length > 0) {
             setSelectedEncounter(encounterData[0]);
           }
+        } else if (activeEncounter) {
+          setSelectedEncounter(activeEncounter);
         } else if (encounterData.length > 0) {
           setSelectedEncounter(encounterData[0]);
         }
@@ -123,6 +164,15 @@ export default function EMRPage() {
         // Fetch service catalog
         const catalogData = await fetchServiceCatalog();
         setServiceCatalog(catalogData);
+
+        // Check for scheduled appointments (unconfirmed/confirmed) that haven't started
+        const { fetchAppointments } = await import('../../lib/firestore-helpers');
+        const appointmentsData = await fetchAppointments({ petId: patientId });
+        const scheduled = appointmentsData.find((apt: any) =>
+          (apt.status === 'unconfirmed' || apt.status === 'confirmed') &&
+          !encounterData.some((enc: any) => enc.appointmentId === apt.id)
+        );
+        setScheduledAppointment(scheduled || null);
 
       } catch (error) {
         console.error('Error loading EMR data:', error);
@@ -670,7 +720,11 @@ export default function EMRPage() {
     <div>
       <PageHeader
         title="Electronic Medical Records (EMR)"
-        subtitle={`${patient.name} - ${encounters.length} encounter(s)`}
+        subtitle={
+          mode === 'active'
+            ? `🟢 Active Visit in Progress - ${patient.name}`
+            : `⚪ No Active Visit - ${patient.name}`
+        }
         backTo={location.state?.from || '/crm/emr'}
         backText="Back to Previous Page"
       />
