@@ -612,10 +612,16 @@ export default function AppointmentDetailsPage() {
         setNotificationSent(`${lastService.serviceName} added to appointment`);
         setTimeout(() => setNotificationSent(''), 5000);
       }
+
+      // Navigate to EMR with the new encounter
+      navigate(`/crm/emr/${appointment.petId}`, {
+        state: { from: `/crm/appointments/${appointment.id}`, backText: 'Back to Appointment Details' }
+      });
     } catch (error) {
-      console.error('Error adding service:', error);
+      console.error('Error starting appointment:', error);
+      alert('Failed to start appointment. Please try again.');
     } finally {
-      setAddingService(null);
+      setStarting(false);
     }
   };
 
