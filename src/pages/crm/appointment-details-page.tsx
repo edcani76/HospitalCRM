@@ -736,28 +736,44 @@ export default function AppointmentDetailsPage() {
     return <div className="p-8 text-center">Appointment not found</div>;
   }
 
-  // Parse services and general notes from appointment.notes
-  const getServicesFromNotes = () => {
-    if (!appointment.notes) return [];
+  // Parse services and combined notes from appointment.notes
+  const getServicesAndNotes = () => {
+    if (!appointment.notes) return { serviceTypes: [], serviceNotes: [], generalNotes: '' };
+    
     // New format: "Services: consultation, grooming"
     const servicesMatch = appointment.notes.match(/Services:\s*([^\n]+)/i);
     if (servicesMatch) {
-      return servicesMatch[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+      const serviceTypes = servicesMatch[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+      // Get everything after Services line as general notes
+      const generalNotes = appointment.notes.replace(/Services:\s*[^\n]+/i, '').trim();
+      return { serviceTypes, serviceNotes: [], generalNotes };
     }
-    // Old format: "Type: X" 
+    
+    // Old format: Parse "Type: X\n  Notes: Y\n  Lab Center: Z" blocks
+    const serviceNotes: string[] = [];
     const typeMatches = [...(appointment.notes.matchAll(/Type:\s*(\w+)/gi) || [])];
-    return typeMatches.map(m => m[1].toLowerCase());
+    const serviceTypes = typeMatches.map(m => {
+      const type = m[1].toLowerCase();
+      // Find notes for this service (text between this Type and next Type/Mode)
+      const startIdx = m.index! + m[0].length;
+      const nextTypeIdx = appointment.notes.indexOf('Type:', startIdx);
+      const modeIdx = appointment.notes.indexOf('Mode:', startIdx);
+      const endIdx = (nextTypeIdx > startIdx && (nextTypeIdx < modeIdx || modeIdx === -1)) ? nextTypeIdx : 
+                     (modeIdx > startIdx ? modeIdx : appointment.notes.length);
+      const block = appointment.notes.slice(startIdx, endIdx);
+      const notesMatch = block.match(/Notes:\s*(.+?)(?=\n|$)/i);
+      if (notesMatch) serviceNotes.push(notesMatch[1].trim());
+      return type;
+    });
+    
+    // General notes = everything after Mode: line
+    const modeMatch = appointment.notes.match(/Mode:\s*\w+\s*([\s\S]*)/i);
+    const generalNotes = modeMatch ? modeMatch[1].trim() : '';
+    
+    return { serviceTypes, serviceNotes, generalNotes };
   };
 
-  const getGeneralNotes = () => {
-    if (!appointment.notes) return '';
-    // Get everything after "Mode: ..." line
-    const parts = appointment.notes.split(/Mode:\s*\w+/i);
-    return parts[1] ? parts[1].trim() : '';
-  };
-
-  const serviceTypes = getServicesFromNotes();
-  const generalNotes = getGeneralNotes();
+  const { serviceTypes, serviceNotes, generalNotes } = getServicesAndNotes();
 
   return (
     <div className="max-w-4xl mx-auto pb-12">
@@ -1007,11 +1023,21 @@ export default function AppointmentDetailsPage() {
                       )}
                     </div>
                   </div>
-                  {generalNotes && (
+                  {/* Combined Notes: Service Notes + General Notes */}
+                  {(serviceNotes.length > 0 || generalNotes) && (
                     <div className="col-span-2">
                       <p className="text-sm text-gray-500 mb-1">Additional Notes</p>
                       <div className="p-3 bg-gray-50 rounded-lg text-sm whitespace-pre-wrap">
-                        {generalNotes}
+                        {/* Service-specific notes */}
+                        {serviceNotes.length > 0 && (
+                          <div className="mb-2">
+                            {serviceNotes.map((note, idx) => (
+                              <div key={idx} className="text-gray-700">{note}</div>
+                            ))}
+                          </div>
+                        )}
+                        {/* General notes from Create Appointment */}
+                        {generalNotes && <div className="text-gray-600">{generalNotes}</div>}
                       </div>
                     </div>
                   )}
