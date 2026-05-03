@@ -103,7 +103,9 @@ export default function EMRPage() {
     try {
       const now = new Date();
       const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, etc.
+      // Normalize time to match availability format (e.g., "09:00 AM")
       const timeStr = format(now, 'hh:mm a');
+      const normalizedTimeStr = timeStr.replace(/\s+/g, ' ').trim();
       
       const snapshot = await getDocs(collection(db, 'doctors'));
       const doctors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
@@ -113,7 +115,9 @@ export default function EMRPage() {
         const avail = doc.availability as { [key: string]: string[] } | undefined;
         if (!avail) return true; // If no availability set, assume available
         const daySlots = avail[dayOfWeek.toString()] || [];
-        return daySlots.includes(timeStr);
+        // Normalize slots for comparison
+        const normalizedSlots = daySlots.map((s: string) => s.replace(/\s+/g, ' ').trim());
+        return normalizedSlots.includes(normalizedTimeStr);
       });
       
       setAvailableDoctors(available);

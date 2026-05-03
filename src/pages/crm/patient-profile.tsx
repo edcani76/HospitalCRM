@@ -342,17 +342,17 @@ export default function PatientProfilePage() {
     }
   };
 
-  // Doctor selector for Quick Start
-  const [showDoctorDialog, setShowDoctorDialog] = useState(false);
-  const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string; availability?: any }>>([]);
-  const [selectedDoctorId, setSelectedDoctorId] = useState('');
-  const [selectedDoctorName, setSelectedDoctorName] = useState('');
-
   const fetchAvailableDoctors = async () => {
     try {
       const now = new Date();
       const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, etc.
-      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      // Normalize time to match availability format (e.g., "09:00 AM")
+      const timeStr = now.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true,
+        formatMatcher: 'basic' // More consistent formatting
+      }).replace(/^(\d):/, '0$1'); // Ensure 2-digit hour
       
       const snapshot = await getDocs(collection(db, 'doctors'));
       const doctors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
@@ -362,7 +362,10 @@ export default function PatientProfilePage() {
         const avail = doc.availability as { [key: string]: string[] } | undefined;
         if (!avail) return true; // If no availability set, assume available
         const daySlots = avail[dayOfWeek.toString()] || [];
-        return daySlots.includes(timeStr);
+        // Normalize slots for comparison (trim spaces)
+        const normalizedSlots = daySlots.map((s: string) => s.replace(/\s+/g, ' ').trim());
+        const normalizedTime = timeStr.replace(/\s+/g, ' ').trim();
+        return normalizedSlots.includes(normalizedTime);
       });
       
       setAvailableDoctors(available);
