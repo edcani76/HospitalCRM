@@ -75,7 +75,7 @@ export default function Layout({ children, showFooter = true }: { children: Reac
           <div className="flex justify-between h-16 items-center">
             <Link to="/" className="flex items-center gap-2 text-emerald-700 font-bold text-xl">
               <Hospital className="w-8 h-8" />
-              <span>MediPaws</span>
+              <span>edvirontvet</span>
             </Link>
 
             {/* Desktop Menu */}
@@ -176,7 +176,7 @@ export default function Layout({ children, showFooter = true }: { children: Reac
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-white font-bold text-xl">
                 <Hospital className="w-8 h-8 text-emerald-500" />
-                <span>MediPaws</span>
+                <span>edvirontvet</span>
               </div>
               <p className="text-sm">Providing trusted veterinary care with a focus on wellness, prevention, and compassionate support for pets and their families.</p>
             </div>
@@ -191,22 +191,22 @@ export default function Layout({ children, showFooter = true }: { children: Reac
             <div>
               <h4 className="text-white font-semibold mb-4">Contact</h4>
               <ul className="space-y-2 text-sm">
-                <li>123 Pawcare Lane</li>
-                <li>Petville, PV 12345</li>
-                <li>Phone: (555) 123-4567</li>
-                <li>Email: info@medigreen.com</li>
+                <li>888 Pawcare St., Project 6, Quezon City</li>
+                <li>Quezon City, Philippines</li>
+                <li>Phone: 0912-6819499</li>
+                <li>Email: info@edvirontvet.com</li>
               </ul>
             </div>
             <div>
               <h4 className="text-white font-semibold mb-4">Emergency</h4>
               <div className="bg-red-900/30 border border-red-900/50 p-4 rounded-xl">
-                <p className="text-red-400 font-bold text-lg">911</p>
+                <p className="text-red-400 font-bold text-lg">0917-8596023</p>
                 <p className="text-xs">Available 24/7 for urgent pet care needs</p>
               </div>
             </div>
           </div>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-8 border-t border-stone-800 text-center text-xs">
-            © 2026 MediPaws Veterinary. All rights reserved.
+            © 2026 edvirontvet Veterinary. All rights reserved.
           </div>
         </footer>
       )}
