@@ -10,6 +10,12 @@ export default defineConfig(({mode}) => {
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },
+    optimizeDeps: {
+      include: ['react-calendar'],
+    },
+    ssr: {
+      noExternal: ['react-calendar'],
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
