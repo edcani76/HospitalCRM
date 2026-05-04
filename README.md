@@ -2,9 +2,9 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# MediPaws (VetCRM)
+# edvirontvet (VetCRM)
 
-MediPaws is a modern, responsive veterinary clinic management system built to streamline the pet care experience. It provides a beautiful interface for pet owners to find veterinary specialists, explore clinic services, and securely book appointments.
+edvirontvet is a modern, responsive veterinary clinic management system built to streamline the pet care experience. It provides a beautiful interface for pet owners to find veterinary specialists, explore clinic services, and securely book appointments.
 
 ## ✨ Features
  

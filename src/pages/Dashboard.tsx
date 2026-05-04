@@ -163,7 +163,7 @@ export default function Dashboard() {
                       Welcome home, <br />
                       <span className="text-emerald-400">{user?.displayName?.split(' ')[0] || 'Pet Parent'}</span>
                     </h1>
-                    <p className="text-slate-400 text-xl font-medium max-w-md">Your MediPaws family health summary is ready.</p>
+                    <p className="text-slate-400 text-xl font-medium max-w-md">Your edvirontvet family health summary is ready.</p>
                   </div>
                 </div>
                 <div className="flex flex-col gap-4">

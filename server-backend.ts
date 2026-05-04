@@ -29,11 +29,11 @@ async function startServer() {
       const ai = new GoogleGenerativeAI({ apiKey });
       const { message, conversationHistory = [] } = req.body;
       
-      const systemPrompt = "You are MediPaws AI, a veterinary health assistant. You help pet owners and veterinary professionals with pet health questions, symptom analysis, and medication information. Always include a disclaimer that your advice does not replace professional veterinary consultation. Be friendly and concise.";
+      const systemPrompt = "You are edvirontvet AI, a veterinary health assistant. You help pet owners and veterinary professionals with pet health questions, symptom analysis, and medication information. Always include a disclaimer that your advice does not replace professional veterinary consultation. Be friendly and concise.";
       
       const contents = [
         { role: "user", parts: [{ text: systemPrompt }] },
-        { role: "model", parts: [{ text: "Understood! I'm MediPaws AI, your veterinary health assistant. How can I help you and your furry friend today? 🐾" }] },
+        { role: "model", parts: [{ text: "Understood! I'm edvirontvet AI, your veterinary health assistant. How can I help you and your furry friend today? 🐾" }] },
         ...conversationHistory.map((m: any) => ({
           role: m.role === "assistant" ? "model" : "user",
           parts: [{ text: m.content }]

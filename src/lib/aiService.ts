@@ -1,5 +1,5 @@
 /**
- * MediPaws AI Service - Frontend client for the Gemini-powered vet assistant
+ * edvirontvet AI Service - Frontend client for the Gemini-powered vet assistant
  */
 
 export interface ChatMessage {

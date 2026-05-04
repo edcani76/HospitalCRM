@@ -1,6 +1,6 @@
-# MediPaws Project Progress
+# edvirontvet Project Progress
 
-This document tracks the milestones, current development status, and roadmap for the MediPaws (VetCRM) system.
+This document tracks the milestones, current development status, and roadmap for the edvirontvet (VetCRM) system.
 
 ## ✅ Completed Milestones
 

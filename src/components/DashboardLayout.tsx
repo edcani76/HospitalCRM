@@ -81,7 +81,7 @@ export default function DashboardLayout({
               animate={{ opacity: 1, x: 0 }}
               className="font-black text-2xl tracking-tighter text-slate-900"
             >
-              MediPaws
+              edvirontvet
             </motion.span>
           )}
         </div>

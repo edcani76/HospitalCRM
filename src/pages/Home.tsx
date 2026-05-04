@@ -66,7 +66,7 @@ export default function Home() {
               transition={{ delay: 0.2 }}
               className="text-xl md:text-2xl text-slate-500 font-medium max-w-2xl leading-relaxed mb-12"
             >
-              MediPaws combines world-class clinical expertise with state-of-the-art technology to provide the highest standard of care for your family members.
+              edvirontvet combines world-class clinical expertise with state-of-the-art technology to provide the highest standard of care for your family members.
             </motion.p>
             
             <motion.div 
@@ -128,7 +128,7 @@ export default function Home() {
             <h2 className="text-5xl md:text-7xl font-black text-white leading-none tracking-tighter">
               Ready to provide the <span className="text-emerald-400">best</span> care?
             </h2>
-            <p className="text-slate-400 text-xl font-medium">Join the MediPaws family today and ensure a healthier future for your companions.</p>
+            <p className="text-slate-400 text-xl font-medium">Join the edvirontvet family today and ensure a healthier future for your companions.</p>
             <div className="flex flex-col sm:flex-row justify-center gap-6">
               <Link 
                 to="/signup" 

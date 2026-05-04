@@ -1,5 +1,5 @@
 import React from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { cn } from '../lib/utils'
 import {
@@ -24,13 +24,15 @@ import {
   History,
   Wifi,
   WifiOff,
-  RefreshCw
+  RefreshCw,
+  Bell
 } from 'lucide-react'
 import { signOut, auth } from '../firebase'
 import { useState, useEffect } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import { fetchPets, fetchUsers } from '../lib/firestore-helpers'
-
+import { getNotifications, markAsRead, Notification } from '../lib/notifications'
+import { Badge } from './ui/badge'
 interface CRMLayoutProps {
   children: React.ReactNode
 }
@@ -48,6 +50,9 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
   const [online, setOnline] = useState(isOnline())
   const [syncing, setSyncing] = useState(false)
   const [queuedCount, setQueuedCount] = useState(0)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [showNotifications, setShowNotifications] = useState(false)
+  const navigate = useNavigate();
 
   // Setup online/offline listeners
   useEffect(() => {
@@ -78,6 +83,26 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Fetch notifications for current user
+  useEffect(() => {
+    if (!user?.uid) return;
+    
+    const fetchNotifications = async () => {
+      try {
+        const notifs = await getNotifications(user.uid);
+        setNotifications(notifs);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      }
+    };
+    
+    fetchNotifications();
+    
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [user?.uid]);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -338,7 +363,7 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
               <ShieldCheck className="text-primary-foreground" size={18} />
             </div>
             <div className="flex flex-col truncate">
-              <span className="font-bold text-sm tracking-tight truncate">MediPaws</span>
+              <span className="font-bold text-sm tracking-tight truncate">edvirontvet</span>
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider truncate">{user?.role} Mode</span>
             </div>
           </div>
@@ -433,6 +458,67 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
                 <span className="text-xs text-red-600">
                   ({queuedCount} pending)
                 </span>
+              )}
+            </div>
+
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-foreground"
+                title="Notifications"
+              >
+                <Bell size={18} />
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 hover:bg-red-600">
+                    {notifications.filter(n => !n.read).length}
+                  </Badge>
+                )}
+              </button>
+
+              {/* Notification Dropdown */}
+              {showNotifications && (
+                <div className="absolute right-0 top-12 w-96 max-h-96 overflow-y-auto bg-background border border-border rounded-xl shadow-2xl z-50">
+                  <div className="p-3 border-b border-border">
+                    <h3 className="font-semibold text-sm">Notifications</h3>
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No notifications
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border">
+                      {notifications.slice(0, 20).map((notif) => (
+                        <div
+                          key={notif.id}
+                          onClick={async () => {
+                            if (!notif.read) {
+                              await markAsRead(notif.id!);
+                              setNotifications(prev => prev.map(n => n.id === notif.id ? {...n, read: true} : n));
+                            }
+                            if (notif.appointmentId) {
+                              setShowNotifications(false);
+                              navigate(`/crm/appointments/${notif.appointmentId}`);
+                            }
+                          }}
+                          className={`p-3 cursor-pointer transition-colors hover:bg-muted/50 ${
+                            notif.read ? '' : 'bg-blue-50/50'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{notif.title}</p>
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{notif.message}</p>
+                            </div>
+                            {!notif.read && (
+                              <div className="w-2 h-2 bg-blue-600 rounded-full shrink-0 mt-1" />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
