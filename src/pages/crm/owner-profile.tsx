@@ -220,7 +220,7 @@ export default function OwnerProfilePage() {
                 <Card 
                   key={pet.id} 
                   className="border-none shadow-sm rounded-[2rem] hover:shadow-md transition-all cursor-pointer group"
-                  onClick={() => navigate(`/crm/patients/${pet.patientId}`, { 
+                  onClick={() => navigate(`/crm/patients/${pet.id}`, { 
                     state: { 
                       from: `/crm/owners/${owner.id}`,
                       breadcrumbParent: { name: owner.displayName || owner.name, path: `/crm/owners/${owner.id}` }

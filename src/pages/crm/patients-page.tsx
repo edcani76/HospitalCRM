@@ -325,7 +325,7 @@ export default function PatientsPage() {
               {filteredPatients.map(patient => (
                 <div 
                   key={patient.id}
-                  onClick={() => navigate(`/crm/patients/${patient.patientId}`, { state: { from: '/crm/patients' } })}
+                  onClick={() => navigate(`/crm/patients/${patient.id}`, { state: { from: '/crm/patients' } })}
                   className="group bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all cursor-pointer"
                 >
                   <div className="flex flex-col items-center text-center">
@@ -392,7 +392,7 @@ export default function PatientsPage() {
                 {filteredPatients.map(patient => (
                   <div 
                     key={patient.id}
-                    onClick={() => navigate(`/crm/patients/${patient.patientId}`, { state: { from: '/crm/patients' } })}
+                    onClick={() => navigate(`/crm/patients/${patient.id}`, { state: { from: '/crm/patients' } })}
                     className="flex items-center justify-between p-5 hover:bg-blue-50/30 transition-all cursor-pointer group"
                   >
                     <div className="flex items-center gap-4">

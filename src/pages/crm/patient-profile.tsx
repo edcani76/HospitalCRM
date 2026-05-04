@@ -110,7 +110,7 @@ export default function PatientProfilePage() {
           } as PatientProfile;
         });
 
-        const foundPet = pets.find(p => p.patientId === patientId);
+        const foundPet = pets.find(p => p.patientId === patientId || p.id === patientId);
 
         if (foundPet) {
           // Fetch owner details
