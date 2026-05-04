@@ -6,3 +6,4 @@ coverage/
 *.log
 .env*
 !.env.example
+VetCRM April 26, 2026.txt
