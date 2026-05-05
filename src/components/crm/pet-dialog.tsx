@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog'
 import { Button } from '../../components/ui/button'
 import { Label } from '../../components/ui/label'
 import { Input } from '../../components/ui/input'
-import { Activity, User, ChevronDown, X, Search } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
+import { Search, ChevronDown, User, Activity, Camera, Upload, X, Loader2 } from 'lucide-react'
+import imageCompression from 'browser-image-compression'
 
 // Common species list
 const SPECIES_OPTIONS = [
@@ -195,32 +197,137 @@ interface PetDialogProps {
 }
 
 export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, onSubmit, onCancel, isSubmitting = false }: PetDialogProps) {
+  const { user } = useAuth();
   const [selectedSpecies, setSelectedSpecies] = useState('')
   const [customSpecies, setCustomSpecies] = useState('')
   const [selectedBreed, setSelectedBreed] = useState('')
   const [customBreed, setCustomBreed] = useState('')
   const [weightValue, setWeightValue] = useState('')
+  const [photoPreview, setPhotoPreview] = useState<string>('')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const [showCamera, setShowCamera] = useState(false)
+  const [cameraError, setCameraError] = useState<string>('')
+  const [isCompressing, setIsCompressing] = useState(false)
 
-  // Initialize form values when dialog opens or pet changes
+  const compressImage = useCallback(async (file: File): Promise<File> => {
+    const options = {
+      maxSizeMB: 0.5,
+      maxWidthOrHeight: 1280,
+      useWebWorker: true,
+      fileType: 'image/jpeg',
+    }
+    const compressed = await imageCompression(file, options)
+    return new File([compressed], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })
+  }, [])
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) return
+    if (file.size > 10 * 1024 * 1024) return
+
+    setIsCompressing(true)
+    try {
+      const compressed = await compressImage(file)
+      setPhotoFile(compressed)
+      const reader = new FileReader()
+      reader.onloadend = () => setPhotoPreview(reader.result as string)
+      reader.readAsDataURL(compressed)
+    } catch (err) {
+      console.error('Compression failed:', err)
+    } finally {
+      setIsCompressing(false)
+    }
+  }
+
+  const clearPhoto = () => {
+    setPhotoPreview('')
+    setPhotoFile(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const startCamera = useCallback(async () => {
+    setCameraError('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
+      })
+      streamRef.current = stream
+      setShowCamera(true)
+    } catch (err) {
+      setCameraError('Unable to access camera. Please grant permission and try again.')
+    }
+  }, [])
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+    setShowCamera(false)
+    setCameraError('')
+  }, [])
+
+  const capturePhoto = useCallback(async () => {
+    if (!videoRef.current) return
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.min(videoRef.current.videoWidth, 1280)
+    canvas.height = Math.min(videoRef.current.videoHeight, 1280)
+    const scale = Math.min(1280 / videoRef.current.videoWidth, 1280 / videoRef.current.videoHeight)
+    if (scale < 1) {
+      canvas.width = videoRef.current.videoWidth * scale
+      canvas.height = videoRef.current.videoHeight * scale
+    }
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height)
+
+    setIsCompressing(true)
+    canvas.toBlob(async (blob) => {
+      if (!blob) return
+      const file = new File([blob], 'pet-photo.jpg', { type: 'image/jpeg' })
+
+      try {
+        const compressed = await compressImage(file)
+        setPhotoFile(compressed)
+        const reader = new FileReader()
+        reader.onloadend = () => setPhotoPreview(reader.result as string)
+        reader.readAsDataURL(compressed)
+      } catch (err) {
+        console.error('Compression failed:', err)
+        setPhotoFile(file)
+        const reader = new FileReader()
+        reader.onloadend = () => setPhotoPreview(reader.result as string)
+        reader.readAsDataURL(file)
+      } finally {
+        setIsCompressing(false)
+      }
+      stopCamera()
+    }, 'image/jpeg', 0.85)
+  }, [stopCamera, compressImage])
+
   useEffect(() => {
-    if (open) {
-      const species = mode === 'edit' && pet?.species ? pet.species : ''
-      const breed = mode === 'edit' && pet?.breed ? pet.breed : ''
-      const weight = mode === 'edit' && pet?.weight ? String(pet.weight) : ''
+    if (showCamera) {
+      setCameraError('')
+    }
+    if (showCamera && streamRef.current && videoRef.current) {
+      videoRef.current.srcObject = streamRef.current
+      videoRef.current.play().catch(() => {})
+    }
+  }, [showCamera])
 
-      setSelectedSpecies(species)
-      setCustomSpecies(SPECIES_OPTIONS.includes(species) ? '' : species)
-      setSelectedBreed(breed)
-      setCustomBreed('')
-      setWeightValue(weight)
-
-      // Check if breed needs custom handling
-      const breedList = species ? (BREEDS_BY_SPECIES[species] || []) : []
-      if (breed && !breedList.includes(breed)) {
-        setCustomBreed(breed)
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
       }
     }
-  }, [open, mode, pet])
+  }, [])
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -239,6 +346,7 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
       bloodType: formData.get('bloodType'),
       color: formData.get('color'),
       ownerUid: mode === 'edit' ? pet?.ownerUid : formData.get('ownerUid'),
+      photoFile,
     })
   }
 
@@ -267,6 +375,51 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl rounded-3xl max-h-[90vh] flex flex-col">
+        {showCamera ? (
+          <div className="py-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <DialogTitle className="text-xl font-bold">Take Photo</DialogTitle>
+                <DialogDescription className="text-sm">Position your pet in the frame and tap capture</DialogDescription>
+              </div>
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="relative rounded-2xl overflow-hidden bg-gray-900 aspect-video mb-6">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            {cameraError && (
+              <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold text-center mb-6">
+                {cameraError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-center">
+              <button
+                type="button"
+                onClick={capturePhoto}
+                className="w-20 h-20 rounded-full bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center shadow-xl shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-transform"
+              >
+                <Camera className="w-8 h-8 text-white" />
+              </button>
+            </div>
+            <p className="text-gray-400 text-xs text-center mt-3 font-bold uppercase tracking-widest">Tap to capture</p>
+          </div>
+        ) : (
+          <>
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-2xl font-bold">
             {mode === 'add' ? 'Register New Patient' : 'Edit Patient Record'}
@@ -286,6 +439,84 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
                   <Activity className="w-4 h-4 text-blue-600" />
                 </div>
                 <h3 className="font-bold text-gray-900">Pet Information</h3>
+              </div>
+
+              {/* Photo Upload */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="font-bold text-gray-900 text-sm">Pet Photo</p>
+                  {photoPreview && (
+                    <button
+                      type="button"
+                      onClick={clearPhoto}
+                      className="text-xs font-bold text-red-500 hover:text-red-600 flex items-center gap-1 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                      Remove
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4">
+                  {/* Photo Preview */}
+                  <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 border-2 border-gray-100 flex-shrink-0">
+                    {photoPreview ? (
+                      <img src={photoPreview} alt="Pet" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Camera className="w-8 h-8 text-gray-200" />
+                      </div>
+                    )}
+                    {isCompressing && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <Loader2 className="w-6 h-6 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col gap-2 flex-1">
+                    <button
+                      type="button"
+                      onClick={startCamera}
+                      disabled={isCompressing}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left disabled:opacity-50 ${
+                        cameraError
+                          ? 'bg-red-50 text-red-700'
+                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+                      }`}
+                    >
+                      <Camera className="w-5 h-5" />
+                      <div>
+                        <p className="text-sm font-bold">Take Photo</p>
+                        <p className={`text-[10px] font-bold ${cameraError ? 'text-red-500' : 'text-emerald-500/70'}`}>
+                          {cameraError || 'Use device camera'}
+                        </p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isCompressing}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors text-left disabled:opacity-50"
+                    >
+                      <Upload className="w-5 h-5" />
+                      <div>
+                        <p className="text-sm font-bold">Upload Photo</p>
+                        <p className="text-[10px] font-bold text-blue-500/70">Choose from device (max 5MB)</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Hidden input for file upload */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -398,25 +629,29 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
                   <h3 className="font-bold text-gray-900">Owner Information</h3>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="ownerUid" className="font-bold text-gray-700">Select Owner</Label>
-                  <select
-                    id="ownerUid"
-                    name="ownerUid"
-                    defaultValue={mode === 'edit' as string ? pet?.ownerUid : ''}
-                    className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white h-12 px-3"
-                    required
-                  >
-                    <option value="">Select an owner...</option>
-                    {Object.entries(users || {})
-                      .filter(([uid, userData]: [string, any]) => userData?.role === 'client')
-                      .map(([uid, userData]: [string, any]) => (
-                        <option key={uid} value={uid}>
-                          {userData?.displayName || userData?.email || uid}
-                        </option>
-                    ))}
-                  </select>
-                </div>
+                {Object.keys(users).length > 0 ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="ownerUid" className="font-bold text-gray-700">Select Owner</Label>
+                    <select
+                      id="ownerUid"
+                      name="ownerUid"
+                       defaultValue={user?.uid || ''}
+                      className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white h-12 px-3"
+                      required
+                    >
+                      <option value="">Select an owner...</option>
+                      {Object.entries(users || {})
+                        .filter(([uid, userData]: [string, any]) => userData?.role === 'client')
+                        .map(([uid, userData]: [string, any]) => (
+                          <option key={uid} value={uid}>
+                            {userData?.displayName || userData?.email || uid}
+                          </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <input type="hidden" name="ownerUid" value={user?.uid || ''} />
+                )}
               </div>
             )}
 
@@ -435,6 +670,8 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
             </DialogFooter>
           </form>
         </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   )

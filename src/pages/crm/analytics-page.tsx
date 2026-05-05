@@ -166,7 +166,7 @@ export default function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">${stats.revenueMonthly.toLocaleString()}</p>
+            <p className="text-3xl font-bold">PHP${stats.revenueMonthly.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>

@@ -226,6 +226,12 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
         icon: Briefcase,
         roles: ['admin'],
       },
+      {
+        name: 'Settings',
+        path: '/crm/settings',
+        icon: Settings,
+        roles: ['admin'],
+      },
     ]
 
     return menuItems.filter(item => item.roles.includes(role as string))
@@ -282,6 +288,7 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
       'audit': 'Audit Trail',
       'security': 'Security',
       'staff': 'Staff Management',
+      'settings': 'Settings',
     }
 
     // Recursive function to resolve hierarchical breadcrumbs from state

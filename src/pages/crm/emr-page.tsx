@@ -709,8 +709,14 @@ Mode: Walk-in`,
 
     setUploadingFile(true);
     try {
-      // Upload to Google Drive
-      const { fileId, webViewLink, downloadUrl } = await uploadToGoogleDrive(file);
+      const ownerName = owner?.displayName || owner?.name || 'Unknown';
+      const petName = patient?.name || 'Unknown';
+
+      const { fileId, webViewLink, downloadUrl } = await uploadToGoogleDrive(file, {
+        ownerName,
+        petName,
+        fileType: 'emr',
+      });
 
       // Save attachment record to Firestore
       const attachmentData = {

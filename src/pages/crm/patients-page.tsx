@@ -13,6 +13,7 @@ import {
 } from "../../components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from '../../firebase';
+import { uploadToGoogleDrive } from '../../lib/google-drive';
 import PetDialog from '../../components/crm/pet-dialog';
 
 interface Patient {
@@ -126,6 +127,26 @@ export default function PatientsPage() {
   const handleAddSubmit = async (formData: any) => {
     setIsSubmitting(true);
     try {
+      let imageUrl = '';
+      if (formData.photoFile) {
+        try {
+          const ownerName = formData.ownerName || 'Unknown';
+          const result = await uploadToGoogleDrive(formData.photoFile, {
+            ownerName,
+            petName: formData.name,
+            fileType: 'photos',
+          });
+          imageUrl = result.downloadUrl || result.webViewLink;
+        } catch (uploadErr) {
+          console.warn('Google Drive upload failed, using base64 fallback:', uploadErr);
+          const reader = new FileReader();
+          imageUrl = await new Promise<string>((resolve) => {
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(formData.photoFile);
+          });
+        }
+      }
+
       const newPet = {
         name: formData.name,
         species: formData.species,
@@ -136,7 +157,7 @@ export default function PatientsPage() {
         gender: formData.gender,
         bloodType: formData.bloodType || 'Unknown',
         color: formData.color,
-        imageUrl: '',
+        imageUrl,
         ownerUid: formData.ownerUid,
         createdAt: new Date().toISOString()
       };

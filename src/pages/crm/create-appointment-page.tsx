@@ -12,6 +12,7 @@ import { Badge } from '../../components/ui/badge';
 import { format, startOfToday, isBefore, parse } from 'date-fns';
 import { db, auth, collection, getDocs, serverTimestamp, arrayUnion } from '../../firebase';
 import { createDocument, updateDocument } from '../../lib/firestore-helpers';
+import { uploadToGoogleDrive } from '../../lib/google-drive';
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
 import { Doctor, Pet, Appointment } from '../../types';
 import PetDialog from '../../components/crm/pet-dialog';
@@ -252,12 +253,32 @@ export default function CreateAppointmentPage() {
 
   const handleNewPetFromDialog = async (formData: any) => {
     try {
+      let imageUrl = '';
+      if (formData.photoFile) {
+        try {
+          const ownerName = formData.ownerName || users[formData.ownerUid] || 'Unknown';
+          const result = await uploadToGoogleDrive(formData.photoFile, {
+            ownerName,
+            petName: formData.name,
+            fileType: 'photos',
+          });
+          imageUrl = result.downloadUrl || result.webViewLink;
+        } catch (uploadErr) {
+          console.warn('Google Drive upload failed, using base64 fallback:', uploadErr);
+          const reader = new FileReader();
+          imageUrl = await new Promise<string>((resolve) => {
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(formData.photoFile);
+          });
+        }
+      }
+
       const petId = await createDocument('pets', {
         name: formData.name, species: formData.species, breed: formData.breed,
         ownerUid: formData.ownerUid, weight: formData.weight || 0,
         dateOfBirth: formData.dateOfBirth || '', gender: formData.gender || '',
         bloodType: formData.bloodType || 'Unknown', color: formData.color || '',
-        imageUrl: formData.imageUrl || '', currentStatus: 'active',
+        imageUrl, currentStatus: 'active',
         createdAt: new Date().toISOString()
       });
       fetchPets();

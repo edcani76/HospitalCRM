@@ -214,7 +214,7 @@ export default function OwnerProfile() {
                 <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100">
                   <p className="text-xs text-stone-500 uppercase tracking-wider mb-1">Unpaid Balance</p>
                   <p className="text-2xl font-bold text-red-600">
-                    ${invoices.filter(i => i.status !== 'paid').reduce((sum, i) => sum + i.amount, 0)}
+                    PHP${invoices.filter(i => i.status !== 'paid').reduce((sum, i) => sum + i.amount, 0)}
                   </p>
                 </div>
                 <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100">
@@ -333,7 +333,7 @@ export default function OwnerProfile() {
                           </div>
                           <div className="flex justify-between items-center pt-2 border-t border-stone-50">
                             <span className="text-xs text-stone-500">Amount</span>
-                            <span className="font-bold text-stone-900">${invoice.amount}</span>
+                            <span className="font-bold text-stone-900">PHP${invoice.amount}</span>
                           </div>
                         </div>
                       ))}

@@ -192,11 +192,11 @@ export default function OwnerProfilePage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-4 bg-emerald-50/50 rounded-3xl border border-emerald-100/50">
                     <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider mb-1">Total Spent</p>
-                    <p className="text-xl font-bold text-emerald-700">${totalSpent.toFixed(2)}</p>
+                    <p className="text-xl font-bold text-emerald-700">PHP${totalSpent.toFixed(2)}</p>
                   </div>
                   <div className="text-center p-4 bg-amber-50/50 rounded-3xl border border-amber-100/50">
                     <p className="text-[10px] text-amber-600 uppercase font-bold tracking-wider mb-1">Pending</p>
-                    <p className="text-xl font-bold text-amber-700">${UnconfirmedAmount.toFixed(2)}</p>
+                    <p className="text-xl font-bold text-amber-700">PHP${UnconfirmedAmount.toFixed(2)}</p>
                   </div>
                 </div>
               </div>
@@ -285,7 +285,7 @@ export default function OwnerProfilePage() {
                             <td className="px-4 py-4 text-sm font-bold text-slate-900">{bill.id}</td>
                             <td className="px-4 py-4 text-sm text-slate-600">{bill.patientName}</td>
                             <td className="px-4 py-4 text-sm text-slate-500">{bill.date}</td>
-                            <td className="px-4 py-4 text-sm font-bold text-slate-900">${(bill.amount || 0).toFixed(2)}</td>
+                            <td className="px-4 py-4 text-sm font-bold text-slate-900">PHP${(bill.amount || 0).toFixed(2)}</td>
                             <td className="px-4 py-4 text-right">
                               <Badge className={cn("px-3 py-1 rounded-lg text-[10px] font-bold uppercase", getStatusColor(bill.status))}>
                                 {bill.status}

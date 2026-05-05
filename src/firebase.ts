@@ -77,7 +77,7 @@ testConnection();
 
 export {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, where, onSnapshot, serverTimestamp, Timestamp, arrayUnion, orderBy, limit,
-  signInWithPopup, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+  signInWithPopup, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider,
   ref, uploadBytes, getDownloadURL, deleteObject
 };
 export type { FirebaseUser };

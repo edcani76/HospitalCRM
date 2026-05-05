@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db, collection, query, where, onSnapshot, doc, getDoc } from '../firebase';
+import { auth, db, collection, query, where, onSnapshot, doc, getDoc, addDoc, serverTimestamp } from '../firebase';
 import { Appointment, Report, UserProfile, Invoice, Pet } from '../types';
 import { motion } from 'motion/react';
 import { LayoutDashboard, Calendar, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, User, ArrowRight, Download, Activity } from 'lucide-react';
@@ -8,6 +8,35 @@ import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import { Badge } from '../components/ui/badge';
 import { useAuth } from '../contexts/AuthContext';
+import PetDialog from '../components/crm/pet-dialog';
+import { uploadToGoogleDrive } from '../lib/google-drive';
+
+function PetImage({ pet }: { pet: Pet }) {
+  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(pet.name)}&background=10b981&color=fff&size=300&bold=true`;
+  const [src, setSrc] = useState('');
+
+  useEffect(() => {
+    let url = fallback;
+    if (pet.imageUrl) {
+      const driveMatch = pet.imageUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (driveMatch) {
+        url = `https://lh3.googleusercontent.com/d/${driveMatch[1]}=w1000`;
+      } else if (pet.imageUrl.startsWith('data:') || pet.imageUrl.startsWith('http')) {
+        url = pet.imageUrl;
+      }
+    }
+    setSrc(url);
+  }, [pet.imageUrl, pet.name]);
+
+  return (
+    <img 
+      src={src || fallback} 
+      alt={pet.name} 
+      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+      onError={(e) => { (e.target as HTMLImageElement).src = fallback; }}
+    />
+  );
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -28,6 +57,8 @@ export default function Dashboard() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'pets' | 'appointments' | 'billing' | 'records'>('overview');
+  const [isPetDialogOpen, setIsPetDialogOpen] = useState(false);
+  const [isSubmittingPet, setIsSubmittingPet] = useState(false);
 
   useEffect(() => {
     if (!user || !user.uid) return;
@@ -70,6 +101,7 @@ export default function Dashboard() {
     );
     const unsubPets = onSnapshot(qPets, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pet));
+      console.log('[Dashboard] Pets loaded:', data.map(p => ({ id: p.id, name: p.name, imageUrl: p.imageUrl })));
       setPets(data);
       setLoading(false);
     });
@@ -81,6 +113,65 @@ export default function Dashboard() {
       unsubPets();
     };
   }, [user]);
+
+  const handleNewPetSubmit = async (formData: any) => {
+    console.log('[Pet Submit] handleNewPetSubmit called, user:', !!user, 'photo:', !!formData.photoFile);
+    if (!user) {
+      console.error('[Pet Submit] No user, returning');
+      setIsSubmittingPet(false);
+      return;
+    }
+    setIsSubmittingPet(true);
+    try {
+      let imageUrl = '';
+      if (formData.photoFile) {
+        console.log('[Pet Submit] Uploading photo to Google Drive...');
+        try {
+          const ownerName = user.displayName || user.email?.split('@')[0] || 'Unknown';
+          const result = await uploadToGoogleDrive(formData.photoFile, {
+            ownerName,
+            petName: formData.name,
+            fileType: 'photos',
+          });
+          console.log('[Pet Submit] Drive upload result:', result);
+          imageUrl = result.downloadUrl || result.webViewLink;
+        } catch (uploadErr) {
+          console.warn('[Pet Submit] Google Drive upload failed, using base64 fallback:', uploadErr);
+          const reader = new FileReader();
+          imageUrl = await new Promise<string>((resolve) => {
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(formData.photoFile);
+          });
+          console.log('[Pet Submit] Base64 fallback complete, length:', imageUrl.length);
+        }
+      } else {
+        console.log('[Pet Submit] No photo file, skipping upload');
+      }
+
+      console.log('[Pet Submit] Saving to Firestore, imageUrl:', imageUrl);
+      await addDoc(collection(db, 'pets'), {
+        name: formData.name,
+        species: formData.species,
+        breed: formData.breed,
+        ownerUid: user.uid,
+        weight: formData.weight || 0,
+        dateOfBirth: formData.dateOfBirth || '',
+        gender: formData.gender || '',
+        bloodType: formData.bloodType || 'Unknown',
+        color: formData.color || '',
+        imageUrl,
+        currentStatus: 'active',
+        createdAt: serverTimestamp()
+      });
+      console.log('[Pet Submit] Firestore save complete');
+      setIsPetDialogOpen(false);
+    } catch (err: any) {
+      console.error('[Pet Submit] Failed to register pet:', err);
+    } finally {
+      console.log('[Pet Submit] Finally block - stopping spinner');
+      setIsSubmittingPet(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -119,6 +210,7 @@ export default function Dashboard() {
   }
 
   return (
+    <>
     <DashboardLayout
       user={user}
       menuItems={menuItems}
@@ -184,7 +276,7 @@ export default function Dashboard() {
               {[
                 { label: 'Registered Pets', value: pets.length, icon: User, color: 'text-blue-500', bg: 'bg-blue-50', shadow: 'shadow-blue-500/10' },
                 { label: 'Confirmed Visits', value: appointments.filter(a => a.status === 'confirmed').length, icon: Calendar, color: 'text-emerald-500', bg: 'bg-emerald-50', shadow: 'shadow-emerald-500/10' },
-                { label: 'Outstanding Balance', value: `$${invoices.filter(i => i.status === 'active').reduce((sum, inv) => sum + inv.amount, 0).toFixed(0)}`, icon: FileText, color: 'text-rose-500', bg: 'bg-rose-50', shadow: 'shadow-rose-500/10' }
+                { label: 'Outstanding Balance', value: `PHP${invoices.filter(i => i.status === 'active').reduce((sum, inv) => sum + inv.amount, 0).toFixed(0)}`, icon: FileText, color: 'text-rose-500', bg: 'bg-rose-50', shadow: 'shadow-rose-500/10' }
               ].map((stat, i) => (
                 <div key={i} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 transition-all group relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-bl-full -mr-16 -mt-16 group-hover:bg-slate-100/50 transition-colors" />
@@ -302,64 +394,63 @@ export default function Dashboard() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {pets.map(pet => (
                 <Link 
                   key={pet.id} 
                   to={`/pet/${pet.id}`}
-                  className="bg-white p-10 rounded-[3rem] border border-slate-100 hover:border-emerald-500/20 shadow-sm hover:shadow-2xl hover:shadow-emerald-900/5 transition-all group relative overflow-hidden"
+                  className="group relative bg-white rounded-3xl border border-slate-100 overflow-hidden hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-900/5 transition-all duration-300"
                 >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-bl-full -mr-16 -mt-16 transition-all group-hover:bg-emerald-50" />
+                  {/* Pet Photo */}
+                  <div className="relative h-48 bg-gradient-to-br from-emerald-50 to-slate-50 overflow-hidden">
+                    <PetImage pet={pet} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
+                    {/* Species Badge */}
+                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-emerald-600 shadow-sm">
+                      {pet.species}
+                    </div>
+                  </div>
                   
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-6 mb-8">
-                      <div className="w-24 h-24 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white ring-1 ring-slate-100">
-                        <img 
-                          src={pet.imageUrl || `https://ui-avatars.com/api/?name=${pet.name}&background=10b981&color=fff`} 
-                          alt={pet.name} 
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        />
+                  {/* Pet Info */}
+                  <div className="p-6 space-y-5">
+                    <div>
+                      <h4 className="font-black text-2xl text-slate-900 group-hover:text-emerald-600 transition-colors leading-tight">{pet.name}</h4>
+                      {pet.breed && (
+                        <p className="text-sm font-bold text-slate-400 mt-1">{pet.breed}</p>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-slate-50 p-3 rounded-2xl text-center">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Age</p>
+                        <p className="text-base font-black text-slate-900">{pet.age || '?'}y</p>
                       </div>
-                      <div className="space-y-1">
-                        <h4 className="font-black text-3xl text-slate-900 group-hover:text-emerald-600 transition-colors leading-none">{pet.name}</h4>
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 bg-emerald-500 rounded-full" />
-                          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{pet.species} • {pet.breed}</p>
-                        </div>
+                      <div className="bg-slate-50 p-3 rounded-2xl text-center">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Weight</p>
+                        <p className="text-base font-black text-slate-900">{pet.weight || '?'}kg</p>
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-slate-50 p-5 rounded-[1.5rem] group-hover:bg-white transition-colors border border-transparent group-hover:border-slate-100">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Age</p>
-                        <p className="text-xl font-black text-slate-900">{pet.age} Years</p>
-                      </div>
-                      <div className="bg-slate-50 p-5 rounded-[1.5rem] group-hover:bg-white transition-colors border border-transparent group-hover:border-slate-100">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Weight</p>
-                        <p className="text-xl font-black text-slate-900">{pet.weight}kg</p>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-8 flex items-center justify-between text-emerald-600 font-black text-sm uppercase tracking-widest">
-                      <span>Clinical Profile</span>
-                      <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                        <ArrowRight className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" />
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                      <span className="text-xs font-black text-slate-400 uppercase tracking-widest group-hover:text-emerald-600 transition-colors">View Profile</span>
+                      <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                        <ArrowRight className="w-4 h-4 transform group-hover:translate-x-0.5 transition-transform" />
                       </div>
                     </div>
                   </div>
                 </Link>
               ))}
               
-              <Link 
-                to="/add-pet"
-                className="bg-slate-50 border-4 border-dashed border-slate-200 rounded-[3rem] flex flex-col items-center justify-center p-12 text-slate-400 hover:text-emerald-500 hover:border-emerald-500/20 hover:bg-white transition-all group min-h-[300px]"
-              >
-                <div className="w-20 h-20 rounded-[2rem] bg-white flex items-center justify-center mb-6 shadow-xl shadow-slate-900/5 group-hover:scale-110 transition-transform">
-                  <Plus className="w-10 h-10" />
-                </div>
-                <p className="font-black text-lg uppercase tracking-widest">Register New Pet</p>
-                <p className="text-xs font-bold text-slate-400 mt-2">Clinical onboarding process</p>
-              </Link>
+<button 
+                  onClick={() => setIsPetDialogOpen(true)}
+                  className="group relative rounded-3xl border-2 border-dashed border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/30 transition-all duration-300 flex flex-col items-center justify-center py-16 px-8 text-slate-400 hover:text-emerald-600 cursor-pointer min-h-[340px]"
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-slate-50 group-hover:bg-emerald-100 flex items-center justify-center mb-4 transition-colors shadow-sm">
+                    <Plus className="w-8 h-8" />
+                  </div>
+                  <p className="font-black text-base uppercase tracking-widest">Register New Pet</p>
+                  <p className="text-xs font-bold text-slate-400 mt-2 group-hover:text-emerald-500/70 transition-colors">Add to your family</p>
+                </button>
             </div>
           </motion.div>
         )}
@@ -472,7 +563,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="flex flex-col items-center md:items-end gap-2">
-                        <p className="text-4xl font-black text-slate-900 tracking-tighter">${inv.amount.toFixed(2)}</p>
+                        <p className="text-4xl font-black text-slate-900 tracking-tighter">PHP${inv.amount.toFixed(2)}</p>
                         <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${inv.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
                           <div className={`w-2 h-2 rounded-full ${inv.status === 'paid' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
                           {inv.status}
@@ -540,5 +631,15 @@ export default function Dashboard() {
       </div>
     </DashboardLayout>
 
+    <PetDialog
+      open={isPetDialogOpen}
+      onOpenChange={setIsPetDialogOpen}
+      mode="add"
+      users={{}}
+      onSubmit={handleNewPetSubmit}
+      onCancel={() => setIsPetDialogOpen(false)}
+      isSubmitting={isSubmittingPet}
+    />
+    </>
   );
 }

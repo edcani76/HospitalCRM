@@ -4,8 +4,10 @@ import { auth, db, doc, getDoc, collection, addDoc, serverTimestamp, query, wher
 import { useAuth } from '../contexts/AuthContext';
 import { Doctor, Pet } from '../types';
 import { motion } from 'motion/react';
-import { Calendar, Clock, User, Stethoscope, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, User, Stethoscope, ArrowRight, CheckCircle, AlertCircle, Plus } from 'lucide-react';
 import { format, addDays, startOfToday } from 'date-fns';
+import PetDialog from '../components/crm/pet-dialog';
+import { uploadToGoogleDrive } from '../lib/google-drive';
 
 export default function BookAppointment() {
   const [searchParams] = useSearchParams();
@@ -24,6 +26,8 @@ export default function BookAppointment() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPetId, setSelectedPetId] = useState<string>('');
   const [notes, setNotes] = useState('');
+  const [isPetDialogOpen, setIsPetDialogOpen] = useState(false);
+  const [isSubmittingPet, setIsSubmittingPet] = useState(false);
 
   const timeSlots = [
     '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
@@ -74,6 +78,69 @@ export default function BookAppointment() {
     fetchDoctor();
     if (user) fetchPets();
   }, [doctorId, user]);
+
+  const handleNewPetSubmit = async (formData: any) => {
+    console.log('[Pet Submit] handleNewPetSubmit called, user:', !!user, 'photo:', !!formData.photoFile);
+    if (!user) {
+      console.error('[Pet Submit] No user, returning');
+      setIsSubmittingPet(false);
+      return;
+    }
+    setIsSubmittingPet(true);
+    try {
+      let imageUrl = '';
+      if (formData.photoFile) {
+        console.log('[Pet Submit] Uploading photo to Google Drive...');
+        try {
+          const ownerName = user.displayName || user.email?.split('@')[0] || 'Unknown';
+          const result = await uploadToGoogleDrive(formData.photoFile, {
+            ownerName,
+            petName: formData.name,
+            fileType: 'photos',
+          });
+          console.log('[Pet Submit] Drive upload result:', result);
+          imageUrl = result.downloadUrl || result.webViewLink;
+        } catch (uploadErr) {
+          console.warn('[Pet Submit] Google Drive upload failed, using base64 fallback:', uploadErr);
+          const reader = new FileReader();
+          imageUrl = await new Promise<string>((resolve) => {
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(formData.photoFile);
+          });
+          console.log('[Pet Submit] Base64 fallback complete, length:', imageUrl.length);
+        }
+      } else {
+        console.log('[Pet Submit] No photo file, skipping upload');
+      }
+
+      console.log('[Pet Submit] Saving to Firestore...');
+      const petRef = await addDoc(collection(db, 'pets'), {
+        name: formData.name,
+        species: formData.species,
+        breed: formData.breed,
+        ownerUid: user.uid,
+        weight: formData.weight || 0,
+        dateOfBirth: formData.dateOfBirth || '',
+        gender: formData.gender || '',
+        bloodType: formData.bloodType || 'Unknown',
+        color: formData.color || '',
+        imageUrl,
+        currentStatus: 'active',
+        createdAt: serverTimestamp()
+      });
+
+      const newPet = { id: petRef.id, ...formData, ownerUid: user.uid, currentStatus: 'active', imageUrl } as Pet;
+      setPets(prev => [...prev, newPet]);
+      setSelectedPetId(petRef.id);
+      setIsPetDialogOpen(false);
+      console.log('[Pet Submit] Firestore save complete');
+    } catch (err: any) {
+      console.error('[Pet Submit] Failed to register pet:', err);
+    } finally {
+      console.log('[Pet Submit] Finally block - stopping spinner');
+      setIsSubmittingPet(false);
+    }
+  };
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,13 +342,31 @@ export default function BookAppointment() {
 
           {/* Pet Selection */}
           <div className="space-y-4">
-            <label className="text-lg font-bold flex items-center gap-2">
-              <User className="w-5 h-5 text-emerald-600" />
-              Select Pet
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-lg font-bold flex items-center gap-2">
+                <User className="w-5 h-5 text-emerald-600" />
+                Select Pet
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsPetDialogOpen(true)}
+                className="text-sm font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Register New Pet
+              </button>
+            </div>
             {pets.length === 0 ? (
-              <div className="bg-yellow-50 text-yellow-700 p-4 rounded-xl text-sm border border-yellow-200">
-                You don't have any registered pets. Please contact the clinic.
+              <div className="bg-yellow-50 text-yellow-700 p-4 rounded-xl text-sm border border-yellow-200 flex items-center justify-between">
+                <span>You don't have any registered pets yet.</span>
+                <button
+                  type="button"
+                  onClick={() => setIsPetDialogOpen(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" />
+                  Register Pet
+                </button>
               </div>
             ) : (
               <div className="relative">
@@ -331,6 +416,16 @@ export default function BookAppointment() {
           </button>
         </form>
       </div>
+
+      <PetDialog
+        open={isPetDialogOpen}
+        onOpenChange={setIsPetDialogOpen}
+        mode="add"
+        users={{}}
+        onSubmit={handleNewPetSubmit}
+        onCancel={() => setIsPetDialogOpen(false)}
+        isSubmitting={isSubmittingPet}
+      />
     </div>
   );
 }
