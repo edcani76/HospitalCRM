@@ -32,6 +32,7 @@ import { PageHeader } from '../components/ui/page-header';
 
 export default function OwnerProfile() {
   const { user: currentUser } = useAuth();
+  const navigate = useNavigate();
   const { uid } = useParams<{ uid: string }>();
   const [owner, setOwner] = useState<UserProfile | null>(null);
   const [pets, setPets] = useState<Pet[]>([]);
@@ -155,7 +156,7 @@ export default function OwnerProfile() {
       title="User Profile Detail"
       breadcrumbs={[
         { name: 'Dashboard', path: currentUser?.role === 'admin' ? '/admin' : '/dashboard' },
-        { name: 'Users', path: currentUser?.role === 'admin' ? '/crm/users' : '/dashboard' },
+        { name: 'Users', onClick: () => navigate('/dashboard', { state: { tab: 'pets' } }) },
         { name: owner.displayName || 'Profile' },
       ]}
     >

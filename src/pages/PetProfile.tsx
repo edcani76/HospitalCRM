@@ -135,6 +135,8 @@ export default function PetProfile() {
     );
   }
 
+  const navigate = useNavigate();
+
   return (
     <DashboardLayout
       user={currentUser}
@@ -144,7 +146,7 @@ export default function PetProfile() {
       title={`${pet.name}'s Medical Profile`}
       breadcrumbs={[
         { name: 'Dashboard', path: currentUser?.role === 'admin' ? '/admin' : '/dashboard' },
-        { name: 'My Pets', path: currentUser?.role === 'admin' ? '/crm/patients' : '/dashboard' },
+        { name: 'My Pets', onClick: () => navigate('/dashboard', { state: { tab: 'pets' } }) },
         { name: pet.name },
       ]}
     >

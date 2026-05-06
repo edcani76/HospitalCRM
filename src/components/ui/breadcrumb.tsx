@@ -1,10 +1,11 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
 
 interface BreadcrumbItem {
   name: string;
   path?: string;
+  onClick?: () => void;
 }
 
 interface BreadcrumbProps {
@@ -92,10 +93,36 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
       </Link>
       {breadcrumbs.map((crumb, index) => {
         const isLast = index === breadcrumbs.length - 1;
+        const hasAction = crumb.onClick || (crumb.path && !isLast);
+
+        const content = (
+          <span className="text-slate-400 hover:text-slate-700 transition-colors truncate max-w-[160px]">
+            {crumb.name}
+          </span>
+        );
+
+        if (isLast) {
+          return (
+            <React.Fragment key={crumb.path || crumb.name}>
+              <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
+              <span className="text-slate-700 font-medium truncate max-w-[160px]">
+                {crumb.name}
+              </span>
+            </React.Fragment>
+          );
+        }
+
         return (
           <React.Fragment key={crumb.path || crumb.name}>
             <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
-            {crumb.path && !isLast ? (
+            {crumb.onClick ? (
+              <button
+                onClick={crumb.onClick}
+                className="text-slate-400 hover:text-slate-700 transition-colors truncate max-w-[160px] bg-transparent p-0"
+              >
+                {crumb.name}
+              </button>
+            ) : crumb.path ? (
               <Link
                 to={crumb.path}
                 className="text-slate-400 hover:text-slate-700 transition-colors truncate max-w-[160px]"
@@ -103,7 +130,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
                 {crumb.name}
               </Link>
             ) : (
-              <span className="text-slate-700 font-medium truncate max-w-[160px]">
+              <span className="text-slate-400 truncate max-w-[160px]">
                 {crumb.name}
               </span>
             )}

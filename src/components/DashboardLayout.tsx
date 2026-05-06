@@ -19,6 +19,7 @@ interface MenuItem {
 interface BreadcrumbItem {
   name: string;
   path?: string;
+  onClick?: () => void;
 }
 
 interface DashboardLayoutProps {

@@ -4,7 +4,7 @@ import { Appointment, Report, UserProfile, Invoice, Pet } from '../types';
 import { motion } from 'motion/react';
 import { LayoutDashboard, Calendar, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, User, ArrowRight, Download, Activity, ChevronRight, Edit, Ban, X } from 'lucide-react';
 import { format, addDays, startOfToday } from 'date-fns';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import { Badge } from '../components/ui/badge';
 import { useAuth } from '../contexts/AuthContext';
@@ -42,9 +42,16 @@ function PetImage({ pet }: { pet: Pet }) {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    if (user && user.role !== 'client') {
+    const tab = (location.state as any)?.tab;
+    if (tab) setActiveTab(tab);
+  }, []);
+
+  useEffect(() => {
+    if (!user || !user.uid) return;
+    if (user.role !== 'client') {
       let path = '/crm/admin-dashboard';
       if (user.role === 'doctor') path = '/crm/doctor-dashboard';
       else if (user.role === 'lab') path = '/crm/lab-dashboard';
@@ -52,6 +59,7 @@ export default function Dashboard() {
       navigate(path, { replace: true });
     }
   }, [user, navigate]);
+
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -255,6 +263,7 @@ export default function Dashboard() {
     { name: 'Dashboard', path: '/dashboard' },
     ...(activeTab !== 'overview' ? [{
       name: menuItems.find(m => m.id === activeTab)?.label || activeTab,
+      onClick: () => setActiveTab(activeTab),
     }] : []),
   ];
 
