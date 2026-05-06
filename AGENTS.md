@@ -1,9 +1,9 @@
 # MyHospital PR1 - Agent Progress
 
 ## Goal
-Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix timestamp display, add full service management to Edit Appointment matching Create Appointment.
+Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix timestamp display, add full service management to Edit Appointment matching Create Appointment, build Visit Summary tab, modernize portal dashboard UI/UX, and integrate Google Drive via server proxy.
 
-## Current Status (2026-05-03)
+## Current Status (2026-05-06)
 
 ### ✅ Completed Features
 
@@ -41,10 +41,56 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
    - Additional Notes shows combined service notes + general notes
    - Mode display handles "Walk-in" with hyphen correctly
 
+7. **Visit Summary Tab (`emr-page.tsx`)**
+   - Collapsible `SummarySection` component with chevron toggle
+   - Patient/Doctor/Status header card with gradient background
+   - Chief Complaint section
+   - Triage Snapshot with color-coded vital cards (Weight, Temp, Heart Rate, Resp Rate, MM Color, CRT)
+   - Services overview with pricing and status badges
+   - Clinical Notes (SOAP format: Subjective, Objective, Assessment, Plan)
+   - Lab Orders (pending/completed sections)
+   - Medications/Prescriptions list
+   - Billing Snapshot (subtotal, tax, grand total, amount paid, balance due)
+   - Visit Timeline (last 10 encounters, current highlighted)
+   - File Attachments section
+
+8. **Google Drive Integration (Server Proxy)**
+   - `/api/upload-to-drive` Express endpoint with `multer`
+   - OAuth callback (`/api/auth/google/callback`)
+   - Server-side token refresh using `GOOGLE_DRIVE_REFRESH_TOKEN`
+   - Nested folder creation: `<patient_owner>/<pet>/photos/` or `<patient_owner>/<pet>/emr/`
+   - `PetImage` component auto-converts Drive links to CDN URLs (`lh3.googleusercontent.com/d/{id}=w1000`)
+   - Pet name, species, and breed are mandatory for proper folder organization
+
+9. **Portal Dashboard UI/UX Modernization**
+   - Reduced excessive rounding (`rounded-[3rem]` → `rounded-xl`)
+   - Compacted text sizes (`text-6xl` → `text-2xl`, avatar `font-size=0.33`)
+   - Reduced padding/gaps globally for denser layout
+   - Mobile responsive with proper overlay behavior
+
+10. **Appointments Logic**
+    - "Scheduled Visits" stat includes `unconfirmed` status
+    - Next appointment card shows earliest non-cancelled with "Pending Confirmation" badge
+    - Appointments tab split: "Upcoming" (top 5 with "Load More") + "Past Visits"
+    - "Back to Overview" button
+
+11. **Sidebar/Layout (`DashboardLayout.tsx`)**
+    - Mobile: overlay appears only when open, blocks right panel
+    - Desktop: collapse/expand toggle restored
+    - Header hamburger menu for mobile
+
+12. **Comprehensive EMR Seed Data**
+    - `scripts/seed-emr-data.ts` creates end-to-end patient visits
+    - 7 encounters across 6 pets (Buddy×2, Whiskers, Max, Luna, Charlie, Rocky)
+    - Each visit includes: encounter, triage vitals, SOAP notes, services, lab orders, prescriptions, invoices, invoice items, payments, audit logs
+    - Sample attachments (X-Ray reports, lab results) for Buddy, Whiskers, Max
+
 ### 📝 Recent Commits (branch: `codex/pr-1`)
 
 | Commit | Description |
 |--------|-------------|
+| `cdd0aed` | Fix seed script - use correct date field, remove dead code |
+| `a8dfcce` | Add comprehensive EMR seed data script and VisitSummaryTab with attachments support |
 | `bb1a2b0` | Fix Quick Start doctor list - fetch directly in `handleQuickStartVisit` |
 | `5bae19b` | Show ALL doctors (removed availability filter for emergencies) |
 | `78c62be` | Fix doctor availability filtering for Quick Start Visit |
@@ -68,23 +114,31 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `scripts/migrate-appointment-services.ts`: 12 appointments migrated from `Type:` to `Services:` format
 - `scripts/migrate-encounters-startedAt.ts`: Encounters already have `startedAt`
 
-### 🚀 Next Steps (Testing)
-1. Test Quick Start Visit from Patient Profile → doctor selector appears
-2. Test Quick Start Visit from EMR page → doctor selector appears
-3. Verify selected doctor is assigned to appointment/encounter/service
-4. Test Edit Appointment service management (add/remove/edit)
-5. Verify "Started At" timestamp displays correctly
-6. Test "Visit Medical Record" button navigation
+### 🚀 Next Steps
+1. Build PDF invoice generation and viewing component
+2. Test Visit Summary tab with seeded data
+3. Verify Google Drive uploads work end-to-end
+4. Run full lint/build before next commit
 
 ### 🗂️ Key Files Modified
-- `src/pages/crm/emr-page.tsx` - EMR page with mode detection, Quick Start Visit
+- `src/pages/crm/emr-page.tsx` - EMR page with VisitSummaryTab, mode detection, Quick Start Visit
 - `src/pages/crm/patient-profile.tsx` - Quick Start Visit, doctor selector
 - `src/pages/crm/appointment-details-page.tsx` - Service management, notes display
+- `src/pages/Dashboard.tsx` - Client dashboard with updated appointment logic, compact UI
+- `src/components/DashboardLayout.tsx` - Sidebar/layout with mobile/desktop state management
+- `src/components/crm-layout.tsx` - CRM portal layout with mobile sidebar
+- `server.ts` - Express API for Drive uploads, OAuth, token refresh
+- `src/lib/google-drive.ts` - Client-side proxy for Drive uploads
 - `src/lib/firestore-helpers.ts` - `fetchEncounters` uses `startedAt`, `fetchEmrRecords` uses `encounters`
 - `src/types.ts` - `ServiceCatalogItem` type, notification types updated
+- `scripts/seed-emr-data.ts` - Comprehensive EMR seed data script
 
 ### ⚙️ Critical Context
-- EMR Page tabs (7): Visit Summary, Triage & Vitals, Clinical Notes, Orders & Services, Medications, Diagnostics, Billing (active only), History, Audit Trail
+- EMR Page tabs (9): Visit Summary, Triage & Vitals, Clinical Notes, Orders & Services, Medications, Diagnostics, Billing (active only), History, Audit Trail
 - `encounterServices` state fetches from `appointment_services` collection
 - Service storage in Edit Appointment: `Services: consultation, grooming` line in notes field
 - Start Appointment: Parses `Services:` from notes, creates `appointment_services` records
+- Drive uploads rely on `GOOGLE_DRIVE_REFRESH_TOKEN` in `.env` for silent token exchange
+- `DashboardLayout.tsx` uses separate `mobileOpen` and `expanded` states
+- `VisitSummaryTab` receives data via props from `EMRPage`'s existing Firestore fetchers
+- CDN URLs (`lh3.googleusercontent.com/d/{id}=w1000`) prevent HTML-redirect rendering failures
