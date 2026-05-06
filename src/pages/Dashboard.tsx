@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { auth, db, collection, query, where, onSnapshot, doc, getDoc, addDoc, serverTimestamp } from '../firebase';
 import { Appointment, Report, UserProfile, Invoice, Pet } from '../types';
 import { motion } from 'motion/react';
-import { LayoutDashboard, Calendar, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, User, ArrowRight, Download, Activity } from 'lucide-react';
+import { LayoutDashboard, Calendar, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, User, ArrowRight, Download, Activity, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
@@ -12,7 +12,7 @@ import PetDialog from '../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../lib/google-drive';
 
 function PetImage({ pet }: { pet: Pet }) {
-  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(pet.name)}&background=10b981&color=fff&size=200&font-size=0.4`;
+  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(pet.name)}&background=10b981&color=fff&size=200&font-size=0.33&bold=false`;
   const [src, setSrc] = useState('');
 
   useEffect(() => {
@@ -508,6 +508,13 @@ export default function Dashboard() {
                 </h2>
                 <p className="text-slate-500 mt-1 text-sm font-medium">All your appointments - upcoming and past.</p>
               </div>
+              <button
+                onClick={() => setActiveTab('overview')}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all"
+              >
+                <ChevronRight className="w-4 h-4 rotate-180" />
+                Back to Overview
+              </button>
             </div>
             
             {(() => {
