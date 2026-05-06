@@ -92,19 +92,21 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
     - Download button on Billing tab generates and downloads PDF
     - Format: A4, clean layout with MediPaws branding
 
-14. **Service Catalog with Provider-Resource Mapping**
-    - `service_catalog` collection now includes `allowedProviderIds[]` and `requiredResourceIds[]`
-    - `resources` collection created with 12 resources (rooms + equipment)
-    - `src/components/ServiceSelector.tsx` - Reusable multi-select with search, consultation always required
-    - `src/pages/crm/admin-services.tsx` - Admin UI for managing services, providers, and resources
-    - Customer booking (`BookAppointment.tsx`) now shows service selection filtered by doctor
-    - 35 services seeded with provider/resource mapping
-    - Helper functions: `fetchServicesForProvider`, `fetchAllResources`, `ensureConsultationService`, `addServiceToCatalog`, `updateServiceProviders`, `updateServiceResources`
+15. **Appointment Management Dialog (Client Portal)**
+    - "Manage" button on upcoming visits opens appointment detail dialog
+    - Shows appointment card: pet name, doctor, date, time, status, notes
+    - Cancel action: opens confirmation dialog with required reason textarea
+    - Reschedule action: date picker + time slot grid (12 slots AM/PM)
+    - Firestore updates: cancel sets `status: cancelled` + `cancelReason`, reschedule sets new `date`/`time` + `status: unconfirmed`
+    - Loading states during async operations
 
 ### 📝 Recent Commits (branch: `codex/pr-1`)
 
 | Commit | Description |
 |--------|-------------|
+| `65e1cf5` | Add appointment management dialog with cancel and reschedule functionality |
+| `3a73269` | Make service categories collapsible in BookAppointment ServiceSelector |
+| `217df02` | Update project notes and documentation |
 | `ff11f99` | Add service catalog with provider-resource mapping, ServiceSelector, customer booking service selection, admin services page |
 | `2fc20c1` | Update project notes and documentation |
 | `4224388` | Add PDF invoice generation with @react-pdf/renderer |

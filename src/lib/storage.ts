@@ -1,79 +1,36 @@
-/**
- * Utility functions for Firebase Storage operations
- * Handles pet photo uploads and management
- */
+import { uploadToGoogleDrive } from './google-drive';
+import { db, doc, getDoc, updateDoc } from '../firebase';
 
-import { storage } from '../firebase';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-
-/**
- * Upload a pet photo to Firebase Storage
- * @param petId - The pet's ID
- * @param file - The image file to upload
- * @returns The download URL of the uploaded image
- */
-export async function uploadPetPhoto(petId: string, file: File): Promise<string> {
-  try {
-    // Create a reference to the file location: pets/{petId}/{timestamp}_{filename}
-    const timestamp = Date.now();
-    const fileName = `${timestamp}_${file.name}`;
-    const storageRef = ref(storage, `pets/${petId}/${fileName}`);
-
-    // Upload the file
-    const snapshot = await uploadBytes(storageRef, file);
-
-    // Get the download URL
-    const downloadURL = await getDownloadURL(snapshot.ref);
-
-    return downloadURL;
-  } catch (error) {
-    console.error('Error uploading pet photo:', error);
-    throw error;
-  }
+export async function uploadPetPhoto(
+  petId: string,
+  file: File,
+  options?: { ownerName?: string; petName?: string }
+): Promise<string> {
+  const result = await uploadToGoogleDrive(file, {
+    ownerName: options?.ownerName || 'Unknown',
+    petName: options?.petName || petId,
+    fileType: 'photos',
+  });
+  return result.downloadUrl || result.webViewLink;
 }
 
-/**
- * Delete a pet photo from Firebase Storage
- * @param photoURL - The download URL of the photo to delete
- */
 export async function deletePetPhoto(photoURL: string): Promise<void> {
-  try {
-    // Extract the storage reference from the URL
-    const storageRef = ref(storage, photoURL);
-    await deleteObject(storageRef);
-  } catch (error) {
-    console.error('Error deleting pet photo:', error);
-    throw error;
-  }
+  console.log('[Storage] Delete not yet supported for Google Drive photos:', photoURL);
 }
 
-/**
- * Update a pet's photo in Firestore and Storage
- * - Uploads new photo
- * - Updates pet document with new imageUrl
- * - Deletes old photo if exists
- */
 export async function updatePetPhoto(
   petId: string,
   newFile: File,
   oldPhotoURL?: string
 ): Promise<string> {
-  try {
-    // Upload new photo
-    const newPhotoURL = await uploadPetPhoto(petId, newFile);
+  const petSnap = await getDoc(doc(db, 'pets', petId));
+  const petData = petSnap.data();
+  const ownerName = petData?.ownerName || 'Unknown';
+  const petName = petData?.name || petId;
 
-    // Delete old photo if exists
-    if (oldPhotoURL && oldPhotoURL.includes('firebasestorage')) {
-      try {
-        await deletePetPhoto(oldPhotoURL);
-      } catch (error) {
-        console.warn('Could not delete old photo:', error);
-      }
-    }
+  const newPhotoURL = await uploadPetPhoto(petId, newFile, { ownerName, petName });
 
-    return newPhotoURL;
-  } catch (error) {
-    console.error('Error updating pet photo:', error);
-    throw error;
-  }
+  await updateDoc(doc(db, 'pets', petId), { imageUrl: newPhotoURL });
+
+  return newPhotoURL;
 }

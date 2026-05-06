@@ -255,22 +255,13 @@ export default function CreateAppointmentPage() {
     try {
       let imageUrl = '';
       if (formData.photoFile) {
-        try {
-          const ownerName = formData.ownerName || users[formData.ownerUid] || 'Unknown';
-          const result = await uploadToGoogleDrive(formData.photoFile, {
-            ownerName,
-            petName: formData.name,
-            fileType: 'photos',
-          });
-          imageUrl = result.downloadUrl || result.webViewLink;
-        } catch (uploadErr) {
-          console.warn('Google Drive upload failed, using base64 fallback:', uploadErr);
-          const reader = new FileReader();
-          imageUrl = await new Promise<string>((resolve) => {
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(formData.photoFile);
-          });
-        }
+        const ownerName = formData.ownerName || users[formData.ownerUid] || 'Unknown';
+        const result = await uploadToGoogleDrive(formData.photoFile, {
+          ownerName,
+          petName: formData.name,
+          fileType: 'photos',
+        });
+        imageUrl = result.downloadUrl || result.webViewLink;
       }
 
       const petId = await createDocument('pets', {

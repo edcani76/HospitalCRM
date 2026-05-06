@@ -111,27 +111,13 @@ export default function BookAppointment() {
     try {
       let imageUrl = '';
       if (formData.photoFile) {
-        console.log('[Pet Submit] Uploading photo to Google Drive...');
-        try {
-          const ownerName = user.displayName || user.email?.split('@')[0] || 'Unknown';
-          const result = await uploadToGoogleDrive(formData.photoFile, {
-            ownerName,
-            petName: formData.name,
-            fileType: 'photos',
-          });
-          console.log('[Pet Submit] Drive upload result:', result);
-          imageUrl = result.downloadUrl || result.webViewLink;
-        } catch (uploadErr) {
-          console.warn('[Pet Submit] Google Drive upload failed, using base64 fallback:', uploadErr);
-          const reader = new FileReader();
-          imageUrl = await new Promise<string>((resolve) => {
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(formData.photoFile);
-          });
-          console.log('[Pet Submit] Base64 fallback complete, length:', imageUrl.length);
-        }
-      } else {
-        console.log('[Pet Submit] No photo file, skipping upload');
+        const ownerName = user.displayName || user.email?.split('@')[0] || 'Unknown';
+        const result = await uploadToGoogleDrive(formData.photoFile, {
+          ownerName,
+          petName: formData.name,
+          fileType: 'photos',
+        });
+        imageUrl = result.downloadUrl || result.webViewLink;
       }
 
       console.log('[Pet Submit] Saving to Firestore...');

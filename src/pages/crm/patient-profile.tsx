@@ -35,7 +35,7 @@ import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import { db, auth, collection, getDocs, getDoc, addDoc, updateDoc, doc, query, where, serverTimestamp } from '../../firebase';
 import PetDialog from '../../components/crm/pet-dialog';
-import { uploadPetPhoto, deletePetPhoto } from '../../lib/storage';
+import { uploadToGoogleDrive } from '../../lib/google-drive';
 
 interface PatientProfile {
   id: string;
@@ -248,26 +248,19 @@ export default function PatientProfilePage() {
   };
 
   const handlePhotoSave = async () => {
-    if (tempPhoto && patient) {
+    if (!patient) return;
+
+    if (tempPhoto && tempPhoto.startsWith('data:')) {
       try {
-        let finalImageUrl = tempPhoto;
+        const response = await fetch(tempPhoto);
+        const blob = await response.blob();
+        const file = new File([blob], 'pet-photo.jpg', { type: 'image/jpeg' });
 
-        // If tempPhoto is a data URL and it's small enough, save directly
-        if (tempPhoto.startsWith('data:')) {
-          // Check size (base64 is ~33% larger than binary)
-          const sizeInBytes = (tempPhoto.length * 3) / 4;
-          const maxSize = 700 * 1024; // 700KB limit for Firestore
+        const ownerName = patient.ownerName || 'Unknown';
+        const petName = patient.name;
+        const result = await uploadToGoogleDrive(file, { ownerName, petName, fileType: 'photos' });
+        const finalImageUrl = result.downloadUrl || result.webViewLink;
 
-          if (sizeInBytes > maxSize) {
-            alert('Photo is too large. Please use a smaller image or enable Firebase Storage.');
-            return;
-          }
-
-          // Save base64 directly to Firestore
-          finalImageUrl = tempPhoto;
-        }
-
-        // Update Firestore with the image URL (base64 or actual URL)
         await updateDoc(doc(db, 'pets', patient.id), {
           imageUrl: finalImageUrl,
           auditTrail: [
@@ -302,6 +295,17 @@ export default function PatientProfilePage() {
     if (!patient) return;
 
     try {
+      let imageUrl = patient.imageUrl || patient.photo || '';
+      if (formData.photoFile) {
+        const ownerName = patient.ownerName || 'Unknown';
+        const result = await uploadToGoogleDrive(formData.photoFile, {
+          ownerName,
+          petName: patient.name,
+          fileType: 'photos',
+        });
+        imageUrl = result.downloadUrl || result.webViewLink;
+      }
+
       const updatedData = {
         name: formData.name,
         species: formData.species,
@@ -312,7 +316,7 @@ export default function PatientProfilePage() {
         gender: formData.gender || patient.gender,
         bloodType: formData.bloodType || patient.bloodType,
         color: formData.color || patient.color,
-        imageUrl: formData.imageUrl || patient.imageUrl || patient.photo || '',
+        imageUrl,
         auditTrail: [
           ...(patient.auditTrail || []),
           {
@@ -331,7 +335,6 @@ export default function PatientProfilePage() {
         ]
       };
 
-      // Update Firestore
       await updateDoc(doc(db, 'pets', patient.id), updatedData);
 
       setPatient({ ...patient, ...updatedData });

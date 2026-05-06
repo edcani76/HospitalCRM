@@ -1,61 +1,35 @@
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from '../firebase';
+import { uploadToGoogleDrive } from './google-drive';
 
 export interface UploadResult {
   fileUrl: string;
-  storagePath: string;
+  fileId: string;
   fileName: string;
   fileType: string;
 }
 
-/**
- * Upload a file to Firebase Storage
- * @param file - The file to upload
- * @param path - Storage path (e.g., `encounters/{encounterId}/files/{fileName}`)
- * @returns Upload result with download URL
- */
 export async function uploadFile(
   file: File,
   path: string
 ): Promise<UploadResult> {
-  try {
-    const storageRef = ref(storage, path);
-    
-    // Upload file
-    const snapshot = await uploadBytes(storageRef, file);
-    
-    // Get download URL
-    const downloadUrl = await getDownloadURL(storageRef);
-    
-    return {
-      fileUrl: downloadUrl,
-      storagePath: path,
-      fileName: file.name,
-      fileType: getFileType(file.name)
-    };
-  } catch (error) {
-    console.error('Error uploading file:', error);
-    throw error;
-  }
+  const paths = path.split('/').filter(Boolean);
+  const ownerName = paths[0] || 'Unknown';
+  const petName = paths[1] || 'files';
+  const fileType = paths[2] || 'files';
+
+  const result = await uploadToGoogleDrive(file, { ownerName, petName, fileType });
+
+  return {
+    fileUrl: result.downloadUrl || result.webViewLink,
+    fileId: result.fileId,
+    fileName: file.name,
+    fileType: getFileType(file.name),
+  };
 }
 
-/**
- * Delete a file from Firebase Storage
- * @param path - Storage path to delete
- */
-export async function deleteFile(path: string): Promise<void> {
-  try {
-    const storageRef = ref(storage, path);
-    await deleteObject(storageRef);
-  } catch (error) {
-    console.error('Error deleting file:', error);
-    throw error;
-  }
+export async function deleteFile(fileId: string): Promise<void> {
+  console.log('[File Upload] Delete not yet supported for Google Drive files:', fileId);
 }
 
-/**
- * Get file type from file name
- */
 export function getFileType(fileName: string): string {
   const ext = fileName.split('.').pop()?.toLowerCase();
   const typeMap: { [key: string]: string } = {
@@ -73,9 +47,6 @@ export function getFileType(fileName: string): string {
   return typeMap[ext || ''] || 'document';
 }
 
-/**
- * Format file size for display
- */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
