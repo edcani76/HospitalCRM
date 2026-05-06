@@ -211,6 +211,8 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
   const [showCamera, setShowCamera] = useState(false)
   const [cameraError, setCameraError] = useState<string>('')
   const [isCompressing, setIsCompressing] = useState(false)
+  const [consentPrivacy, setConsentPrivacy] = useState(false)
+  const [consentTerms, setConsentTerms] = useState(false)
 
   const compressImage = useCallback(async (file: File): Promise<File> => {
     const options = {
@@ -322,6 +324,39 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
   }, [showCamera])
 
   useEffect(() => {
+    if (mode === 'edit' && pet) {
+      const species = pet.species || ''
+      const breed = pet.breed || ''
+      const isSpeciesOther = !SPECIES_OPTIONS.includes(species)
+      const isBreedOther = breed && !((BREEDS_BY_SPECIES[species] || []).includes(breed))
+      
+      setSelectedSpecies(isSpeciesOther ? 'Other' : species)
+      if (isSpeciesOther && species) setCustomSpecies(species)
+      else if (!isSpeciesOther) setCustomSpecies('')
+      
+      setSelectedBreed(isBreedOther ? 'Other' : breed)
+      if (isBreedOther && breed) setCustomBreed(breed)
+      else if (!isBreedOther) setCustomBreed('')
+      
+      setWeightValue(pet.weight ? String(pet.weight) : '')
+      
+      if (pet.imageUrl && !pet.imageUrl.startsWith('data:')) {
+        setPhotoPreview(pet.imageUrl)
+      }
+    } else if (mode === 'add') {
+      setSelectedSpecies('')
+      setCustomSpecies('')
+      setSelectedBreed('')
+      setCustomBreed('')
+      setWeightValue('')
+      setPhotoPreview('')
+      setPhotoFile(null)
+      setConsentPrivacy(false)
+      setConsentTerms(false)
+    }
+  }, [mode, pet, open])
+
+  useEffect(() => {
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop())
@@ -349,6 +384,10 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
       medicalHistory: formData.get('medicalHistory'),
       ownerUid: mode === 'edit' ? pet?.ownerUid : formData.get('ownerUid'),
       photoFile,
+      consentPrivacy: mode === 'add' ? consentPrivacy : undefined,
+      consentTerms: mode === 'add' ? consentTerms : undefined,
+      consentPrivacyTimestamp: mode === 'add' && consentPrivacy ? new Date().toISOString() : undefined,
+      consentTermsTimestamp: mode === 'add' && consentTerms ? new Date().toISOString() : undefined,
     })
   }
 
@@ -678,18 +717,56 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
               </div>
             )}
 
-            <DialogFooter className="pt-6 flex gap-3 border-t border-gray-50">
-              <Button type="button" variant="ghost" onClick={onCancel} className="rounded-xl h-12 px-6 font-bold" disabled={isSubmitting}>Cancel</Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-blue-100" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <span className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    {mode === 'add' ? 'Registering...' : 'Saving...'}
-                  </span>
-                ) : (
-                  mode === 'add' ? 'Register Patient' : 'Save Changes'
-                )}
-              </Button>
+            <DialogFooter className="pt-6 flex flex-col gap-4 border-t border-gray-50">
+              {mode === 'add' && (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Consent Required</p>
+                  
+                  <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50/50 cursor-pointer hover:bg-gray-50 transition-all">
+                    <input
+                      type="checkbox"
+                      checked={consentPrivacy}
+                      onChange={(e) => setConsentPrivacy(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500/20 focus:ring-2"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Data Privacy Consent</p>
+                      <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                        I consent to the collection and processing of my pet's health data and my personal information in accordance with the Data Privacy Act. This information will be used solely for veterinary services and patient care.
+                      </p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50/50 cursor-pointer hover:bg-gray-50 transition-all">
+                    <input
+                      type="checkbox"
+                      checked={consentTerms}
+                      onChange={(e) => setConsentTerms(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500/20 focus:ring-2"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Terms & Conditions</p>
+                      <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                        I agree that all information provided is accurate and understand that I am responsible for the care and treatment decisions for this animal. I agree to the clinic's policies regarding appointments, payments, and medical procedures.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <Button type="button" variant="ghost" onClick={onCancel} className="flex-1 rounded-xl h-12 px-6 font-bold" disabled={isSubmitting}>Cancel</Button>
+                <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-blue-100" disabled={isSubmitting || (mode === 'add' && (!consentPrivacy || !consentTerms))}>
+                  {isSubmitting ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      {mode === 'add' ? 'Registering...' : 'Saving...'}
+                    </span>
+                  ) : (
+                    mode === 'add' ? 'Register Patient' : 'Save Changes'
+                  )}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </div>

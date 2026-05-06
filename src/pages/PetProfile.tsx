@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { db, collection, query, where, onSnapshot, doc, getDoc } from '../firebase';
+import { db, collection, query, where, onSnapshot, doc, getDoc, updateDoc, serverTimestamp } from '../firebase';
 import { Appointment, Report, Pet, UserProfile } from '../types';
 import { motion } from 'motion/react';
 import { 
@@ -26,12 +26,16 @@ import {
   Palette,
   CalendarDays,
   Syringe,
-  AlertTriangle
+  AlertTriangle,
+  Edit,
+  PawPrint
 } from 'lucide-react';
 import { format, differenceInYears, differenceInMonths } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/DashboardLayout';
 import { PageHeader } from '../components/ui/page-header';
+import PetDialog from '../components/crm/pet-dialog';
+import { uploadToGoogleDrive } from '../lib/google-drive';
 
 export default function PetProfile() {
   const { user: currentUser } = useAuth();
@@ -42,6 +46,8 @@ export default function PetProfile() {
   const [reports, setReports] = useState<Report[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
   // Define menu items based on role
   const getMenuItems = () => {
@@ -140,6 +146,44 @@ export default function PetProfile() {
     return 'Unknown';
   };
 
+  const handlePetUpdate = async (formData: any) => {
+    if (!pet || !pet.id) return;
+    setIsSubmittingEdit(true);
+    try {
+      let imageUrl = pet.imageUrl || '';
+      if (formData.photoFile) {
+        const ownerName = owner?.displayName || owner?.email?.split('@')[0] || 'Unknown';
+        const result = await uploadToGoogleDrive(formData.photoFile, {
+          ownerName,
+          petName: pet.name,
+          fileType: 'photos',
+        });
+        imageUrl = result.downloadUrl || result.webViewLink;
+      }
+
+      await updateDoc(doc(db, 'pets', pet.id), {
+        name: formData.name,
+        species: formData.species,
+        breed: formData.breed,
+        weight: formData.weight || 0,
+        dateOfBirth: formData.dateOfBirth || '',
+        gender: formData.gender || '',
+        bloodType: formData.bloodType || 'Unknown',
+        color: formData.color || '',
+        microchipId: formData.microchipId || '',
+        medicalHistory: formData.medicalHistory || '',
+        imageUrl,
+        updatedAt: serverTimestamp(),
+      });
+
+      setIsEditDialogOpen(false);
+    } catch (err) {
+      console.error('Failed to update pet:', err);
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -179,11 +223,20 @@ export default function PetProfile() {
           title={`${pet.name}'s Medical Profile`}
           subtitle={`${pet.species} • ${pet.breed}`}
           onBack={null}
-          actions={currentUser?.role === 'admin' ? (
-            <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm">
-              <Plus className="w-4 h-4" /> New Medical Entry
-            </button>
-          ) : undefined}
+          actions={
+            currentUser?.role === 'admin' ? (
+              <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm">
+                <Plus className="w-4 h-4" /> New Medical Entry
+              </button>
+            ) : currentUser?.uid === pet.ownerUid ? (
+              <button 
+                onClick={() => setIsEditDialogOpen(true)}
+                className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm"
+              >
+                <Edit className="w-4 h-4" /> Edit Pet
+              </button>
+            ) : undefined
+          }
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -425,6 +478,19 @@ export default function PetProfile() {
           </div>
         </div>
       </div>
+
+      {pet && (
+        <PetDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          mode="edit"
+          pet={pet}
+          users={{}}
+          onSubmit={handlePetUpdate}
+          onCancel={() => setIsEditDialogOpen(false)}
+          isSubmitting={isSubmittingEdit}
+        />
+      )}
     </DashboardLayout>
   );
 }

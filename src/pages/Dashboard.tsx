@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { auth, db, collection, query, where, onSnapshot, doc, getDoc, addDoc, serverTimestamp, updateDoc } from '../firebase';
 import { Appointment, Report, UserProfile, Invoice, Pet } from '../types';
 import { motion } from 'motion/react';
-import { LayoutDashboard, Calendar, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, User, ArrowRight, Download, Activity, ChevronRight, Edit, Ban, X } from 'lucide-react';
-import { format, addDays, startOfToday, differenceInYears, differenceInMonths } from 'date-fns';
+import { LayoutDashboard, Calendar, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, User, ArrowRight, Download, Activity, ChevronRight, Edit, Ban, X, PawPrint, Camera } from 'lucide-react';
+import { format, addDays, startOfToday, differenceInYears, differenceInMonths, isToday, isAfter } from 'date-fns';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import { Badge } from '../components/ui/badge';
@@ -68,7 +68,7 @@ export default function Dashboard() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'pets' | 'appointments' | 'billing' | 'records'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'pets' | 'appointments' | 'billing' | 'records' | 'profile'>('overview');
   const [isPetDialogOpen, setIsPetDialogOpen] = useState(false);
   const [isSubmittingPet, setIsSubmittingPet] = useState(false);
   const [showMoreAppointments, setShowMoreAppointments] = useState(false);
@@ -80,6 +80,14 @@ export default function Dashboard() {
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [rescheduling, setRescheduling] = useState(false);
+  const [isProfileEditing, setIsProfileEditing] = useState(false);
+  const [profileData, setProfileData] = useState({ displayName: '', phone: '', address: '' });
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string>('');
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+  const [consentPrivacy, setConsentPrivacy] = useState(false);
+  const [consentTerms, setConsentTerms] = useState(false);
+  const [consentTimestamps, setConsentTimestamps] = useState<{ privacy?: string; terms?: string }>({});
 
   useEffect(() => {
     const tab = (location.state as any)?.tab;
@@ -158,6 +166,170 @@ export default function Dashboard() {
     };
   }, [user]);
 
+  useEffect(() => {
+    if (user?.uid) {
+      getDoc(doc(db, 'users', user.uid)).then(docSnap => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setProfileData({
+            displayName: data.displayName || user.displayName || '',
+            phone: data.phone || data.phoneNumber || '',
+            address: data.address || '',
+          });
+          if (data.photoURL) {
+            setProfilePhotoPreview(data.photoURL);
+          }
+          if (data.consentPrivacy !== undefined) {
+            setConsentPrivacy(data.consentPrivacy);
+          }
+          if (data.consentTerms !== undefined) {
+            setConsentTerms(data.consentTerms);
+          }
+          if (data.consentPrivacyTimestamp) {
+            setConsentTimestamps(prev => ({ ...prev, privacy: data.consentPrivacyTimestamp }));
+          }
+          if (data.consentTermsTimestamp) {
+            setConsentTimestamps(prev => ({ ...prev, terms: data.consentTermsTimestamp }));
+          }
+        }
+      });
+    }
+  }, [user]);
+
+  const handleSaveProfile = async () => {
+    if (!user?.uid) return;
+    setSavingProfile(true);
+    try {
+      let photoURL = user.photoURL || '';
+      if (profilePhotoFile) {
+        const result = await uploadToGoogleDrive(profilePhotoFile, {
+          ownerName: profileData.displayName || user.displayName || 'User',
+          petName: 'profile',
+          fileType: 'photos',
+        });
+        photoURL = result.downloadUrl || result.webViewLink;
+      }
+
+      const now = new Date().toISOString();
+      await updateDoc(doc(db, 'users', user.uid), {
+        displayName: profileData.displayName,
+        phone: profileData.phone,
+        address: profileData.address,
+        photoURL,
+        consentPrivacy,
+        consentTerms,
+        consentPrivacyTimestamp: consentPrivacy ? (consentTimestamps.privacy || now) : null,
+        consentTermsTimestamp: consentTerms ? (consentTimestamps.terms || now) : null,
+      });
+      setConsentTimestamps({
+        privacy: consentPrivacy ? (consentTimestamps.privacy || now) : undefined,
+        terms: consentTerms ? (consentTimestamps.terms || now) : undefined,
+      });
+      setIsProfileEditing(false);
+      setProfilePhotoFile(null);
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isProfileEditing && user?.photoURL) {
+      setProfilePhotoPreview(user.photoURL);
+    }
+  }, [isProfileEditing, user?.photoURL]);
+
+  const upcomingAppointments = appointments.filter(a => 
+    (a.status === 'confirmed' || a.status === 'unconfirmed') && isAfter(new Date(a.date), new Date())
+  ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const todayAppointments = appointments.filter(a => 
+    (a.status === 'confirmed' || a.status === 'unconfirmed') && isToday(new Date(a.date))
+  );
+  const todayCount = todayAppointments.length;
+
+  const activeInvoices = invoices.filter(i => i.status === 'active');
+  const totalBalance = invoices.filter(i => i.status === 'active').reduce((sum, inv) => sum + inv.amount, 0);
+
+  const welcomeMessage = (() => {
+    const firstName = user?.displayName?.split(' ')[0] || 'Pet Parent';
+    const petCount = pets.length;
+    const petNames = pets.slice(0, 3).map(p => p.name);
+    const upcomingCount = upcomingAppointments.length;
+    const nextApt = upcomingAppointments[0];
+    const todayCount = todayAppointments.length;
+
+    const messages = [
+      `Welcome back, ${firstName}! ${petCount > 0 ? `${petNames.join(', ')} ${petCount === 1 ? 'is' : 'are'} ready for today.` : 'Looking forward to meeting your furry friends.'}${upcomingCount > 0 ? ` You have ${upcomingCount} upcoming visit${upcomingCount > 1 ? 's' : ''}.` : ''}`,
+      `Good day, ${firstName}! ${petCount > 0 ? `${petNames.join(' & ')} ${petCount === 1 ? 'has' : 'have'} ${petCount} record${petCount > 1 ? 's' : ''} with us.` : ''}${todayCount > 0 ? ` Don't forget — you have a visit scheduled today!` : upcomingCount > 0 ? ` Your next visit is ${format(new Date(nextApt.date), 'MMM dd')}.` : ''}`,
+      `Hello, ${firstName}! ${petCount > 0 ? `Managing ${petCount} pet${petCount > 1 ? 's' : ''}${petNames.length > 0 ? ` including ${petNames.join(', ')}` : ''}.` : ''}${totalBalance > 0 ? ` You have an outstanding balance of ₱${totalBalance.toFixed(0)}.` : ''}${upcomingCount === 0 ? ` Ready to book your next visit?` : ''}`,
+      `Hi there, ${firstName}! ${todayCount > 0 ? `You have ${todayCount} visit${todayCount > 1 ? 's' : ''} today — see you soon!` : upcomingCount > 0 ? `${upcomingCount} visit${upcomingCount > 1 ? 's' : ''} coming up. Next: ${nextApt.petName} on ${format(new Date(nextApt.date), 'MMM dd')}.` : `No visits scheduled — everything looks good!`}`,
+      `Welcome, ${firstName}! ${petCount > 0 ? `${petNames[0]}${petCount > 1 ? ` and ${petCount - 1} other${petCount > 2 ? '' : ''} pet${petCount > 2 ? 's' : ''}` : ''} ${petCount === 1 ? 'is' : 'are'} in great health.` : ''}${activeInvoices.length > 0 ? ` ${activeInvoices.length} invoice${activeInvoices.length > 1 ? 's' : ''} pending.` : ''}`,
+    ];
+
+    const dayIndex = new Date().getDate() % messages.length;
+    return messages[dayIndex];
+  })();
+
+  const petsTabMessage = (() => {
+    const firstName = user?.displayName?.split(' ')[0] || 'Pet Parent';
+    const petCount = pets.length;
+    if (pets.length === 0) return `No pets registered yet, ${firstName}. Add your first companion to get started.`;
+    const petNames = pets.map(p => p.name);
+    const messages = [
+      `${petCount} registered pet${petCount > 1 ? 's' : ''}: ${petNames.join(', ')}. Click any card to view clinical details.`,
+      `Meet your furry family, ${firstName}! ${petNames[0]}${petCount > 1 ? ` and ${petCount - 1} other${petCount > 2 ? '' : ''} friend${petCount > 2 ? 's' : ''}` : ''} ${petCount === 1 ? 'is' : 'are'} all set.`,
+      `${firstName}'s Pet Gallery: ${petNames.join(' • ')} — ${petCount} companion${petCount > 1 ? 's' : ''} under your care.`,
+      `Caring for ${petCount} pet${petCount > 1 ? 's' : ''}? ${petNames.join(', ')} ${petCount === 1 ? 'has' : 'have'} everything they need.`,
+      `Your pets — ${petNames.join(', ')} — ${petCount} total. View profiles, track health, and manage records from here.`,
+    ];
+    return messages[new Date().getDate() % messages.length];
+  })();
+
+  const appointmentsTabMessage = (() => {
+    const firstName = user?.displayName?.split(' ')[0] || 'Pet Parent';
+    const confirmed = appointments.filter(a => a.status === 'confirmed' || a.status === 'unconfirmed');
+    const completed = appointments.filter(a => a.status === 'completed');
+    const cancelled = appointments.filter(a => a.status === 'cancelled');
+    const messages = [
+      `${confirmed.length} upcoming, ${completed.length} completed, ${cancelled.length} cancelled. Stay on top of your visit schedule.`,
+      `${firstName}, you have ${confirmed.length} visit${confirmed.length !== 1 ? 's' : ''} planned${confirmed.length > 0 ? ` — next: ${format(new Date(upcomingAppointments[0]?.date), 'MMM dd') || 'soon'}` : '. No pending visits right now.'}`,
+      `Appointment Hub: ${appointments.length} total visits. ${confirmed.length > 0 ? `${confirmed.length} pending${confirmed.length > 0 ? ` starting ${format(new Date(upcomingAppointments[0]?.date), 'MMM dd')}` : ''}` : 'All visits completed.'}`,
+      `Tracking ${appointments.length} appointments for your pets. ${todayCount > 0 ? `Today: ${todayCount} visit${todayCount > 1 ? 's' : ''}!` : 'No visits today.'}`,
+      `Your visit history: ${completed.length} done, ${confirmed.length} upcoming. ${cancelled.length > 0 ? `${cancelled.length} cancelled.` : ''}`,
+    ];
+    return messages[new Date().getDate() % messages.length];
+  })();
+
+  const billingTabMessage = (() => {
+    const firstName = user?.displayName?.split(' ')[0] || 'Pet Parent';
+    const paid = invoices.filter(i => i.status === 'paid');
+    const pending = invoices.filter(i => i.status === 'active');
+    const totalSpent = paid.reduce((sum, inv) => sum + inv.amount, 0);
+    const totalOwed = pending.reduce((sum, inv) => sum + inv.amount, 0);
+    const messages = [
+      `${invoices.length} invoice${invoices.length !== 1 ? 's' : ''} total. ${totalOwed > 0 ? `₱${totalOwed.toFixed(0)} outstanding.` : 'All clear — no outstanding balance.'}`,
+      `${firstName}'s Billing: ₱${totalSpent.toFixed(0)} spent, ${totalOwed > 0 ? `₱${totalOwed.toFixed(0)} pending.` : 'fully paid up.'}`,
+      `Financial Overview: ${pending.length} pending${pending.length > 0 ? ` (₱${totalOwed.toFixed(0)})` : ''}, ${paid.length} paid. ${totalOwed === 0 ? 'Great job staying current!' : ''}`,
+      `${invoices.length} transactions on file. Total invested: ₱${totalSpent.toFixed(0)}. ${totalOwed > 0 ? `Balance due: ₱${totalOwed.toFixed(0)}.` : ''}`,
+      `Invoice Tracker: ${paid.length} settled, ${pending.length} awaiting payment. ${totalOwed > 0 ? `${totalOwed > 0 ? 'Outstanding: ₱' + totalOwed.toFixed(0) : ''}` : 'Zero balance!'}`,
+    ];
+    return messages[new Date().getDate() % messages.length];
+  })();
+
+  const recordsTabMessage = (() => {
+    const firstName = user?.displayName?.split(' ')[0] || 'Pet Parent';
+    const messages = [
+      `${reports.length} medical record${reports.length !== 1 ? 's' : ''} stored securely. Access clinical summaries and diagnostic results anytime.`,
+      `${firstName}'s Medical Vault: ${reports.length} report${reports.length !== 1 ? 's' : ''} on file. Your pet's health history at your fingertips.`,
+      `EMR Archive: ${reports.length} clinical document${reports.length !== 1 ? 's' : ''}. Browse lab results, treatment plans, and visit summaries.`,
+      `${reports.length > 0 ? `${reports.length} record${reports.length > 1 ? 's' : ''} ready for review.` : 'No medical records yet — records will appear after your first visit.'}`,
+      `Health Records Hub: ${reports.length} files. ${reports.length > 0 ? 'View diagnoses, prescriptions, and clinical notes.' : 'Coming soon after your first appointment.'}`,
+    ];
+    return messages[new Date().getDate() % messages.length];
+  })();
+
   const handleNewPetSubmit = async (formData: any) => {
     console.log('[Pet Submit] handleNewPetSubmit called, user:', !!user, 'photo:', !!formData.photoFile);
     if (!user) {
@@ -193,6 +365,10 @@ export default function Dashboard() {
         medicalHistory: formData.medicalHistory || '',
         imageUrl,
         currentStatus: 'active',
+        consentPrivacy: formData.consentPrivacy || false,
+        consentTerms: formData.consentTerms || false,
+        consentPrivacyTimestamp: formData.consentPrivacyTimestamp || null,
+        consentTermsTimestamp: formData.consentTermsTimestamp || null,
         createdAt: serverTimestamp()
       });
       console.log('[Pet Submit] Firestore save complete');
@@ -274,10 +450,11 @@ export default function Dashboard() {
 
   const menuItems = [
     { id: 'overview', label: 'Dashboard Overview', icon: <LayoutDashboard className="w-5 h-5" /> },
-    { id: 'pets', label: 'My Pets', icon: <User className="w-5 h-5" /> },
+    { id: 'pets', label: 'My Pets', icon: <PawPrint className="w-5 h-5" /> },
     { id: 'appointments', label: 'My Appointments', icon: <Calendar className="w-5 h-5" /> },
     { id: 'billing', label: 'Billing & Invoices', icon: <FileText className="w-5 h-5" /> },
-    { id: 'records', label: 'Medical Reports', icon: <Clock className="w-5 h-5" /> },
+    { id: 'records', label: 'Medical Reports', icon: <FileText className="w-5 h-5" /> },
+    { id: 'profile', label: 'My Profile', icon: <User className="w-5 h-5" /> },
   ];
 
   const breadcrumbs = [
@@ -315,6 +492,16 @@ export default function Dashboard() {
           >
             {/* Premium Welcome Hero */}
             <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-6 md:p-10 text-white shadow-lg">
+              {/* Hero Background Image */}
+              <div className="absolute inset-0 opacity-20">
+                <img 
+                  src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=1400" 
+                  alt="Pets" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-900/50" />
+              
               {/* Animated Background Element */}
               <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] animate-pulse" />
               <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px]" />
@@ -343,7 +530,7 @@ export default function Dashboard() {
                       Welcome, <br />
                       <span className="text-emerald-400">{user?.displayName?.split(' ')[0] || 'Pet Parent'}</span>
                     </h1>
-                    <p className="text-slate-400 text-sm font-medium max-w-md">Your edvirontvet family health summary is ready.</p>
+                    <p className="text-slate-400 text-sm font-medium max-w-md">{welcomeMessage}</p>
                   </div>
                 </div>
                 <div className="flex flex-col gap-3">
@@ -362,9 +549,9 @@ export default function Dashboard() {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { label: 'Registered Pets', value: pets.length, icon: User, color: 'text-blue-500', bg: 'bg-blue-50', shadow: 'shadow-blue-500/10' },
+                { label: 'Registered Pets', value: pets.length, icon: PawPrint, color: 'text-blue-500', bg: 'bg-blue-50', shadow: 'shadow-blue-500/10' },
                 { label: 'Scheduled Visits', value: appointments.filter(a => a.status === 'confirmed' || a.status === 'unconfirmed').length, icon: Calendar, color: 'text-emerald-500', bg: 'bg-emerald-50', shadow: 'shadow-emerald-500/10' },
-                { label: 'Outstanding Balance', value: `PHP${invoices.filter(i => i.status === 'active').reduce((sum, inv) => sum + inv.amount, 0).toFixed(0)}`, icon: FileText, color: 'text-rose-500', bg: 'bg-rose-50', shadow: 'shadow-rose-500/10' }
+                { label: 'Outstanding Balance', value: `₱${invoices.filter(i => i.status === 'active').reduce((sum, inv) => sum + inv.amount, 0).toFixed(0)}`, icon: FileText, color: 'text-rose-500', bg: 'bg-rose-50', shadow: 'shadow-rose-500/10' }
               ].map((stat, i) => (
                 <div key={i} className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
                   <div className="relative z-10">
@@ -485,7 +672,7 @@ export default function Dashboard() {
                     {[
                       { label: 'Register Pet', icon: Plus, tab: 'pets', color: 'text-emerald-400' },
                       { label: 'Invoices', icon: FileText, tab: 'billing', color: 'text-amber-400' },
-                      { label: 'EMR Vault', icon: Clock, tab: 'records', color: 'text-indigo-400' },
+                      { label: 'EMR Vault', icon: FileText, tab: 'records', color: 'text-indigo-400' },
                       { label: 'Messages', icon: AlertCircle, tab: 'overview', color: 'text-rose-400' }
                     ].map((action, i) => (
                       <button 
@@ -518,11 +705,11 @@ export default function Dashboard() {
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
                   <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600">
-                    <User className="w-5 h-5" />
+                    <PawPrint className="w-5 h-5" />
                   </div>
                   My Beloved Pets
                 </h2>
-                <p className="text-slate-500 mt-1 text-sm font-medium">Detailed clinical oversight for your companions.</p>
+                <p className="text-slate-500 mt-1 text-sm font-medium">{petsTabMessage}</p>
               </div>
             </div>
             
@@ -601,7 +788,7 @@ export default function Dashboard() {
                   </div>
                   My Appointments
                 </h2>
-                <p className="text-slate-500 mt-1 text-sm font-medium">All your appointments - upcoming and past.</p>
+                <p className="text-slate-500 mt-1 text-sm font-medium">{appointmentsTabMessage}</p>
               </div>
               <button
                 onClick={() => navigate('/book-appointment')}
@@ -737,7 +924,7 @@ export default function Dashboard() {
                   </div>
                   Financial Records
                 </h2>
-                <p className="text-slate-500 mt-1 text-sm font-medium">Transparency in your pet's healthcare investments.</p>
+                <p className="text-slate-500 mt-1 text-sm font-medium">{billingTabMessage}</p>
               </div>
             </div>
 
@@ -760,7 +947,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="flex flex-col items-center md:items-end gap-1">
-                        <p className="text-xl font-bold text-slate-900">PHP${inv.amount.toFixed(2)}</p>
+                        <p className="text-xl font-bold text-slate-900">₱{inv.amount.toFixed(2)}</p>
                         <div className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-md text-[10px] font-semibold ${inv.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
                           <div className={`w-1.5 h-1.5 rounded-full ${inv.status === 'paid' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
                           {inv.status}
@@ -788,7 +975,7 @@ export default function Dashboard() {
                   </div>
                   EMR Vault
                 </h2>
-                <p className="text-slate-500 mt-1 text-sm font-medium">Secure access to clinical summaries and diagnostic results.</p>
+                <p className="text-slate-500 mt-1 text-sm font-medium">{recordsTabMessage}</p>
               </div>
             </div>
 
@@ -822,6 +1009,232 @@ export default function Dashboard() {
                   </button>
                 </div>
               ))}
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'profile' && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="max-w-2xl mx-auto space-y-6"
+          >
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-violet-50 rounded-lg flex items-center justify-center text-violet-600">
+                    <User className="w-5 h-5" />
+                  </div>
+                  My Profile
+                </h2>
+                <p className="text-slate-500 mt-1 text-sm font-medium">Manage your account details and contact information.</p>
+              </div>
+              {!isProfileEditing && (
+                <button
+                  onClick={() => setIsProfileEditing(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-all shadow-sm"
+                >
+                  <Edit className="w-4 h-4" /> Edit Profile
+                </button>
+              )}
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-slate-50">
+                <div className="flex items-center gap-4">
+                  {isProfileEditing ? (
+                    <div className="relative group">
+                      <img 
+                        src={profilePhotoPreview || user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName || user?.email}&background=7c3aed&color=fff`} 
+                        alt={user?.displayName} 
+                        className="w-16 h-16 rounded-xl object-cover border-2 border-slate-100"
+                        referrerPolicy="no-referrer"
+                      />
+                      <label className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setProfilePhotoFile(file);
+                              const reader = new FileReader();
+                              reader.onloadend = () => setProfilePhotoPreview(reader.result as string);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                        <Camera className="w-5 h-5 text-white" />
+                      </label>
+                    </div>
+                  ) : (
+                    <img 
+                      src={profilePhotoPreview || user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName || user?.email}&background=7c3aed&color=fff`} 
+                      alt={user?.displayName} 
+                      className="w-16 h-16 rounded-xl object-cover border-2 border-slate-100"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">{user?.displayName || 'Pet Parent'}</h3>
+                    <p className="text-sm text-slate-400">{user?.email}</p>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-600 text-[10px] font-bold uppercase rounded-md mt-1">
+                      {user?.role} Account
+                    </span>
+                    {isProfileEditing && (
+                      <p className="text-[10px] text-slate-400 mt-1">Click photo to change</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1 block">Full Name</label>
+                  {isProfileEditing ? (
+                    <input
+                      type="text"
+                      value={profileData.displayName}
+                      onChange={(e) => setProfileData({ ...profileData, displayName: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500/10 focus:border-violet-400 outline-none transition-all"
+                    />
+                  ) : (
+                    <p className="text-sm font-medium text-slate-900">{profileData.displayName || '—'}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1 block">Email Address</label>
+                  <p className="text-sm font-medium text-slate-900">{user?.email}</p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1 block">Phone Number</label>
+                  {isProfileEditing ? (
+                    <input
+                      type="tel"
+                      value={profileData.phone}
+                      onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                      placeholder="Enter phone number"
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500/10 focus:border-violet-400 outline-none transition-all"
+                    />
+                  ) : (
+                    <p className="text-sm font-medium text-slate-900">{profileData.phone || '—'}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1 block">Home Address</label>
+                  {isProfileEditing ? (
+                    <textarea
+                      value={profileData.address}
+                      onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
+                      placeholder="Enter your address"
+                      rows={3}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500/10 focus:border-violet-400 outline-none transition-all resize-none"
+                    />
+                  ) : (
+                    <p className="text-sm font-medium text-slate-900">{profileData.address || '—'}</p>
+                  )}
+                </div>
+
+                {!isProfileEditing && (consentTimestamps.privacy || consentTimestamps.terms) && (
+                  <div className="pt-4 border-t border-slate-100">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Consent Records</p>
+                    
+                    {consentTimestamps.privacy && (
+                      <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50/50 border border-emerald-100">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">Data Privacy Consent</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Given on {new Date(consentTimestamps.privacy).toLocaleString('en-US', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric', 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {consentTimestamps.terms && (
+                      <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50/50 border border-emerald-100 mt-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">Terms & Conditions</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Accepted on {new Date(consentTimestamps.terms).toLocaleString('en-US', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric', 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {isProfileEditing && (
+                  <div className="pt-4 border-t border-slate-100">
+                    <div className="space-y-3 mb-4">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Consent Required</p>
+                      
+                      <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50/50 cursor-pointer hover:bg-slate-50 transition-all">
+                        <input
+                          type="checkbox"
+                          checked={consentPrivacy}
+                          onChange={(e) => setConsentPrivacy(e.target.checked)}
+                          className="mt-0.5 w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500/20 focus:ring-2"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">Data Privacy Consent</p>
+                          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                            I consent to the collection and processing of my personal data in accordance with the Data Privacy Act. I understand that my information will be used solely for veterinary services, appointment scheduling, and account management.
+                          </p>
+                        </div>
+                      </label>
+
+                      <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50/50 cursor-pointer hover:bg-slate-50 transition-all">
+                        <input
+                          type="checkbox"
+                          checked={consentTerms}
+                          onChange={(e) => setConsentTerms(e.target.checked)}
+                          className="mt-0.5 w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500/20 focus:ring-2"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">Terms & Conditions</p>
+                          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                            I agree to the Terms of Service including: accurate information provision, responsible pet care, timely appointment attendance, and compliance with clinic policies. I understand that false information may result in service denial.
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => { setIsProfileEditing(false); setProfilePhotoFile(null); setProfilePhotoPreview(user?.photoURL || ''); }}
+                        className="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-all"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveProfile}
+                        disabled={savingProfile || !consentPrivacy || !consentTerms}
+                        className="flex-1 py-2.5 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        {savingProfile ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
         )}

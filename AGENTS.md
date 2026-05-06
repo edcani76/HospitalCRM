@@ -3,7 +3,7 @@
 ## Goal
 Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix timestamp display, add full service management to Edit Appointment matching Create Appointment, build Visit Summary tab, modernize portal dashboard UI/UX, integrate Google Drive via server proxy, build unified service catalog with provider-resource mapping, rebuild customer booking with doctor carousel and dynamic availability, and enhance patient records with full clinical details.
 
-## Current Status (2026-05-06)
+## Current Status (2026-05-07)
 
 ### ✅ Completed Features
 
@@ -127,10 +127,72 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
     - PetDialog form: added Microchip ID input and Medical History textarea
     - All pet creation paths (Dashboard, BookAppointment) save new fields to Firestore
 
+19. **Profile Photo Editing (Customer Portal)**
+    - Camera icon overlay on hover when editing profile
+    - File picker for photo upload with instant preview
+    - Photo uploaded to Google Drive via `uploadToGoogleDrive` helper
+    - `photoURL` saved to Firestore `users` collection
+    - Hint text "Click photo to change" shown during edit mode
+
+20. **Pet Edit Dialog Data Population**
+    - `PetDialog` now populates all fields when opened in edit mode
+    - Handles `species`/`breed` with "Other" custom values correctly
+    - Preserves existing pet photo as preview until new photo selected
+    - Fields populated: species, breed, weight, dateOfBirth, gender, bloodType, color, microchipId, medicalHistory
+
+21. **Full Calendar Booking Integration**
+    - Replaced 8-day picker with full `Calendar` component in BookAppointment
+    - Calendar supports `minDate` (today) and `disabledDays` for unavailable dates
+    - Past dates disabled, weekends enabled
+    - Auto-selection via `?doctorId=X` URL parameter
+
+22. **Dynamic Dashboard Messages**
+    - 5 rotating welcome messages per tab (overview, pets, appointments, billing, records)
+    - Messages include personalized data: pet names, appointment counts, balances
+    - Daily rotation based on `new Date().getDate() % messages.length`
+
+23. **Notification Bell (Customer Portal)**
+    - Fetches notifications from Firestore on mount
+    - Dropdown displays unread notifications
+    - Click marks as read via `markAsRead` function
+    - Polls every 30 seconds for fresh data
+    - Badge shows unread count
+
+24. **Sidebar Toggle Modernization**
+    - Light-filled circle centered on border between sidebar and content
+    - Applied to both `DashboardLayout.tsx` and `crm-layout.tsx`
+    - Hover state with subtle background transition
+
+25. **Currency & Icon Standardization**
+    - All currency displays use `₱` symbol (removed "PHP", "PHP$")
+    - Pet icons changed to `PawPrint` across all pages
+    - Report/EMR icons changed to `FileText`
+
+26. **TypeScript Fixes**
+    - Added `'profile'` to `activeTab` type union in Dashboard.tsx
+    - Fixed invoice status comparison (`'pending'` → `'active'` per Invoice type)
+    - Removed invalid `appointments` prop from Calendar component usage
+
+27. **Data Privacy & T&Cs Consent**
+    - Added consent checkboxes to Profile Edit (Dashboard.tsx):
+      - "Data Privacy Consent" - consent to collection/processing of personal data per Data Privacy Act
+      - "Terms & Conditions" - agreement to Terms of Service
+    - Save button disabled until both consents are checked
+    - Consent stored in Firestore with individual timestamps:
+      - `consentPrivacyTimestamp` - when privacy consent was given
+      - `consentTermsTimestamp` - when terms were accepted
+    - Profile page displays consent records with formatted timestamps
+    - Added consent checkboxes to Pet Registration (pet-dialog.tsx):
+      - Same consent requirements for new patient registration
+      - Pet health data processing consent included
+      - Timestamps saved to `pets` collection
+    - Consent state persists across sessions (loaded from Firestore on mount)
+
 ### 📝 Recent Commits (branch: `codex/pr-1`)
 
 | Commit | Description |
 |--------|-------------|
+| `pending` | Add profile photo editing, pet dialog population, TypeScript fixes, data privacy & T&Cs consent with timestamps |
 | `cf1289f` | Fix customer portal bugs, rebuild BookAppointment with doctor carousel and dynamic availability |
 | `f412029` | Fix breadcrumb navigation - use onClick handlers with tab state for Dashboard pages |
 | `dc2f3a0` | Add breadcrumb navigation to customer portal pages |
@@ -178,14 +240,15 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `src/pages/crm/appointment-details-page.tsx` - Service management, notes display
 - `src/pages/crm/admin-services.tsx` - Admin UI for service catalog, provider/resource management
 - `src/pages/BookAppointment.tsx` - Doctor carousel, dynamic availability, service selection
-- `src/pages/Dashboard.tsx` - My Appointments page, appointment management, pet age formatting
+- `src/pages/Dashboard.tsx` - My Appointments page, appointment management, pet age formatting, profile photo editing, data privacy & T&Cs consent with timestamps
 - `src/pages/PetProfile.tsx` - Enhanced clinical details, breadcrumb navigation
-- `src/components/DashboardLayout.tsx` - Sidebar/layout with mobile/desktop state management, breadcrumb integration
-- `src/components/crm-layout.tsx` - CRM portal layout with mobile sidebar
+- `src/components/DashboardLayout.tsx` - Sidebar/layout with mobile/desktop state management, breadcrumb integration, notification bell
+- `src/components/crm-layout.tsx` - CRM portal layout with mobile sidebar, sidebar toggle
 - `src/components/ServiceSelector.tsx` - Reusable service multi-select with provider filtering
 - `src/components/invoice-pdf.tsx` - PDF invoice generation component
-- `src/components/crm/pet-dialog.tsx` - Pet registration with Microchip ID, medical history
+- `src/components/crm/pet-dialog.tsx` - Pet registration with Microchip ID, medical history, edit mode population, data privacy & T&Cs consent with timestamps
 - `src/components/ui/breadcrumb.tsx` - New breadcrumb component with onClick support
+- `src/components/ui/calendar.tsx` - Enhanced calendar with minDate and disabledDays support
 - `src/components/ui/page-header.tsx` - Page header with back button support
 - `server.ts` - Express API for Drive uploads, OAuth, token refresh
 - `src/lib/google-drive.ts` - Client-side proxy for Drive uploads
@@ -193,6 +256,7 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `src/lib/storage.ts` - Google Drive wrapper (removed Firebase Storage)
 - `src/lib/file-upload.ts` - Google Drive upload helper
 - `src/types.ts` - Pet type extended, ServiceCatalogItem, Resource, notification types
+- `src/pages/Login.tsx` - Client redirect defaults to `/dashboard`
 - `scripts/seed-service-catalog.ts` - Extended seed with provider/resource mapping, resources creation
 - `scripts/seed-emr-data.ts` - Comprehensive EMR seed data script
 - `scripts/migrate-pet-images-to-drive.ts` - Migration script for base64/Firebase images to Drive
@@ -211,3 +275,6 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - BookAppointment carousel uses fixed `height: 280px` with `flex` layout to prevent size jumps
 - `normalizeDoctorName()` strips "Dr." prefix to prevent duplicate display
 - `formatPetAge()` converts to months when < 1 year using `date-fns` differenceInMonths
+- `pet-dialog.tsx` photo preview: if `pet.imageUrl` exists and doesn't start with `data:`, sets preview directly
+- Calendar component disables days by checking `day < startOfToday()` or custom `disabledDays` set
+- Bell notification dropdown renders `Notification` objects from `getNotifications` and calls `markAsRead` on click

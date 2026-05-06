@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { auth, db, doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Doctor, Pet } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar as CalendarIcon, Clock, User, Stethoscope, ArrowRight, CheckCircle, AlertCircle, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Stethoscope, ArrowRight, CheckCircle, AlertCircle, Plus, ChevronLeft, ChevronRight, PawPrint } from 'lucide-react';
 import { format, addDays, startOfToday, getDay, isToday, isBefore, isSameDay, startOfDay } from 'date-fns';
 import { Calendar } from '../components/ui/calendar';
 import PetDialog from '../components/crm/pet-dialog';
@@ -16,6 +16,7 @@ import { Breadcrumb } from '../components/ui/breadcrumb';
 export default function BookAppointment() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [doctorIndex, setDoctorIndex] = useState(0);
@@ -102,6 +103,18 @@ export default function BookAppointment() {
     if (user) fetchPets();
     fetchCatalog();
   }, [user]);
+
+  useEffect(() => {
+    if (doctors.length > 0 && !loading) {
+      const doctorId = searchParams.get('doctorId');
+      if (doctorId) {
+        const index = doctors.findIndex(d => d.id === doctorId);
+        if (index !== -1) {
+          setDoctorIndex(index);
+        }
+      }
+    }
+  }, [doctors, loading, searchParams]);
 
   useEffect(() => {
     if (!doctor || !selectedDate) {
@@ -531,7 +544,7 @@ export default function BookAppointment() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <label className="text-lg font-bold flex items-center gap-2">
-                  <User className="w-5 h-5 text-emerald-600" />
+                  <PawPrint className="w-5 h-5 text-emerald-600" />
                   Select Pet
                 </label>
                 <button

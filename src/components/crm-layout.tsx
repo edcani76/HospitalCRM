@@ -348,7 +348,7 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-background relative">
       {/* Mobile sidebar overlay */}
       {!sidebarDesktop && sidebarOpen && (
         <div
@@ -366,16 +366,8 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
             : cn("fixed inset-y-0 left-0 w-64 transition-transform duration-300", sidebarOpen ? "translate-x-0" : "-translate-x-full")
         )}
       >
-        {/* Sidebar Header with Toggle */}
+        {/* Sidebar Header - toggle removed, positioned on border instead */}
         <div className="p-4 border-b border-border flex items-center gap-2">
-          <button
-            onClick={() => sidebarDesktop ? setSidebarOpen(!sidebarOpen) : setSidebarOpen(false)}
-            className="p-1.5 rounded-lg hover:bg-muted/50 transition-colors shrink-0"
-            title={sidebarDesktop ? (sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar") : "Close Menu"}
-          >
-            {sidebarDesktop ? (sidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />) : <ChevronLeft size={20} />}
-          </button>
-          
           <div className={cn("flex items-center gap-2 overflow-hidden transition-opacity duration-300", !sidebarOpen && "opacity-0 invisible w-0")}>
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
               <ShieldCheck className="text-primary-foreground" size={18} />
@@ -420,6 +412,17 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
           </button>
         </div>
       </aside>
+
+      {/* Desktop toggle button - aligned with header, centered on the border */}
+      {sidebarDesktop && (
+        <button 
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="absolute z-50 w-8 h-8 rounded-full bg-slate-100 border border-slate-200/50 shadow-lg flex items-center justify-center text-muted-foreground hover:bg-slate-200 hover:text-foreground transition-all"
+          style={{ top: '28px', left: sidebarOpen ? '256px' : '64px', transform: 'translateX(-50%)' }}
+        >
+          {sidebarOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+        </button>
+      )}
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">

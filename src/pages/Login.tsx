@@ -14,28 +14,29 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
-  const from = location.state?.from?.pathname || "/dashboard";
 
   React.useEffect(() => {
     if (!authLoading && user) {
-      // Role-based destination - redirect to CRM portal
-      let dashboardPath = '/crm/dashboard';
-      if (user.role === 'admin' || user.role === 'staff') dashboardPath = '/crm/admin-dashboard';
-      else if (user.role === 'lab') dashboardPath = '/crm/lab-dashboard';
-      else if (user.role === 'pharmacist') dashboardPath = '/crm/pharmacist-dashboard';
-      else if (user.role === 'doctor') dashboardPath = '/crm/doctor-dashboard';
+      // Role-based destination
+      const isCRMUser = ['admin', 'staff', 'lab', 'pharmacist', 'doctor'].includes(user.role as string);
+      const dashboardPath = isCRMUser 
+        ? (user.role === 'doctor' ? '/crm/doctor-dashboard' : 
+           user.role === 'lab' ? '/crm/lab-dashboard' :
+           user.role === 'pharmacist' ? '/crm/pharmacist-dashboard' : 
+           '/crm/admin-dashboard')
+        : '/dashboard';
       
-      // If we came from a specific page, check if it's the right dashboard for the role
+      const fromPath = location.state?.from?.pathname;
       const restrictedPaths = ['/admin', '/lab', '/pharmacy', '/dashboard'].filter(p => p !== dashboardPath);
-      const isRestricted = restrictedPaths.some(p => from.startsWith(p));
+      const isRestricted = fromPath && restrictedPaths.some(p => fromPath.startsWith(p));
       
-      if (isRestricted) {
-        navigate(dashboardPath, { replace: true });
+      if (fromPath && !isRestricted && (isCRMUser ? fromPath.startsWith('/crm') : !fromPath.startsWith('/crm'))) {
+        navigate(fromPath, { replace: true });
       } else {
-        navigate(from, { replace: true });
+        navigate(dashboardPath, { replace: true });
       }
     }
-  }, [user, authLoading, navigate, from]);
+  }, [user, authLoading, navigate, location]);
 
   const getRedirectPath = (role: string) => {
     const isCRMUser = ['admin', 'staff', 'lab', 'pharmacist', 'doctor'].includes(role);

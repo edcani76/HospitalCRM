@@ -207,7 +207,7 @@ export default function AdminDashboard() {
         />
         <StatsCard
           title="Monthly Revenue"
-          value={`PHP${stats.monthlyRevenue.toLocaleString()}`}
+          value={`₱${stats.monthlyRevenue.toLocaleString()}`}
           icon={CreditCard}
           trend={{ value: 8, isPositive: true }}
         />
