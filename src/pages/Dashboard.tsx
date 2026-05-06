@@ -44,21 +44,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  useEffect(() => {
-    const tab = (location.state as any)?.tab;
-    if (tab) setActiveTab(tab);
-  }, []);
-
-  useEffect(() => {
-    if (!user || !user.uid) return;
-    if (user.role !== 'client') {
-      let path = '/crm/admin-dashboard';
-      if (user.role === 'doctor') path = '/crm/doctor-dashboard';
-      else if (user.role === 'lab') path = '/crm/lab-dashboard';
-      else if (user.role === 'pharmacist') path = '/crm/pharmacist-dashboard';
-      navigate(path, { replace: true });
-    }
-  }, [user, navigate]);
+  const normalizeDoctorName = (name: string) => {
+    return name.replace(/^Dr\.?\s*/i, '');
+  };
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
@@ -77,6 +65,22 @@ export default function Dashboard() {
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [rescheduling, setRescheduling] = useState(false);
+
+  useEffect(() => {
+    const tab = (location.state as any)?.tab;
+    if (tab) setActiveTab(tab);
+  }, []);
+
+  useEffect(() => {
+    if (!user || !user.uid) return;
+    if (user.role !== 'client') {
+      let path = '/crm/admin-dashboard';
+      if (user.role === 'doctor') path = '/crm/doctor-dashboard';
+      else if (user.role === 'lab') path = '/crm/lab-dashboard';
+      else if (user.role === 'pharmacist') path = '/crm/pharmacist-dashboard';
+      navigate(path, { replace: true });
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     if (!user || !user.uid) return;
@@ -424,7 +428,7 @@ export default function Dashboard() {
                                 {apt.petName}'s Visit
                               </h4>
                               <p className="text-slate-400 text-xs mt-0.5">
-                                Dr. {apt.doctorName} • <span className="text-slate-900">{apt.time}</span>
+                                Dr. {normalizeDoctorName(apt.doctorName)} • <span className="text-slate-900">{apt.time}</span>
                               </p>
                             </div>
                             <button
@@ -578,16 +582,16 @@ export default function Dashboard() {
                   <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
                     <Calendar className="w-5 h-5" />
                   </div>
-                  Visit History
+                  My Appointments
                 </h2>
                 <p className="text-slate-500 mt-1 text-sm font-medium">All your appointments - upcoming and past.</p>
               </div>
               <button
-                onClick={() => setActiveTab('overview')}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all"
+                onClick={() => navigate('/book-appointment')}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-all shadow-sm"
               >
-                <ChevronRight className="w-4 h-4 rotate-180" />
-                Back to Overview
+                <Plus className="w-4 h-4" />
+                Book New Appointment
               </button>
             </div>
             
@@ -630,7 +634,7 @@ export default function Dashboard() {
                                   )}
                                 </div>
                                 <p className="text-xs font-medium text-slate-400">
-                                  Dr. {app.doctorName} • <span className="text-slate-900">{app.time}</span>
+                                  Dr. {normalizeDoctorName(app.doctorName)} • <span className="text-slate-900">{app.time}</span>
                                 </p>
                               </div>
                             </div>
@@ -684,7 +688,7 @@ export default function Dashboard() {
                                   </Badge>
                                 </div>
                                 <p className="text-xs font-medium text-slate-400">
-                                  Dr. {app.doctorName} • <span className="text-slate-900">{app.time}</span>
+                                  Dr. {normalizeDoctorName(app.doctorName)} • <span className="text-slate-900">{app.time}</span>
                                 </p>
                               </div>
                             </div>
@@ -839,7 +843,7 @@ export default function Dashboard() {
                 </div>
                 <div className="min-w-0">
                   <p className="font-bold text-slate-900">{manageApt.petName}'s Visit</p>
-                  <p className="text-xs text-slate-500">Dr. {manageApt.doctorName}</p>
+                  <p className="text-xs text-slate-500">Dr. {normalizeDoctorName(manageApt.doctorName)}</p>
                 </div>
               </div>
               <div className="flex items-center justify-between text-sm">
@@ -937,7 +941,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
           <div className="bg-indigo-600 text-white p-4">
             <h3 className="text-lg font-bold">Reschedule Appointment</h3>
-            <p className="text-indigo-100 text-xs mt-1">{manageApt.petName}'s visit with Dr. {manageApt.doctorName}</p>
+            <p className="text-indigo-100 text-xs mt-1">{manageApt.petName}'s visit with Dr. {normalizeDoctorName(manageApt.doctorName)}</p>
           </div>
           <div className="p-6 space-y-4">
             <div>

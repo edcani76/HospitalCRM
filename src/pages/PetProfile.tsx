@@ -30,6 +30,7 @@ import { PageHeader } from '../components/ui/page-header';
 export default function PetProfile() {
   const { user: currentUser } = useAuth();
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [pet, setPet] = useState<Pet | null>(null);
   const [owner, setOwner] = useState<UserProfile | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
@@ -134,8 +135,6 @@ export default function PetProfile() {
       </div>
     );
   }
-
-  const navigate = useNavigate();
 
   return (
     <DashboardLayout
