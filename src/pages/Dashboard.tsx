@@ -251,6 +251,13 @@ export default function Dashboard() {
     { id: 'records', label: 'Medical Reports', icon: <Clock className="w-5 h-5" /> },
   ];
 
+  const breadcrumbs = [
+    { name: 'Dashboard', path: '/dashboard' },
+    ...(activeTab !== 'overview' ? [{
+      name: menuItems.find(m => m.id === activeTab)?.label || activeTab,
+    }] : []),
+  ];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -267,6 +274,7 @@ export default function Dashboard() {
       activeTab={activeTab}
       onTabChange={setActiveTab}
       title="Pet Parent Portal"
+      breadcrumbs={breadcrumbs}
     >
       <div className="space-y-12 pb-12">
         {activeTab === 'overview' && (

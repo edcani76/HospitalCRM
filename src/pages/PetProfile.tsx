@@ -142,6 +142,11 @@ export default function PetProfile() {
       activeTab={currentUser?.role === 'admin' ? 'emr' : 'pets'}
       onTabChange={() => {}}
       title={`${pet.name}'s Medical Profile`}
+      breadcrumbs={[
+        { name: 'Dashboard', path: currentUser?.role === 'admin' ? '/admin' : '/dashboard' },
+        { name: 'My Pets', path: currentUser?.role === 'admin' ? '/crm/patients' : '/dashboard' },
+        { name: pet.name },
+      ]}
     >
       <div className="max-w-6xl mx-auto space-y-8">
         <PageHeader

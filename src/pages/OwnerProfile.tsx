@@ -153,6 +153,11 @@ export default function OwnerProfile() {
       activeTab={currentUser?.role === 'admin' ? 'users' : 'overview'}
       onTabChange={() => {}}
       title="User Profile Detail"
+      breadcrumbs={[
+        { name: 'Dashboard', path: currentUser?.role === 'admin' ? '/admin' : '/dashboard' },
+        { name: 'Users', path: currentUser?.role === 'admin' ? '/crm/users' : '/dashboard' },
+        { name: owner.displayName || 'Profile' },
+      ]}
     >
       <div className="max-w-6xl mx-auto space-y-8">
         <PageHeader

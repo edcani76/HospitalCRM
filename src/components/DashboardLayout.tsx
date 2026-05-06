@@ -7,12 +7,18 @@ import {
 import { UserProfile } from '../types';
 import { auth, signOut } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
+import { Breadcrumb } from './ui/breadcrumb';
 
 interface MenuItem {
   id: string;
   label: string;
   icon: React.ReactNode;
   roles?: string[];
+}
+
+interface BreadcrumbItem {
+  name: string;
+  path?: string;
 }
 
 interface DashboardLayoutProps {
@@ -22,6 +28,7 @@ interface DashboardLayoutProps {
   onTabChange: (id: any) => void;
   user: UserProfile | null;
   title?: string;
+  breadcrumbs?: BreadcrumbItem[];
 }
 
 export default function DashboardLayout({ 
@@ -30,7 +37,8 @@ export default function DashboardLayout({
   activeTab, 
   onTabChange, 
   user,
-  title = "Dashboard"
+  title = "Dashboard",
+  breadcrumbs
 }: DashboardLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expanded, setExpanded] = useState(true);
@@ -183,18 +191,21 @@ export default function DashboardLayout({
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative min-w-0">
         {/* Header */}
-        <header className="h-12 bg-white border-b border-slate-100 px-3 md:px-4 flex items-center justify-between shrink-0 z-30">
-          <div className="flex items-center gap-2 min-w-0">
-            {/* Hamburger for mobile */}
-            {isMobile && !mobileOpen && (
-              <button
-                onClick={() => setMobileOpen(true)}
-                className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500 shrink-0"
-              >
-                <Menu className="w-4 h-4" />
-              </button>
-            )}
-            <h1 className="text-sm font-semibold text-slate-900 leading-none truncate">{title}</h1>
+        <header className="h-auto min-h-12 bg-white border-b border-slate-100 px-3 md:px-4 py-2 flex items-center justify-between shrink-0 z-30">
+          <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex items-center gap-2">
+              {/* Hamburger for mobile */}
+              {isMobile && !mobileOpen && (
+                <button
+                  onClick={() => setMobileOpen(true)}
+                  className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500 shrink-0"
+                >
+                  <Menu className="w-4 h-4" />
+                </button>
+              )}
+              <h1 className="text-sm font-semibold text-slate-900 leading-none truncate">{title}</h1>
+            </div>
+            <Breadcrumb items={breadcrumbs} />
           </div>
 
           <div className="flex items-center gap-2">

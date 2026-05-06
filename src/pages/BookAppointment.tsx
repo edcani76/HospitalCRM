@@ -10,6 +10,7 @@ import PetDialog from '../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../lib/google-drive';
 import { ServiceSelector } from '../components/ServiceSelector';
 import { PageHeader } from '../components/ui/page-header';
+import { Breadcrumb } from '../components/ui/breadcrumb';
 
 export default function BookAppointment() {
   const [searchParams] = useSearchParams();
@@ -244,6 +245,13 @@ export default function BookAppointment() {
 
   return (
     <div className="max-w-5xl mx-auto">
+      <Breadcrumb
+        items={[
+          { name: 'Dashboard', path: '/dashboard' },
+          { name: 'Our Doctors', path: '/doctors' },
+          { name: 'Book Visit' },
+        ]}
+      />
       <PageHeader
         title="Book Visit"
         subtitle="Select your preferred date and time for your pet's consultation."
