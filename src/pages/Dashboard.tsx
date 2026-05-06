@@ -275,7 +275,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
                 { label: 'Registered Pets', value: pets.length, icon: User, color: 'text-blue-500', bg: 'bg-blue-50', shadow: 'shadow-blue-500/10' },
-                { label: 'Confirmed Visits', value: appointments.filter(a => a.status === 'confirmed').length, icon: Calendar, color: 'text-emerald-500', bg: 'bg-emerald-50', shadow: 'shadow-emerald-500/10' },
+                { label: 'Scheduled Visits', value: appointments.filter(a => a.status === 'confirmed' || a.status === 'unconfirmed').length, icon: Calendar, color: 'text-emerald-500', bg: 'bg-emerald-50', shadow: 'shadow-emerald-500/10' },
                 { label: 'Outstanding Balance', value: `PHP${invoices.filter(i => i.status === 'active').reduce((sum, inv) => sum + inv.amount, 0).toFixed(0)}`, icon: FileText, color: 'text-rose-500', bg: 'bg-rose-50', shadow: 'shadow-rose-500/10' }
               ].map((stat, i) => (
                 <div key={i} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 transition-all group relative overflow-hidden">
@@ -302,45 +302,63 @@ export default function Dashboard() {
                   <Link to="/appointments" className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-primary transition-colors">View All History</Link>
                 </div>
                 
-                {appointments.find(a => a.status === 'confirmed') ? (
-                  <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/40 border border-slate-100 flex flex-col md:flex-row items-center gap-8">
-                    <div className="w-24 h-24 bg-indigo-50 rounded-3xl flex flex-col items-center justify-center text-indigo-600 border border-indigo-100 shadow-inner">
-                      <span className="text-xs font-black uppercase tracking-tighter">
-                        {format(new Date(appointments.find(a => a.status === 'confirmed')!.date), 'MMM')}
-                      </span>
-                      <span className="text-4xl font-black leading-none">
-                        {format(new Date(appointments.find(a => a.status === 'confirmed')!.date), 'dd')}
-                      </span>
-                    </div>
-                    <div className="flex-1 text-center md:text-left">
-                      <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 rounded-full text-indigo-600 text-[10px] font-black uppercase tracking-widest mb-3">
-                        General Consultation
+                {(() => {
+                  const upcoming = appointments
+                    .filter(a => a.status !== 'cancelled' && a.status !== 'completed' && new Date(a.date) >= new Date(new Date().toDateString()))
+                    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                  const nextAppt = upcoming[0];
+                  
+                  if (!nextAppt) return (
+                    <div className="bg-white/40 p-12 rounded-[2.5rem] border-4 border-dashed border-slate-200 text-center space-y-4">
+                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm">
+                        <Calendar className="w-8 h-8 text-slate-200" />
                       </div>
-                      <h4 className="text-3xl font-black text-slate-900 leading-tight">
-                        {appointments.find(a => a.status === 'confirmed')?.petName}'s Visit
-                      </h4>
-                      <p className="text-slate-400 font-bold mt-1 text-lg">
-                        Dr. {appointments.find(a => a.status === 'confirmed')?.doctorName} • <span className="text-slate-900">{appointments.find(a => a.status === 'confirmed')?.time}</span>
-                      </p>
+                      <div>
+                        <p className="text-slate-400 text-lg font-black uppercase tracking-widest">No Active Visits</p>
+                        <p className="text-slate-400 font-medium">Keep your companions healthy by scheduling a routine checkup.</p>
+                      </div>
+                      <Link to="/doctors" className="inline-flex items-center gap-2 bg-white text-emerald-500 px-6 py-3 rounded-2xl font-black text-sm border border-emerald-100 shadow-sm hover:bg-emerald-50 transition-all">
+                        Browse Specialists <ArrowRight className="w-4 h-4" />
+                      </Link>
                     </div>
-                    <button className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20">
-                      Manage Visit
-                    </button>
-                  </div>
-                ) : (
-                  <div className="bg-white/40 p-12 rounded-[2.5rem] border-4 border-dashed border-slate-200 text-center space-y-4">
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm">
-                      <Calendar className="w-8 h-8 text-slate-200" />
+                  );
+
+                  const isUnconfirmed = nextAppt.status === 'unconfirmed';
+
+                  return (
+                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/40 border border-slate-100 flex flex-col md:flex-row items-center gap-8">
+                      <div className="w-24 h-24 bg-indigo-50 rounded-3xl flex flex-col items-center justify-center text-indigo-600 border border-indigo-100 shadow-inner">
+                        <span className="text-xs font-black uppercase tracking-tighter">
+                          {format(new Date(nextAppt.date), 'MMM')}
+                        </span>
+                        <span className="text-4xl font-black leading-none">
+                          {format(new Date(nextAppt.date), 'dd')}
+                        </span>
+                      </div>
+                      <div className="flex-1 text-center md:text-left">
+                        {isUnconfirmed && (
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full text-amber-600 text-[10px] font-black uppercase tracking-widest mb-3">
+                            Pending Confirmation
+                          </div>
+                        )}
+                        {!isUnconfirmed && (
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 rounded-full text-indigo-600 text-[10px] font-black uppercase tracking-widest mb-3">
+                            General Consultation
+                          </div>
+                        )}
+                        <h4 className="text-3xl font-black text-slate-900 leading-tight">
+                          {nextAppt.petName}'s Visit
+                        </h4>
+                        <p className="text-slate-400 font-bold mt-1 text-lg">
+                          Dr. {nextAppt.doctorName} • <span className="text-slate-900">{nextAppt.time}</span>
+                        </p>
+                      </div>
+                      <button className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20">
+                        Manage Visit
+                      </button>
                     </div>
-                    <div>
-                      <p className="text-slate-400 text-lg font-black uppercase tracking-widest">No Active Visits</p>
-                      <p className="text-slate-400 font-medium">Keep your companions healthy by scheduling a routine checkup.</p>
-                    </div>
-                    <Link to="/doctors" className="inline-flex items-center gap-2 bg-white text-emerald-500 px-6 py-3 rounded-2xl font-black text-sm border border-emerald-100 shadow-sm hover:bg-emerald-50 transition-all">
-                      Browse Specialists <ArrowRight className="w-4 h-4" />
-                    </Link>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               <div className="bg-slate-900 p-10 rounded-[3rem] text-white flex flex-col justify-between shadow-2xl shadow-slate-900/30">
