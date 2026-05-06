@@ -1,7 +1,7 @@
 # MyHospital PR1 - Agent Progress
 
 ## Goal
-Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix timestamp display, add full service management to Edit Appointment matching Create Appointment, build Visit Summary tab, modernize portal dashboard UI/UX, and integrate Google Drive via server proxy.
+Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix timestamp display, add full service management to Edit Appointment matching Create Appointment, build Visit Summary tab, modernize portal dashboard UI/UX, integrate Google Drive via server proxy, and build unified service catalog with provider-resource mapping.
 
 ## Current Status (2026-05-06)
 
@@ -92,10 +92,21 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
     - Download button on Billing tab generates and downloads PDF
     - Format: A4, clean layout with MediPaws branding
 
+14. **Service Catalog with Provider-Resource Mapping**
+    - `service_catalog` collection now includes `allowedProviderIds[]` and `requiredResourceIds[]`
+    - `resources` collection created with 12 resources (rooms + equipment)
+    - `src/components/ServiceSelector.tsx` - Reusable multi-select with search, consultation always required
+    - `src/pages/crm/admin-services.tsx` - Admin UI for managing services, providers, and resources
+    - Customer booking (`BookAppointment.tsx`) now shows service selection filtered by doctor
+    - 35 services seeded with provider/resource mapping
+    - Helper functions: `fetchServicesForProvider`, `fetchAllResources`, `ensureConsultationService`, `addServiceToCatalog`, `updateServiceProviders`, `updateServiceResources`
+
 ### 📝 Recent Commits (branch: `codex/pr-1`)
 
 | Commit | Description |
 |--------|-------------|
+| `ff11f99` | Add service catalog with provider-resource mapping, ServiceSelector, customer booking service selection, admin services page |
+| `2fc20c1` | Update project notes and documentation |
 | `4224388` | Add PDF invoice generation with @react-pdf/renderer |
 | `a662b29` | Update project notes and documentation |
 | `cdd0aed` | Fix seed script - use correct date field, remove dead code |
@@ -133,14 +144,18 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `src/pages/crm/emr-page.tsx` - EMR page with VisitSummaryTab, mode detection, Quick Start Visit, PDF download
 - `src/pages/crm/patient-profile.tsx` - Quick Start Visit, doctor selector
 - `src/pages/crm/appointment-details-page.tsx` - Service management, notes display
+- `src/pages/crm/admin-services.tsx` - Admin UI for service catalog, provider/resource management
+- `src/pages/BookAppointment.tsx` - Customer booking with service selection filtered by doctor
 - `src/pages/Dashboard.tsx` - Client dashboard with updated appointment logic, compact UI
 - `src/components/DashboardLayout.tsx` - Sidebar/layout with mobile/desktop state management
 - `src/components/crm-layout.tsx` - CRM portal layout with mobile sidebar
+- `src/components/ServiceSelector.tsx` - Reusable service multi-select with provider filtering
 - `src/components/invoice-pdf.tsx` - PDF invoice generation component
 - `server.ts` - Express API for Drive uploads, OAuth, token refresh
 - `src/lib/google-drive.ts` - Client-side proxy for Drive uploads
-- `src/lib/firestore-helpers.ts` - `fetchEncounters` uses `startedAt`, `fetchEmrRecords` uses `encounters`
-- `src/types.ts` - `ServiceCatalogItem` type, notification types updated
+- `src/lib/firestore-helpers.ts` - `fetchServicesForProvider`, `fetchAllResources`, service catalog helpers
+- `src/types.ts` - `ServiceCatalogItem` type with provider/resource mapping, `Resource` type, notification types updated
+- `scripts/seed-service-catalog.ts` - Extended seed with provider/resource mapping, resources creation
 - `scripts/seed-emr-data.ts` - Comprehensive EMR seed data script
 
 ### ⚙️ Critical Context
