@@ -34,12 +34,6 @@ function daysAgo(days: number): string {
   return d.toISOString().split('T')[0];
 }
 
-function futureDate(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
-}
-
 function timestamp(dateStr: string) {
   return new Date(dateStr);
 }
@@ -576,20 +570,6 @@ async function seedEndToEndData() {
     }
   }
 
-  // Create CRM-style invoices for the client dashboard (simplified invoices)
-  console.log('\n   Creating client dashboard invoices...');
-  for (const petName of Object.keys(createdEncounters)) {
-    const encounters = createdEncounters[petName];
-    const pet = petsByName[petName];
-    if (!pet) continue;
-
-    for (const enc of encounters) {
-      // Skip if already created (we already created CRM invoices above)
-      // These are the simplified invoices for the client dashboard
-      // Already handled by the invoices collection above
-    }
-  }
-
   // Create some attachments (medical records) for a few encounters
   console.log('\n   Creating sample attachments...');
   for (const petName of ['Buddy', 'Whiskers', 'Max']) {
@@ -606,7 +586,7 @@ async function seedEndToEndData() {
       fileUrl: 'https://example.com/sample-xray-report.pdf',
       storagePath: `sample/${petName.toLowerCase()}/xray-report.pdf`,
       uploadedBy: 'seed-script',
-      uploadedAt: timestamp(daysAgo(firstEnc.daysAgo || 10))
+      uploadedAt: timestamp(firstEnc.date)
     });
 
     await addDoc(collection(db, 'attachments'), {
@@ -617,7 +597,7 @@ async function seedEndToEndData() {
       fileUrl: 'https://example.com/sample-lab-results.pdf',
       storagePath: `sample/${petName.toLowerCase()}/lab-results.pdf`,
       uploadedBy: 'seed-script',
-      uploadedAt: timestamp(daysAgo(firstEnc.daysAgo || 10))
+      uploadedAt: timestamp(firstEnc.date)
     });
 
     console.log(`   Created attachments for ${petName}`);
