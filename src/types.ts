@@ -99,6 +99,19 @@ export interface ServiceCatalogItem {
   active: boolean;
   requiresClinicalRecord: boolean;
   inventoryItemId?: string;
+  durationMin?: number;
+  allowedProviderIds?: string[];
+  requiredResourceIds?: string[];
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export interface Resource {
+  id?: string;
+  name: string;
+  type: 'room' | 'equipment';
+  status: 'available' | 'in-use' | 'maintenance';
+  description?: string;
   createdAt?: any;
   updatedAt?: any;
 }

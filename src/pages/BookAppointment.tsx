@@ -8,6 +8,7 @@ import { Calendar, Clock, User, Stethoscope, ArrowRight, CheckCircle, AlertCircl
 import { format, addDays, startOfToday } from 'date-fns';
 import PetDialog from '../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../lib/google-drive';
+import { ServiceSelector } from '../components/ServiceSelector';
 
 export default function BookAppointment() {
   const [searchParams] = useSearchParams();
@@ -28,6 +29,8 @@ export default function BookAppointment() {
   const [notes, setNotes] = useState('');
   const [isPetDialogOpen, setIsPetDialogOpen] = useState(false);
   const [isSubmittingPet, setIsSubmittingPet] = useState(false);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [serviceCatalog, setServiceCatalog] = useState<any[]>([]);
 
   const timeSlots = [
     '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
@@ -75,8 +78,26 @@ export default function BookAppointment() {
       }
     };
 
+    const fetchCatalog = async () => {
+      try {
+        const q = query(collection(db, 'service_catalog'), where('active', '==', true));
+        const snapshot = await getDocs(q);
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setServiceCatalog(data);
+        
+        // Pre-select consultation
+        const consultation = data.find((s: any) => s.category === 'consultation');
+        if (consultation) {
+          setSelectedServices([consultation.id]);
+        }
+      } catch (err) {
+        console.error('Failed to load service catalog:', err);
+      }
+    };
+
     fetchDoctor();
     if (user) fetchPets();
+    fetchCatalog();
   }, [doctorId, user]);
 
   const handleNewPetSubmit = async (formData: any) => {
@@ -152,6 +173,10 @@ export default function BookAppointment() {
       setError("Please select a pet for this visit.");
       return;
     }
+    if (selectedServices.length === 0) {
+      setError("Please select at least one service.");
+      return;
+    }
 
     setBooking(true);
     setError(null);
@@ -160,6 +185,9 @@ export default function BookAppointment() {
       if (!user) throw new Error("User not authenticated");
 
       const selectedPet = pets.find(p => p.id === selectedPetId);
+      const selectedServiceNames = serviceCatalog
+        .filter(s => selectedServices.includes(s.id))
+        .map(s => s.name);
 
       await addDoc(collection(db, 'appointments'), {
         clientUid: user.uid,
@@ -171,6 +199,11 @@ export default function BookAppointment() {
         time: selectedTime,
         status: 'unconfirmed',
         notes: notes,
+        services: selectedServices.map(id => ({
+          catalogId: id,
+          providerId: doctor?.id || 'general',
+        })),
+        servicesText: `Services: ${selectedServiceNames.join(', ')}`,
         createdAt: serverTimestamp()
       });
 
@@ -387,6 +420,25 @@ export default function BookAppointment() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Services Selection */}
+          <div className="space-y-4">
+            <label className="text-lg font-bold flex items-center gap-2">
+              <Stethoscope className="w-5 h-5 text-emerald-600" />
+              Select Services
+            </label>
+            <div className="bg-stone-50 border border-stone-100 rounded-2xl p-6">
+              <ServiceSelector
+                selectedServices={selectedServices}
+                onChange={setSelectedServices}
+                providerId={doctor?.id}
+                requireConsultation={true}
+              />
+            </div>
+            <p className="text-xs text-stone-400">
+              Consultation is always included. Select additional services as needed.
+            </p>
           </div>
 
           {/* Notes */}

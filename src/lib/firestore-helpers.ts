@@ -256,6 +256,117 @@ export async function fetchServiceCatalog(category?: string) {
   return fetchWithCache('service_catalog', queryFn);
 }
 
+// Fetch services available for a specific provider (doctor)
+export async function fetchServicesForProvider(providerId: string, category?: string) {
+  const queryFn = async () => {
+    let q = query(
+      collection(db, 'service_catalog'),
+      where('active', '==', true),
+      where('allowedProviderIds', 'array-contains', providerId)
+    );
+    if (category) {
+      q = query(
+        collection(db, 'service_catalog'),
+        where('active', '==', true),
+        where('category', '==', category),
+        where('allowedProviderIds', 'array-contains', providerId)
+      );
+    }
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache(`services_provider_${providerId}${category || ''}`, queryFn);
+}
+
+// Fetch all resources
+export async function fetchAllResources() {
+  const queryFn = async () => {
+    const snapshot = await getDocs(collection(db, 'resources'));
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache('resources', queryFn);
+}
+
+// Ensure consultation service exists (creates if missing)
+export async function ensureConsultationService() {
+  const existing = await fetchServiceCatalog('consultation');
+  const consultation = existing.find((s: any) => s.code === 'CONS-001');
+  if (consultation) return consultation;
+
+  const fallback = {
+    code: 'CONS-001',
+    name: 'General Consultation',
+    category: 'consultation',
+    description: 'Standard veterinary consultation',
+    defaultPrice: 500,
+    taxable: false,
+    active: true,
+    requiresClinicalRecord: true,
+    durationMin: 30,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+
+  const ref = await addDoc(collection(db, 'service_catalog'), fallback);
+  return { id: ref.id, ...fallback };
+}
+
+// Add service to catalog (admin)
+export async function addServiceToCatalog(serviceData: any) {
+  const ref = await addDoc(collection(db, 'service_catalog'), {
+    ...serviceData,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+  return { id: ref.id, ...serviceData };
+}
+
+// Update service providers (admin)
+export async function updateServiceProviders(serviceId: string, providerIds: string[]) {
+  const ref = doc(db, 'service_catalog', serviceId);
+  await updateDoc(ref, {
+    allowedProviderIds: providerIds,
+    updatedAt: new Date()
+  });
+}
+
+// Update service resources (admin)
+export async function updateServiceResources(serviceId: string, resourceIds: string[]) {
+  const ref = doc(db, 'service_catalog', serviceId);
+  await updateDoc(ref, {
+    requiredResourceIds: resourceIds,
+    updatedAt: new Date()
+  });
+}
+
+// Update service catalog item (admin)
+export async function updateServiceCatalog(serviceId: string, updates: any) {
+  const ref = doc(db, 'service_catalog', serviceId);
+  await updateDoc(ref, {
+    ...updates,
+    updatedAt: new Date()
+  });
+}
+
+// Add resource (admin)
+export async function addResource(resourceData: any) {
+  const ref = await addDoc(collection(db, 'resources'), {
+    ...resourceData,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+  return { id: ref.id, ...resourceData };
+}
+
+// Update resource status (admin)
+export async function updateResourceStatus(resourceId: string, status: string) {
+  const ref = doc(db, 'resources', resourceId);
+  await updateDoc(ref, {
+    status,
+    updatedAt: new Date()
+  });
+}
+
 // Appointment Services
 export async function fetchAppointmentServices(encounterId: string) {
   const q = query(collection(db, 'appointment_services'), where('encounterId', '==', encounterId));
