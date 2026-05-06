@@ -624,7 +624,15 @@ export default function Dashboard() {
                                 </p>
                               </div>
                             </div>
-                            <button className="bg-slate-900 text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-800 transition-all shrink-0">
+                            <button
+                              onClick={() => {
+                                setManageApt(app);
+                                setCancelReason('');
+                                setRescheduleDate(app.date);
+                                setRescheduleTime(app.time);
+                              }}
+                              className="bg-slate-900 text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-800 transition-all shrink-0"
+                            >
                               Manage
                             </button>
                           </div>
@@ -840,22 +848,26 @@ export default function Dashboard() {
             </div>
 
             {/* Actions */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => { setShowCancelDialog(true); }}
-                className="flex items-center justify-center gap-2 p-3 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <Ban className="w-4 h-4" />
-                <span className="text-sm font-semibold">Cancel</span>
-              </button>
-              <button
-                onClick={() => { setShowRescheduleDialog(true); }}
-                className="flex items-center justify-center gap-2 p-3 rounded-xl border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-colors"
-              >
-                <Edit className="w-4 h-4" />
-                <span className="text-sm font-semibold">Reschedule</span>
-              </button>
-            </div>
+            {manageApt.status === 'cancelled' || manageApt.status === 'completed' ? (
+              <p className="text-sm text-center text-slate-400 italic">This appointment is {manageApt.status}</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => { setShowCancelDialog(true); }}
+                  className="flex items-center justify-center gap-2 p-3 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <Ban className="w-4 h-4" />
+                  <span className="text-sm font-semibold">Cancel Appointment</span>
+                </button>
+                <button
+                  onClick={() => { setShowRescheduleDialog(true); }}
+                  className="flex items-center justify-center gap-2 p-3 rounded-xl border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-colors"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span className="text-sm font-semibold">Reschedule</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
