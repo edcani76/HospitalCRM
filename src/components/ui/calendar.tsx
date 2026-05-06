@@ -1,15 +1,16 @@
 import React from 'react';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths, startOfToday } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from './button';
 
 interface CalendarProps {
   selectedDate: Date;
   onDateSelect: (date: Date) => void;
-  appointments?: { date: string }[];
+  minDate?: Date;
+  disabledDays?: Set<string>;
 }
 
-export function Calendar({ selectedDate, onDateSelect, appointments = [] }: CalendarProps) {
+export function Calendar({ selectedDate, onDateSelect, minDate, disabledDays = new Set() }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = React.useState(startOfMonth(selectedDate));
 
   const monthStart = startOfMonth(currentMonth);
@@ -21,22 +22,6 @@ export function Calendar({ selectedDate, onDateSelect, appointments = [] }: Cale
 
   const previousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
-
-  // Create a Set of appointment date strings for efficient lookup
-  const appointmentDateSet = React.useMemo(() => {
-    const dateSet = new Set<string>();
-    appointments.forEach(apt => {
-      if (apt.date) {
-        dateSet.add(apt.date);
-      }
-    });
-    return dateSet;
-  }, [appointments]);
-
-  const hasAppointment = (date: Date) => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return appointmentDateSet.has(dateStr);
-  };
 
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -65,37 +50,28 @@ export function Calendar({ selectedDate, onDateSelect, appointments = [] }: Cale
           const isSelected = isSameDay(day, selectedDate);
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isTodayDate = isToday(day);
-          const hasApt = hasAppointment(day);
+          const dateStr = format(day, 'yyyy-MM-dd');
+          const isDisabled = (minDate && day < minDate) || disabledDays.has(dateStr);
 
           return (
             <button
               key={day.toISOString()}
-              onClick={() => onDateSelect(day)}
-              disabled={!isCurrentMonth}
+              onClick={() => !isDisabled && isCurrentMonth && onDateSelect(day)}
               className={`
                 relative p-2 rounded-xl text-sm transition-all
                 ${!isCurrentMonth ? 'text-stone-300 cursor-default' : 'hover:bg-stone-100'}
                 ${isSelected ? 'bg-emerald-600 text-white hover:bg-emerald-700' : ''}
                 ${isTodayDate && !isSelected ? 'font-bold text-emerald-600 ring-2 ring-emerald-600 ring-offset-1' : ''}
-                ${hasApt && !isSelected && isCurrentMonth ? 'bg-emerald-50 font-medium ring-1 ring-emerald-200' : ''}
+                ${isDisabled ? 'text-stone-300 cursor-not-allowed hover:bg-transparent' : ''}
               `}
             >
               {format(day, 'd')}
-              {hasApt && (
-                <div className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${
-                  isSelected ? 'bg-white' : 'bg-emerald-500'
-                }`} />
-              )}
             </button>
           );
         })}
       </div>
 
       <div className="flex items-center gap-4 mt-4 pt-4 border-t border-stone-100">
-        <div className="flex items-center gap-1.5 text-xs text-stone-500">
-          <div className="w-3 h-3 bg-emerald-50 border border-emerald-200 rounded" />
-          <span>Has appointments</span>
-        </div>
         <div className="flex items-center gap-1.5 text-xs text-stone-500">
           <div className="w-3 h-3 bg-emerald-600 rounded" />
           <span>Selected</span>

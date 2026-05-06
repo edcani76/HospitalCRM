@@ -871,16 +871,32 @@ export default function Dashboard() {
                 <span className="text-slate-500">Status</span>
                 <Badge className={getStatusColor(manageApt.status)}>{manageApt.status}</Badge>
               </div>
-              {manageApt.services && manageApt.services.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 mb-1">Services</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {manageApt.services.map((s, i) => (
-                      <span key={i} className="inline-block bg-indigo-50 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-md capitalize">{s}</span>
-                    ))}
+              {(() => {
+                let serviceNames: string[] = [];
+                const servicesText = (manageApt as any).servicesText;
+                if (servicesText) {
+                  const match = servicesText.match(/Services:\s*([^\n]+)/i);
+                  if (match) {
+                    serviceNames = match[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+                  }
+                }
+                if (serviceNames.length === 0 && manageApt.services && manageApt.services.length > 0) {
+                  const servicesMatch = manageApt.notes?.match(/Services:\s*([^\n]+)/i);
+                  if (servicesMatch) {
+                    serviceNames = servicesMatch[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+                  }
+                }
+                return serviceNames.length > 0 ? (
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 mb-1">Services</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {serviceNames.map((s, i) => (
+                        <span key={i} className="inline-block bg-indigo-50 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-md capitalize">{s}</span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : null;
+              })()}
               {manageApt.notes && (
                 <div className="pt-2 border-t border-slate-200">
                   <p className="text-xs text-slate-500">Notes: {manageApt.notes}</p>

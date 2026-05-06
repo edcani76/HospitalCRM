@@ -4,8 +4,9 @@ import { auth, db, doc, getDoc, collection, addDoc, serverTimestamp, query, wher
 import { useAuth } from '../contexts/AuthContext';
 import { Doctor, Pet } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar, Clock, User, Stethoscope, ArrowRight, CheckCircle, AlertCircle, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, addDays, startOfToday, getDay } from 'date-fns';
+import { Calendar as CalendarIcon, Clock, User, Stethoscope, ArrowRight, CheckCircle, AlertCircle, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, addDays, startOfToday, getDay, isToday, isBefore, isSameDay, startOfDay } from 'date-fns';
+import { Calendar } from '../components/ui/calendar';
 import PetDialog from '../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../lib/google-drive';
 import { ServiceSelector } from '../components/ServiceSelector';
@@ -23,7 +24,7 @@ export default function BookAppointment() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedDate, setSelectedDate] = useState<string>(format(addDays(startOfToday(), 1), 'yyyy-MM-dd'));
+  const [selectedDate, setSelectedDate] = useState<Date>(addDays(startOfToday(), 1));
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -114,7 +115,8 @@ export default function BookAppointment() {
       setSelectedTime('');
 
       try {
-        const dateObj = new Date(selectedDate + 'T00:00:00');
+        const dateObj = new Date(selectedDate.toDateString());
+        const dateStr = format(dateObj, 'yyyy-MM-dd');
         const dayOfWeek = getDay(dateObj);
         
         let slots: string[] = [];
@@ -141,7 +143,7 @@ export default function BookAppointment() {
         if (isAnyDoctor) {
           const allDoctors = doctors.filter(d => d.id !== 'any');
           const promises = allDoctors.map(d =>
-            getDocs(query(collection(db, 'appointments'), where('doctorId', '==', d.id), where('date', '==', selectedDate)))
+            getDocs(query(collection(db, 'appointments'), where('doctorId', '==', d.id), where('date', '==', dateStr)))
           );
           const results = await Promise.all(promises);
           bookedTimes = results.flatMap(snapshot =>
@@ -154,7 +156,7 @@ export default function BookAppointment() {
           const q = query(
             collection(db, 'appointments'),
             where('doctorId', '==', doctor.id),
-            where('date', '==', selectedDate)
+            where('date', '==', dateStr)
           );
           const snapshot = await getDocs(q);
           bookedTimes = snapshot.docs
@@ -233,6 +235,7 @@ export default function BookAppointment() {
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
     if (!selectedTime) {
       setError("Please select a time slot.");
       return;
@@ -267,7 +270,7 @@ export default function BookAppointment() {
           const q = query(
             collection(db, 'appointments'),
             where('doctorId', '==', d.id),
-            where('date', '==', selectedDate),
+            where('date', '==', dateStr),
             where('time', '==', selectedTime)
           );
           const snapshot = await getDocs(q);
@@ -286,7 +289,7 @@ export default function BookAppointment() {
         petName: selectedPet?.name || 'Unknown Pet',
         doctorId: assignedDoctorId,
         doctorName: assignedDoctorName,
-        date: selectedDate,
+        date: dateStr,
         time: selectedTime,
         status: 'unconfirmed',
         notes: notes,
@@ -476,45 +479,14 @@ export default function BookAppointment() {
             {/* Date Selection */}
             <div className="space-y-4">
               <label className="text-lg font-bold flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-emerald-600" />
+                <CalendarIcon className="w-5 h-5 text-emerald-600" />
                 Select Date
               </label>
-              <div className="grid grid-cols-4 sm:grid-cols-4 gap-3">
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(days => {
-                  const date = addDays(startOfToday(), days);
-                  const dateStr = format(date, 'yyyy-MM-dd');
-                  const isSelected = selectedDate === dateStr;
-                  const dayOfWeek = getDay(date);
-                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                  let hasAvailability = !isWeekend;
-                  if (!isAnyDoctor) {
-                    const doctorAvail = doctor?.availability;
-                    hasAvailability = doctorAvail && typeof doctorAvail === 'object' && '0' in doctorAvail
-                      ? ((doctorAvail as any)[dayOfWeek.toString()] || []).length > 0
-                      : !isWeekend;
-                  }
-                  
-                  return (
-                    <button
-                      key={dateStr}
-                      type="button"
-                      onClick={() => setSelectedDate(dateStr)}
-                      disabled={!hasAvailability}
-                      className={`p-3 rounded-xl border transition-all text-center space-y-1 ${
-                        !hasAvailability 
-                          ? "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed"
-                          : isSelected 
-                            ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-900/20" 
-                            : "bg-white border-slate-200 hover:border-emerald-200 text-slate-600"
-                      }`}
-                    >
-                      <p className="text-[10px] font-bold uppercase opacity-70">{format(date, 'EEE')}</p>
-                      <p className="text-lg font-bold">{format(date, 'dd')}</p>
-                      <p className="text-[9px] font-bold uppercase opacity-70">{format(date, 'MMM')}</p>
-                    </button>
-                  );
-                })}
-              </div>
+              <Calendar
+                selectedDate={selectedDate}
+                onDateSelect={(date) => setSelectedDate(date)}
+                minDate={startOfDay(startOfToday())}
+              />
             </div>
 
             {/* Time Selection */}
@@ -683,8 +655,8 @@ export default function BookAppointment() {
               </div>
               {selectedDate && (
                 <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <Calendar className="w-4 h-4 text-emerald-600" />
-                  <span className="font-medium">{format(new Date(selectedDate + 'T00:00:00'), 'EEEE, MMM dd, yyyy')}</span>
+                  <CalendarIcon className="w-4 h-4 text-emerald-600" />
+                  <span className="font-medium">{format(selectedDate, 'EEEE, MMM dd, yyyy')}</span>
                 </div>
               )}
               {selectedTime && (
