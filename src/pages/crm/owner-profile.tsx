@@ -15,7 +15,9 @@ import {
   Plus,
   ArrowLeft,
   DollarSign,
-  FileText
+  FileText,
+  ShieldCheck,
+  FileCheck
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
@@ -35,6 +37,10 @@ interface OwnerProfile {
   status?: string;
   photo?: string;
   photoURL?: string;
+  consentPrivacy?: boolean;
+  consentTerms?: boolean;
+  consentPrivacyTimestamp?: string;
+  consentTermsTimestamp?: string;
 }
 
 export default function OwnerProfilePage() {
@@ -200,6 +206,42 @@ export default function OwnerProfilePage() {
                   </div>
                 </div>
               </div>
+
+              {(owner.consentPrivacyTimestamp || owner.consentTermsTimestamp) && (
+                <div className="mt-6 pt-6 border-t border-slate-100">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Consent Records</h4>
+                  <div className="space-y-2">
+                    {owner.consentPrivacyTimestamp && (
+                      <div className="flex items-start gap-3 p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">Data Privacy Consent</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            {new Date(owner.consentPrivacyTimestamp).toLocaleString('en-US', { 
+                              year: 'numeric', month: 'short', day: 'numeric', 
+                              hour: '2-digit', minute: '2-digit' 
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {owner.consentTermsTimestamp && (
+                      <div className="flex items-start gap-3 p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                        <FileCheck className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">Terms & Conditions</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            {new Date(owner.consentTermsTimestamp).toLocaleString('en-US', { 
+                              year: 'numeric', month: 'short', day: 'numeric', 
+                              hour: '2-digit', minute: '2-digit' 
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
