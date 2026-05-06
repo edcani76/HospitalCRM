@@ -85,10 +85,19 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
     - Each visit includes: encounter, triage vitals, SOAP notes, services, lab orders, prescriptions, invoices, invoice items, payments, audit logs
     - Sample attachments (X-Ray reports, lab results) for Buddy, Whiskers, Max
 
+13. **PDF Invoice Generation**
+    - `src/components/invoice-pdf.tsx` - Professional PDF invoice using `@react-pdf/renderer`
+    - Includes clinic branding, patient/owner info, services table, totals, payment history
+    - Status badge (Paid/Partially Paid/Draft) with color coding
+    - Download button on Billing tab generates and downloads PDF
+    - Format: A4, clean layout with MediPaws branding
+
 ### 📝 Recent Commits (branch: `codex/pr-1`)
 
 | Commit | Description |
 |--------|-------------|
+| `4224388` | Add PDF invoice generation with @react-pdf/renderer |
+| `a662b29` | Update project notes and documentation |
 | `cdd0aed` | Fix seed script - use correct date field, remove dead code |
 | `a8dfcce` | Add comprehensive EMR seed data script and VisitSummaryTab with attachments support |
 | `bb1a2b0` | Fix Quick Start doctor list - fetch directly in `handleQuickStartVisit` |
@@ -115,18 +124,19 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `scripts/migrate-encounters-startedAt.ts`: Encounters already have `startedAt`
 
 ### 🚀 Next Steps
-1. Build PDF invoice generation and viewing component
+1. Test PDF invoice generation with real data
 2. Test Visit Summary tab with seeded data
 3. Verify Google Drive uploads work end-to-end
 4. Run full lint/build before next commit
 
 ### 🗂️ Key Files Modified
-- `src/pages/crm/emr-page.tsx` - EMR page with VisitSummaryTab, mode detection, Quick Start Visit
+- `src/pages/crm/emr-page.tsx` - EMR page with VisitSummaryTab, mode detection, Quick Start Visit, PDF download
 - `src/pages/crm/patient-profile.tsx` - Quick Start Visit, doctor selector
 - `src/pages/crm/appointment-details-page.tsx` - Service management, notes display
 - `src/pages/Dashboard.tsx` - Client dashboard with updated appointment logic, compact UI
 - `src/components/DashboardLayout.tsx` - Sidebar/layout with mobile/desktop state management
 - `src/components/crm-layout.tsx` - CRM portal layout with mobile sidebar
+- `src/components/invoice-pdf.tsx` - PDF invoice generation component
 - `server.ts` - Express API for Drive uploads, OAuth, token refresh
 - `src/lib/google-drive.ts` - Client-side proxy for Drive uploads
 - `src/lib/firestore-helpers.ts` - `fetchEncounters` uses `startedAt`, `fetchEmrRecords` uses `encounters`
