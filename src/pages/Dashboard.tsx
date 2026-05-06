@@ -3,7 +3,7 @@ import { auth, db, collection, query, where, onSnapshot, doc, getDoc, addDoc, se
 import { Appointment, Report, UserProfile, Invoice, Pet } from '../types';
 import { motion } from 'motion/react';
 import { LayoutDashboard, Calendar, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, User, ArrowRight, Download, Activity, ChevronRight, Edit, Ban, X } from 'lucide-react';
-import { format, addDays, startOfToday } from 'date-fns';
+import { format, addDays, startOfToday, differenceInYears, differenceInMonths } from 'date-fns';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import { Badge } from '../components/ui/badge';
@@ -43,6 +43,21 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const formatPetAge = (pet: Pet) => {
+    if (pet.dateOfBirth) {
+      const dob = new Date(pet.dateOfBirth + 'T00:00:00');
+      const years = differenceInYears(new Date(), dob);
+      if (years >= 1) return `${years}y`;
+      const months = differenceInMonths(new Date(), dob);
+      return `${months}mo`;
+    }
+    if (pet.age) {
+      if (pet.age >= 1) return `${pet.age}y`;
+      return `${Math.round(pet.age * 12)}mo`;
+    }
+    return '?';
+  };
 
   const normalizeDoctorName = (name: string) => {
     return name.replace(/^Dr\.?\s*/i, '');
@@ -174,6 +189,8 @@ export default function Dashboard() {
         gender: formData.gender || '',
         bloodType: formData.bloodType || 'Unknown',
         color: formData.color || '',
+        microchipId: formData.microchipId || '',
+        medicalHistory: formData.medicalHistory || '',
         imageUrl,
         currentStatus: 'active',
         createdAt: serverTimestamp()
@@ -538,7 +555,7 @@ export default function Dashboard() {
                     <div className="grid grid-cols-2 gap-2">
                       <div className="bg-slate-50 p-2 rounded-lg text-center">
                         <p className="text-[9px] font-medium text-slate-400 mb-0.5">Age</p>
-                        <p className="text-sm font-bold text-slate-900">{pet.age || '?'}y</p>
+                        <p className="text-sm font-bold text-slate-900">{formatPetAge(pet)}</p>
                       </div>
                       <div className="bg-slate-50 p-2 rounded-lg text-center">
                         <p className="text-[9px] font-medium text-slate-400 mb-0.5">Weight</p>

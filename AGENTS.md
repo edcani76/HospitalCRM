@@ -1,7 +1,7 @@
 # MyHospital PR1 - Agent Progress
 
 ## Goal
-Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix timestamp display, add full service management to Edit Appointment matching Create Appointment, build Visit Summary tab, modernize portal dashboard UI/UX, integrate Google Drive via server proxy, and build unified service catalog with provider-resource mapping.
+Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix timestamp display, add full service management to Edit Appointment matching Create Appointment, build Visit Summary tab, modernize portal dashboard UI/UX, integrate Google Drive via server proxy, build unified service catalog with provider-resource mapping, rebuild customer booking with doctor carousel and dynamic availability, and enhance patient records with full clinical details.
 
 ## Current Status (2026-05-06)
 
@@ -72,7 +72,7 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
     - "Scheduled Visits" stat includes `unconfirmed` status
     - Next appointment card shows earliest non-cancelled with "Pending Confirmation" badge
     - Appointments tab split: "Upcoming" (top 5 with "Load More") + "Past Visits"
-    - "Back to Overview" button
+    - "Back to Overview" button REMOVED
 
 11. **Sidebar/Layout (`DashboardLayout.tsx`)**
     - Mobile: overlay appears only when open, blocks right panel
@@ -92,6 +92,12 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
     - Download button on Billing tab generates and downloads PDF
     - Format: A4, clean layout with MediPaws branding
 
+14. **Customer Portal Breadcrumb Navigation**
+    - `Breadcrumb` component with `onClick` support for Dashboard tab state
+    - Integrated into `DashboardLayout` header
+    - `PageHeader` on BookAppointment, PetProfile, OwnerProfile
+    - PetProfile: back button hidden, sidebar menus navigate correctly
+
 15. **Appointment Management Dialog (Client Portal)**
     - "Manage" button on upcoming visits opens appointment detail dialog
     - Shows appointment card: pet name, doctor, date, time, status, notes
@@ -100,10 +106,34 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
     - Firestore updates: cancel sets `status: cancelled` + `cancelReason`, reschedule sets new `date`/`time` + `status: unconfirmed`
     - Loading states during async operations
 
+16. **My Appointments Page Enhancements**
+    - "Book New Appointment" button navigates to `/book-appointment`
+    - Fixed "Dr. Dr." duplicate name display with `normalizeDoctorName()` helper
+    - Renamed "Visit History" → "My Appointments"
+
+17. **Doctor Carousel & Dynamic Availability (`BookAppointment.tsx`)**
+    - Full-width doctor carousel with left/right arrow navigation
+    - "Any Available Doctor" option (auto-matches first free vet)
+    - Animated transitions with `motion/react` (slide left/right)
+    - Fixed-height cards (280px) with flex layout preventing size jumps
+    - Dynamic availability: fetches doctor's weekly schedule + filters booked slots
+    - Date picker disables unavailable dates per doctor
+    - "Your Selection" sidebar card updates live with doctor, date, time
+
+18. **Enhanced Patient Records**
+    - `Pet` type extended: `patientId`, `dateOfBirth`, `gender`, `color`, `bloodType`, `microchipId`, `weightHistory`, `medicalHistory`, `size`
+    - My Pets cards: age auto-converts to months when < 1 year (`3mo`, `6mo`)
+    - PetProfile: Clinical Details section with Blood Type, Microchip ID, DOB, Medical History
+    - PetDialog form: added Microchip ID input and Medical History textarea
+    - All pet creation paths (Dashboard, BookAppointment) save new fields to Firestore
+
 ### 📝 Recent Commits (branch: `codex/pr-1`)
 
 | Commit | Description |
 |--------|-------------|
+| `cf1289f` | Fix customer portal bugs, rebuild BookAppointment with doctor carousel and dynamic availability |
+| `f412029` | Fix breadcrumb navigation - use onClick handlers with tab state for Dashboard pages |
+| `dc2f3a0` | Add breadcrumb navigation to customer portal pages |
 | `65e1cf5` | Add appointment management dialog with cancel and reschedule functionality |
 | `3a73269` | Make service categories collapsible in BookAppointment ServiceSelector |
 | `217df02` | Update project notes and documentation |
@@ -147,18 +177,26 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `src/pages/crm/patient-profile.tsx` - Quick Start Visit, doctor selector
 - `src/pages/crm/appointment-details-page.tsx` - Service management, notes display
 - `src/pages/crm/admin-services.tsx` - Admin UI for service catalog, provider/resource management
-- `src/pages/BookAppointment.tsx` - Customer booking with service selection filtered by doctor
-- `src/pages/Dashboard.tsx` - Client dashboard with updated appointment logic, compact UI
-- `src/components/DashboardLayout.tsx` - Sidebar/layout with mobile/desktop state management
+- `src/pages/BookAppointment.tsx` - Doctor carousel, dynamic availability, service selection
+- `src/pages/Dashboard.tsx` - My Appointments page, appointment management, pet age formatting
+- `src/pages/PetProfile.tsx` - Enhanced clinical details, breadcrumb navigation
+- `src/components/DashboardLayout.tsx` - Sidebar/layout with mobile/desktop state management, breadcrumb integration
 - `src/components/crm-layout.tsx` - CRM portal layout with mobile sidebar
 - `src/components/ServiceSelector.tsx` - Reusable service multi-select with provider filtering
 - `src/components/invoice-pdf.tsx` - PDF invoice generation component
+- `src/components/crm/pet-dialog.tsx` - Pet registration with Microchip ID, medical history
+- `src/components/ui/breadcrumb.tsx` - New breadcrumb component with onClick support
+- `src/components/ui/page-header.tsx` - Page header with back button support
 - `server.ts` - Express API for Drive uploads, OAuth, token refresh
 - `src/lib/google-drive.ts` - Client-side proxy for Drive uploads
 - `src/lib/firestore-helpers.ts` - `fetchServicesForProvider`, `fetchAllResources`, service catalog helpers
-- `src/types.ts` - `ServiceCatalogItem` type with provider/resource mapping, `Resource` type, notification types updated
+- `src/lib/storage.ts` - Google Drive wrapper (removed Firebase Storage)
+- `src/lib/file-upload.ts` - Google Drive upload helper
+- `src/types.ts` - Pet type extended, ServiceCatalogItem, Resource, notification types
 - `scripts/seed-service-catalog.ts` - Extended seed with provider/resource mapping, resources creation
 - `scripts/seed-emr-data.ts` - Comprehensive EMR seed data script
+- `scripts/migrate-pet-images-to-drive.ts` - Migration script for base64/Firebase images to Drive
+- `public/_redirects` - Netlify SPA routing configuration
 
 ### ⚙️ Critical Context
 - EMR Page tabs (9): Visit Summary, Triage & Vitals, Clinical Notes, Orders & Services, Medications, Diagnostics, Billing (active only), History, Audit Trail
@@ -169,3 +207,7 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `DashboardLayout.tsx` uses separate `mobileOpen` and `expanded` states
 - `VisitSummaryTab` receives data via props from `EMRPage`'s existing Firestore fetchers
 - CDN URLs (`lh3.googleusercontent.com/d/{id}=w1000`) prevent HTML-redirect rendering failures
+- Doctor availability stored as `{ "0": ["09:00 AM", ...], "1": [...], ... }` (0=Sun..6=Sat)
+- BookAppointment carousel uses fixed `height: 280px` with `flex` layout to prevent size jumps
+- `normalizeDoctorName()` strips "Dr." prefix to prevent duplicate display
+- `formatPetAge()` converts to months when < 1 year using `date-fns` differenceInMonths

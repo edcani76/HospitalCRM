@@ -11,7 +11,7 @@ edvirontvet is a modern, responsive veterinary clinic management system built to
 - **Secure Authentication:** Integrated Google Sign-In via Firebase for seamless and secure user access.
 - **Veterinary Profiles:** Browse, search, and filter a directory of specialized veterinarians (e.g., Cardiology, Surgery, Preventive Care).
 - **Service Catalog:** Detailed overview of clinic departments including Diagnostic Medicine, Avian/Exotics, Therapy/Rehabilitation, and Emergency Care.
-- **Appointment Booking:** Interactive calendar and time-slot selector to easily schedule and request pet visits.
+- **Appointment Booking:** Interactive doctor carousel with dynamic availability — browse all vets, select "Any Available Doctor," or pick a specific specialist with real-time slot filtering.
 - **Advanced CRM System:** Comprehensive management for Pet Owners, Patients, and Electronic Medical Records (EMR).
 - **EMR Mode Detection:** Auto-detects Active Visit (in-progress) vs View Mode with real-time status.
 - **Quick Start Visit:** One-click walk-in/emergency visits from Patient Profile or EMR page with doctor selector.
@@ -19,6 +19,8 @@ edvirontvet is a modern, responsive veterinary clinic management system built to
 - **Intelligent Breadcrumbs:** Context-aware, recursive navigation system for deep record hierarchies.
 - **Medical Billing:** Full-featured invoicing system with PDF generation and insurance tracking.
 - **Admin & Specialized Dashboards:** Role-based dashboards for Doctors, Pharmacists, and Lab Technicians.
+- **Enhanced Patient Records:** Microchip ID, blood type, date of birth, medical history, gender, color — with auto age conversion to months for pets under 1 year.
+- **Appointment Management:** Client portal allows viewing, cancelling, and rescheduling appointments with confirmation dialogs.
 - **AI Integration:** Powered by Google Gemini for smart medical assistance and data insights.
 - **Progress Tracking:** See [PROGRESS.md](PROGRESS.md) for current development status and roadmap.
 - **Workflow Documentation:** See [WORKFLOW.md](WORKFLOW.md) for complete appointment lifecycle and service management.

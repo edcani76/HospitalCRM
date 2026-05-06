@@ -345,6 +345,8 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
       gender: formData.get('gender'),
       bloodType: formData.get('bloodType'),
       color: formData.get('color'),
+      microchipId: formData.get('microchipId'),
+      medicalHistory: formData.get('medicalHistory'),
       ownerUid: mode === 'edit' ? pet?.ownerUid : formData.get('ownerUid'),
       photoFile,
     })
@@ -616,6 +618,27 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
                     placeholder="0.00"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="microchipId" className="font-bold text-gray-700">Microchip ID</Label>
+                  <Input
+                    id="microchipId"
+                    name="microchipId"
+                    defaultValue={mode === 'edit' ? pet?.microchipId : ''}
+                    className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12 font-mono"
+                    placeholder="e.g., 985112345678901"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="medicalHistory" className="font-bold text-gray-700">Medical History / Notes</Label>
+                <textarea
+                  id="medicalHistory"
+                  name="medicalHistory"
+                  defaultValue={mode === 'edit' ? pet?.medicalHistory : ''}
+                  className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white p-3 text-sm min-h-[80px] resize-none"
+                  placeholder="Any pre-existing conditions, allergies, or relevant medical history..."
+                />
               </div>
             </div>
 

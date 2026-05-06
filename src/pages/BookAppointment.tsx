@@ -213,6 +213,8 @@ export default function BookAppointment() {
         gender: formData.gender || '',
         bloodType: formData.bloodType || 'Unknown',
         color: formData.color || '',
+        microchipId: formData.microchipId || '',
+        medicalHistory: formData.medicalHistory || '',
         imageUrl,
         currentStatus: 'active',
         createdAt: serverTimestamp()

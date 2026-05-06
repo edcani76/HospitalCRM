@@ -24,16 +24,25 @@ export interface Doctor {
 export interface Pet {
   id: string;
   externalPetId?: string;
+  patientId?: string;
   ownerUid: string;
   name: string;
   species: string;
   breed?: string;
   type?: string;
   age?: number;
+  dateOfBirth?: string;
+  gender?: string;
+  color?: string;
+  bloodType?: string;
+  microchipId?: string;
   weight?: number;
+  weightHistory?: any[];
   imageUrl?: string;
   lastUpdate?: any;
-  currentStatus?: PatientStatus; // Tracking current workflow status
+  currentStatus?: PatientStatus;
+  medicalHistory?: string;
+  size?: string;
 }
 
 export interface Appointment {

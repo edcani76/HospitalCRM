@@ -20,9 +20,15 @@ import {
   LayoutDashboard,
   ClipboardList,
   DollarSign,
-  Users
+  Users,
+  Hash,
+  Droplet,
+  Palette,
+  CalendarDays,
+  Syringe,
+  AlertTriangle
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInYears, differenceInMonths } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/DashboardLayout';
 import { PageHeader } from '../components/ui/page-header';
@@ -119,6 +125,21 @@ export default function PetProfile() {
     }
   };
 
+  const formatPetAge = () => {
+    if (pet.dateOfBirth) {
+      const dob = new Date(pet.dateOfBirth + 'T00:00:00');
+      const years = differenceInYears(new Date(), dob);
+      if (years >= 1) return `${years} year${years > 1 ? 's' : ''}`;
+      const months = differenceInMonths(new Date(), dob);
+      return `${months} month${months !== 1 ? 's' : ''}`;
+    }
+    if (pet.age) {
+      if (pet.age >= 1) return `${pet.age} year${pet.age > 1 ? 's' : ''}`;
+      return `${Math.round(pet.age * 12)} month${Math.round(pet.age * 12) !== 1 ? 's' : ''}`;
+    }
+    return 'Unknown';
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -141,7 +162,11 @@ export default function PetProfile() {
       user={currentUser}
       menuItems={getMenuItems()}
       activeTab={currentUser?.role === 'admin' ? 'emr' : 'pets'}
-      onTabChange={() => {}}
+      onTabChange={(tab) => {
+        if (currentUser?.role !== 'admin') {
+          navigate('/dashboard', { state: { tab } });
+        }
+      }}
       title={`${pet.name}'s Medical Profile`}
       breadcrumbs={[
         { name: 'Dashboard', path: currentUser?.role === 'admin' ? '/admin' : '/dashboard' },
@@ -153,8 +178,7 @@ export default function PetProfile() {
         <PageHeader
           title={`${pet.name}'s Medical Profile`}
           subtitle={`${pet.species} • ${pet.breed}`}
-          backTo={currentUser?.role === 'admin' ? "/admin" : "/dashboard"}
-          backText="Back to Dashboard"
+          onBack={null}
           actions={currentUser?.role === 'admin' ? (
             <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm">
               <Plus className="w-4 h-4" /> New Medical Entry
@@ -165,7 +189,7 @@ export default function PetProfile() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column: Pet Info & Owner */}
           <div className="space-y-6">
-            <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden shadow-sm">
+            <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
               <div className="aspect-square relative">
                 <img 
                   src={pet.imageUrl || `https://ui-avatars.com/api/?name=${pet.name}&background=10b981&color=fff&size=512`} 
@@ -182,41 +206,110 @@ export default function PetProfile() {
               <div className="p-6 space-y-4">
                 <div>
                   <h1 className="text-2xl font-bold text-stone-900">{pet.name}</h1>
-                  <p className="text-stone-500">{pet.species} • {pet.breed}</p>
+                  <p className="text-stone-500 text-sm">{pet.species}{pet.breed ? ` • ${pet.breed}` : ''}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-stone-50 p-3 rounded-2xl border border-stone-100">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-stone-50 p-3 rounded-xl border border-stone-100">
                     <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">Age</p>
-                    <p className="text-sm font-bold text-stone-700">{pet.age} Years</p>
+                    <p className="text-sm font-bold text-stone-700">{formatPetAge()}</p>
                   </div>
-                  <div className="bg-stone-50 p-3 rounded-2xl border border-stone-100">
+                  <div className="bg-stone-50 p-3 rounded-xl border border-stone-100">
                     <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">Weight</p>
-                    <p className="text-sm font-bold text-stone-700">12.5 kg</p>
+                    <p className="text-sm font-bold text-stone-700">{pet.weight ? `${pet.weight} kg` : 'N/A'}</p>
                   </div>
+                  {pet.gender && (
+                    <div className="bg-stone-50 p-3 rounded-xl border border-stone-100">
+                      <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">Gender</p>
+                      <p className="text-sm font-bold text-stone-700">{pet.gender}</p>
+                    </div>
+                  )}
+                  {pet.color && (
+                    <div className="bg-stone-50 p-3 rounded-xl border border-stone-100">
+                      <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">Color</p>
+                      <p className="text-sm font-bold text-stone-700">{pet.color}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
+            {/* Clinical Details */}
+            {(pet.bloodType || pet.microchipId || pet.dateOfBirth || pet.medicalHistory) && (
+              <div className="bg-white p-6 rounded-2xl border border-stone-200 space-y-4 shadow-sm">
+                <h3 className="font-bold text-stone-900 flex items-center gap-2 text-sm uppercase tracking-wider">
+                  <Activity className="w-4 h-4 text-emerald-600" /> Clinical Details
+                </h3>
+                <div className="space-y-3">
+                  {pet.bloodType && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
+                        <Droplet className="w-4 h-4 text-red-500" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">Blood Type</p>
+                        <p className="text-sm font-bold text-stone-700">{pet.bloodType}</p>
+                      </div>
+                    </div>
+                  )}
+                  {pet.microchipId && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                        <Hash className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">Microchip ID</p>
+                        <p className="text-sm font-bold text-stone-700 font-mono">{pet.microchipId}</p>
+                      </div>
+                    </div>
+                  )}
+                  {pet.dateOfBirth && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                        <CalendarDays className="w-4 h-4 text-emerald-500" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">Date of Birth</p>
+                        <p className="text-sm font-bold text-stone-700">{format(new Date(pet.dateOfBirth + 'T00:00:00'), 'MMMM dd, yyyy')}</p>
+                      </div>
+                    </div>
+                  )}
+                  {pet.medicalHistory && (
+                    <div className="pt-3 border-t border-stone-100">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                          <AlertTriangle className="w-4 h-4 text-amber-500" />
+                        </div>
+                        <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">Medical History</p>
+                      </div>
+                      <p className="text-sm text-stone-600 leading-relaxed whitespace-pre-wrap pl-11">{pet.medicalHistory}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Owner Info */}
-            <div className="bg-white p-6 rounded-3xl border border-stone-200 space-y-4 shadow-sm">
+            <div className="bg-white p-6 rounded-2xl border border-stone-200 space-y-4 shadow-sm">
               <h3 className="font-bold text-stone-900 flex items-center gap-2 text-sm uppercase tracking-wider">
                 <User className="w-4 h-4 text-emerald-600" /> Owner Details
               </h3>
               {owner ? (
-                <Link to={`/profile/${owner.uid}`} className="group flex items-center gap-4 p-2 -m-2 rounded-2xl hover:bg-stone-50 transition-all">
-                  <div className="w-12 h-12 rounded-xl overflow-hidden border border-stone-100">
-                    <img 
-                      src={owner.photoURL || `https://ui-avatars.com/api/?name=${owner.displayName || owner.email}&background=10b981&color=fff`} 
-                      alt={owner.displayName} 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-stone-900 group-hover:text-emerald-600 transition-colors truncate">{owner.displayName}</p>
-                    <p className="text-xs text-stone-500 truncate">{owner.email}</p>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-stone-300 group-hover:text-emerald-500 transition-colors" />
-                </Link>
+                <div className="space-y-3">
+                  <Link to={`/profile/${owner.uid}`} className="group flex items-center gap-4 p-2 -m-2 rounded-xl hover:bg-stone-50 transition-all">
+                    <div className="w-12 h-12 rounded-xl overflow-hidden border border-stone-100">
+                      <img 
+                        src={owner.photoURL || `https://ui-avatars.com/api/?name=${owner.displayName || owner.email}&background=10b981&color=fff`} 
+                        alt={owner.displayName} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-stone-900 group-hover:text-emerald-600 transition-colors truncate">{owner.displayName}</p>
+                      <p className="text-xs text-stone-500 truncate">{owner.email}</p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-stone-300 group-hover:text-emerald-500 transition-colors" />
+                  </Link>
+                </div>
               ) : (
                 <p className="text-sm text-stone-400 italic">Owner info not available</p>
               )}

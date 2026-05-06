@@ -47,19 +47,21 @@ This document describes the complete workflow for appointment management in the 
 ### 1. Appointment Creation
 
 **Locations:**
-- **Patient Portal:** `/book-appointment?doctorId=X`
+- **Patient Portal:** `/book-appointment` (doctor carousel with dynamic availability)
 - **CRM Portal:** `/crm/appointments` (Staff creates directly)
 
 **Process (Patient Portal):**
-1. Patient browses doctors at `/doctors`
-2. Clicks "Schedule Visit" → navigates to booking page
-3. Selects: Date (next 8 days), Time slot, Pet, Notes/Reason
-4. Submits → creates in Firestore with `status: 'pending'`
+1. Patient lands on booking page — sees doctor carousel with left/right navigation
+2. Carousel shows all doctors plus "Any Available Doctor" option (auto-matches first free vet)
+3. Patient selects a doctor from carousel
+4. Selects: Date (next 8 days, unavailable dates disabled per doctor availability), Time slot (filtered by doctor's schedule and existing bookings), Pet, Services, Notes/Reason
+5. Submits → creates in Firestore with `status: 'unconfirmed'`
+   - If "Any Available Doctor" selected, system auto-assigns first doctor free at selected slot
 
 **Process (CRM Portal):**
 1. Staff clicks "New Appointment" button
 2. Fills form: Pet, Doctor, Date, Time, Type, Mode, Notes
-3. Submits → creates in Firestore with `status: 'confirmed'` (bypasses pending)
+3. Submits → creates in Firestore with `status: 'confirmed'` (bypasses unconfirmed)
 
 **Data Created:**
 ```typescript
@@ -67,12 +69,17 @@ This document describes the complete workflow for appointment management in the 
   clientUid: string,        // Patient's user ID
   petId: string,          // Pet ID
   petName: string,        // Denormalized
-  doctorId: string,       // Doctor ID
+  doctorId: string,       // Doctor ID (or 'general' for Any Available)
   doctorName: string,     // Denormalized
   date: string,           // Format: 'yyyy-MM-dd'
   time: string,           // Format: 'HH:MM AM/PM'
-  status: 'pending' | 'confirmed',
-  notes: string,          // Format: "Type: {type}\nMode: {mode}\n{additional notes}"
+  status: 'unconfirmed' | 'confirmed',
+  notes: string,          // Format: "Services: {services}\nMode: {mode}\n{additional notes}"
+  services: Array<{       // Service catalog IDs with provider mapping
+    catalogId: string,
+    providerId: string
+  }>,
+  servicesText: string,   // Human-readable: "Services: consultation, grooming"
   cancelReason?: string,   // If cancelled
   audit: array,           // Audit trail entries
   createdAt: timestamp,
@@ -96,7 +103,7 @@ This document describes the complete workflow for appointment management in the 
    - Notifications sent to doctor and client
 
 **Button Visibility:**
-- `pending`: Shows "Confirm" button (not "Start Appointment")
+- `unconfirmed`: Shows "Confirm" button (not "Start Appointment")
 - `confirmed`: Shows "Start Appointment" button (enabled only on appointment day)
 
 ---
@@ -353,6 +360,33 @@ if (appointment.date < today &&
 
 ## Data Models
 
+### Pet
+```typescript
+interface Pet {
+  id: string;
+  externalPetId?: string;
+  patientId?: string;          // Format: P-{docId.slice(0,8)}
+  ownerUid: string;
+  name: string;
+  species: string;
+  breed?: string;
+  type?: string;
+  age?: number;                // In years (legacy)
+  dateOfBirth?: string;        // Format: 'yyyy-MM-dd'
+  gender?: string;             // Male / Female
+  color?: string;
+  bloodType?: string;
+  microchipId?: string;        // e.g., 985112345678901
+  weight?: number;             // In kg
+  weightHistory?: any[];
+  imageUrl?: string;           // Google Drive CDN URL
+  lastUpdate?: any;
+  currentStatus?: PatientStatus;
+  medicalHistory?: string;     // Pre-existing conditions, allergies
+  size?: string;               // Small / Medium / Large (derived from weight)
+}
+```
+
 ### Appointment
 ```typescript
 interface Appointment {
@@ -365,7 +399,12 @@ interface Appointment {
   date: string;            // Format: 'yyyy-MM-dd'
   time: string;            // Format: 'HH:MM AM/PM'
   status: 'unconfirmed' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
-  notes: string;           // Format: "Type: {type}\n  Notes: {notes}\nMode: {mode}\n{general notes}"
+  notes: string;           // Format: "Services: {services}\nMode: {mode}\n{general notes}"
+  services?: Array<{       // Service catalog IDs with provider mapping
+    catalogId: string;
+    providerId: string;
+  }>;
+  servicesText?: string;   // Human-readable: "Services: consultation, grooming"
   cancelReason?: string;   // If cancelled
   audit: Array<{
     action: string;
@@ -473,9 +512,15 @@ interface Invoice {
 | `src/pages/crm/create-appointment-page.tsx` | Create new appointment (staff), includes type/mode selection |
 | `src/pages/crm/patient-profile.tsx` | Patient profile with appointment history |
 | `src/pages/crm/patients-page.tsx` | Patients directory |
-| `src/pages/BookAppointment.tsx` | Patient portal booking form |
+| `src/pages/BookAppointment.tsx` | Patient portal booking with doctor carousel and dynamic availability |
+| `src/pages/Dashboard.tsx` | Client portal with appointment management (cancel/reschedule) |
+| `src/pages/PetProfile.tsx` | Pet clinical details with enhanced fields (microchip, blood type, etc.) |
+| `src/components/crm/pet-dialog.tsx` | Pet registration with Microchip ID and Medical History |
+| `src/components/ServiceSelector.tsx` | Reusable service multi-select with provider filtering |
+| `src/components/ui/breadcrumb.tsx` | Breadcrumb navigation with onClick support |
 | `src/lib/firestore-helpers.ts` | Firestore CRUD operations |
 | `src/lib/notifications.ts` | Notification creation and sending |
+| `src/lib/google-drive.ts` | Google Drive upload proxy |
 
 ---
 
