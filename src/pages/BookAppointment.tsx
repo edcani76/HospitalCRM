@@ -9,6 +9,7 @@ import { format, addDays, startOfToday } from 'date-fns';
 import PetDialog from '../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../lib/google-drive';
 import { ServiceSelector } from '../components/ServiceSelector';
+import { PageHeader } from '../components/ui/page-header';
 
 export default function BookAppointment() {
   const [searchParams] = useSearchParams();
@@ -214,7 +215,13 @@ export default function BookAppointment() {
 
   if (success) {
     return (
-      <div className="max-w-md mx-auto text-center py-20 space-y-6">
+      <div className="max-w-md mx-auto space-y-8">
+        <PageHeader
+          title="Visit Request"
+          backTo="/dashboard"
+          backText="Back to Dashboard"
+        />
+        <div className="text-center py-12 space-y-6">
         <motion.div 
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -224,18 +231,26 @@ export default function BookAppointment() {
         </motion.div>
         <h1 className="text-3xl font-bold">Visit Request Successful!</h1>
         <p className="text-stone-500">Your visit with {doctor?.name} has been requested. You will be redirected to your dashboard shortly.</p>
-        <button 
-          onClick={() => navigate('/dashboard')}
-          className="text-emerald-600 font-bold flex items-center gap-2 mx-auto"
-        >
-          Go to Dashboard <ArrowRight className="w-4 h-4" />
-        </button>
+          <button 
+            onClick={() => navigate('/dashboard')}
+            className="text-emerald-600 font-bold flex items-center gap-2 mx-auto"
+          >
+            Go to Dashboard <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-12">
+    <div className="max-w-5xl mx-auto">
+      <PageHeader
+        title="Book Visit"
+        subtitle="Select your preferred date and time for your pet's consultation."
+        backTo="/dashboard"
+        backText="Back to Dashboard"
+      />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
       {/* Doctor Info Card */}
       <div className="lg:col-span-1 space-y-8">
         <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden">
@@ -288,11 +303,6 @@ export default function BookAppointment() {
 
       {/* Booking Form */}
       <div className="lg:col-span-2 space-y-8">
-        <div className="space-y-4">
-          <h1 className="text-4xl font-bold">Book Visit</h1>
-          <p className="text-stone-500">Select your preferred date and time for your pet's consultation.</p>
-        </div>
-
         <form onSubmit={handleBooking} className="bg-white p-8 md:p-12 rounded-3xl border border-stone-200 space-y-10">
           {error && (
             <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
@@ -467,6 +477,7 @@ export default function BookAppointment() {
         onCancel={() => setIsPetDialogOpen(false)}
         isSubmitting={isSubmittingPet}
       />
+      </div>
     </div>
   );
 }

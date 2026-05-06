@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db, collection, query, where, onSnapshot, doc, getDoc } from '../firebase';
 import { Appointment, Report, Pet, UserProfile } from '../types';
 import { motion } from 'motion/react';
@@ -13,7 +13,6 @@ import {
   AlertCircle,
   Activity,
   Download,
-  ArrowLeft,
   ChevronRight,
   Info,
   Heart,
@@ -26,6 +25,7 @@ import {
 import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/DashboardLayout';
+import { PageHeader } from '../components/ui/page-header';
 
 export default function PetProfile() {
   const { user: currentUser } = useAuth();
@@ -144,17 +144,17 @@ export default function PetProfile() {
       title={`${pet.name}'s Medical Profile`}
     >
       <div className="max-w-6xl mx-auto space-y-8">
-        <div className="flex items-center justify-between">
-          <Link to={currentUser?.role === 'admin' ? "/admin" : "/dashboard"} className="inline-flex items-center gap-2 text-stone-500 hover:text-emerald-600 transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Link>
-          {currentUser?.role === 'admin' && (
+        <PageHeader
+          title={`${pet.name}'s Medical Profile`}
+          subtitle={`${pet.species} • ${pet.breed}`}
+          backTo={currentUser?.role === 'admin' ? "/admin" : "/dashboard"}
+          backText="Back to Dashboard"
+          actions={currentUser?.role === 'admin' ? (
             <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm">
               <Plus className="w-4 h-4" /> New Medical Entry
             </button>
-          )}
-        </div>
+          ) : undefined}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column: Pet Info & Owner */}

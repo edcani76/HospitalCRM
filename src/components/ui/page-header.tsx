@@ -16,14 +16,12 @@ export function PageHeader({ title, subtitle, actions, onBack, backText, backTo 
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Only show back button if explicitly configured
-  const showBackButton = onBack || backTo || location.state?.from;
+  // Always show back button unless explicitly hidden
+  const hideBackButton = onBack === null;
   
   const handleBack = () => {
     if (onBack) {
       onBack();
-    } else if (location.state?.from) {
-      navigate(location.state.from);
     } else if (backTo) {
       navigate(backTo);
     } else {
@@ -39,7 +37,7 @@ export function PageHeader({ title, subtitle, actions, onBack, backText, backTo 
 
   return (
     <div className="mb-6">
-      {showBackButton && (
+      {!hideBackButton && (
         <Button 
           variant="ghost" 
           onClick={handleBack}
