@@ -29,6 +29,8 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { uploadToGoogleDrive, getGoogleDriveLink } from '../../lib/google-drive';
+import { InvoicePDF } from '../../components/invoice-pdf';
+import { pdf } from '@react-pdf/renderer';
 
 // Helper to get file type from file name
 function getFileType(fileName: string): string {
@@ -1199,6 +1201,34 @@ Mode: Walk-in`,
     }
   };
 
+  const handleDownloadInvoicePDF = async () => {
+    if (!invoice || !patient || !owner || !selectedEncounter) return;
+
+    try {
+      const blob = await pdf(
+        <InvoicePDF
+          invoice={invoice}
+          invoiceItems={invoiceItems}
+          payments={payments}
+          patient={patient}
+          owner={owner}
+          encounter={selectedEncounter}
+        />
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Invoice_${invoice.invoiceNo}_${patient.name}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    }
+  };
+
   function getFileType(fileName: string): string {
     const ext = fileName.split('.').pop()?.toLowerCase();
     const typeMap: { [key: string]: string } = {
@@ -1921,15 +1951,26 @@ Mode: Walk-in`,
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold">Billing</h3>
-              {invoice && invoice.status !== 'paid' && (
-                <Button
-                  onClick={() => setShowPaymentDialog(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <DollarSign className="w-4 h-4 mr-2" />
-                  Record Payment
-                </Button>
-              )}
+              <div className="flex gap-2">
+                {invoice && (
+                  <Button
+                    onClick={handleDownloadInvoicePDF}
+                    variant="outline"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </Button>
+                )}
+                {invoice && invoice.status !== 'paid' && (
+                  <Button
+                    onClick={() => setShowPaymentDialog(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <DollarSign className="w-4 h-4 mr-2" />
+                    Record Payment
+                  </Button>
+                )}
+              </div>
             </div>
 
             {invoice ? (
