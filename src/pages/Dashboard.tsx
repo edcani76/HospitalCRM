@@ -12,7 +12,7 @@ import PetDialog from '../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../lib/google-drive';
 
 function PetImage({ pet }: { pet: Pet }) {
-  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(pet.name)}&background=10b981&color=fff&size=300&bold=true`;
+  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(pet.name)}&background=10b981&color=fff&size=200&font-size=0.4`;
   const [src, setSrc] = useState('');
 
   useEffect(() => {

@@ -55,12 +55,15 @@ export default function DashboardLayout({
       </AnimatePresence>
 
       {/* Sidebar */}
-      <motion.aside 
-        initial={false}
-        animate={{ 
-          width: isSidebarOpen ? '280px' : '80px',
-        }}
-        className="relative bg-white border-r border-slate-200 z-50 flex flex-col transition-all duration-300 ease-in-out shadow-[4px_0_24px_rgba(0,0,0,0.01)] lg:relative fixed inset-y-0 left-0 lg:inset-auto"
+      <aside
+        className={`
+          bg-white border-r border-slate-200 z-50 flex flex-col duration-300 ease-in-out shadow-sm
+          fixed inset-y-0 left-0 w-[280px]
+          lg:relative lg:w-20
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0
+          ${isSidebarOpen ? 'lg:w-[280px]' : 'lg:w-20'}
+        `}
       >
         {/* Mobile close button */}
         {isSidebarOpen && (
@@ -153,13 +156,22 @@ export default function DashboardLayout({
             </div>
           )}
         </div>
-      </motion.aside>
+      </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {/* Sub-header */}
         <header className="h-14 bg-white border-b border-slate-100 px-4 md:px-6 flex items-center justify-between shrink-0 z-30">
-          <div className="flex flex-col">
+          <div className="flex items-center gap-3">
+            {/* Hamburger menu for mobile */}
+            {!isSidebarOpen && (
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500 lg:hidden"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+            )}
             <h1 className="text-base font-semibold text-slate-900 leading-none">{title}</h1>
           </div>
 
