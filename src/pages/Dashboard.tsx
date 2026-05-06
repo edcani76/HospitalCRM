@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db, collection, query, where, onSnapshot, doc, getDoc, addDoc, serverTimestamp } from '../firebase';
+import { auth, db, collection, query, where, onSnapshot, doc, getDoc, addDoc, serverTimestamp, updateDoc } from '../firebase';
 import { Appointment, Report, UserProfile, Invoice, Pet } from '../types';
 import { motion } from 'motion/react';
-import { LayoutDashboard, Calendar, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, User, ArrowRight, Download, Activity, ChevronRight } from 'lucide-react';
-import { format } from 'date-fns';
+import { LayoutDashboard, Calendar, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, User, ArrowRight, Download, Activity, ChevronRight, Edit, Ban, X } from 'lucide-react';
+import { format, addDays, startOfToday } from 'date-fns';
 import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import { Badge } from '../components/ui/badge';
 import { useAuth } from '../contexts/AuthContext';
 import PetDialog from '../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../lib/google-drive';
+import { ServiceSelector } from '../components/ServiceSelector';
 
 function PetImage({ pet }: { pet: Pet }) {
   const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(pet.name)}&background=10b981&color=fff&size=200&font-size=0.33&bold=false`;
@@ -60,6 +61,14 @@ export default function Dashboard() {
   const [isPetDialogOpen, setIsPetDialogOpen] = useState(false);
   const [isSubmittingPet, setIsSubmittingPet] = useState(false);
   const [showMoreAppointments, setShowMoreAppointments] = useState(false);
+  const [manageApt, setManageApt] = useState<Appointment | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [rescheduling, setRescheduling] = useState(false);
 
   useEffect(() => {
     if (!user || !user.uid) return;
@@ -193,6 +202,53 @@ export default function Dashboard() {
       default: return <AlertCircle className="w-4 h-4" />;
     }
   };
+
+  const handleCancelAppointment = async () => {
+    if (!manageApt || !cancelReason.trim()) return;
+    setCancelling(true);
+    try {
+      await updateDoc(doc(db, 'appointments', manageApt.id), {
+        status: 'cancelled',
+        cancelReason: cancelReason.trim(),
+        cancelledAt: serverTimestamp(),
+      });
+      setShowCancelDialog(false);
+      setManageApt(null);
+      setCancelReason('');
+    } catch (err) {
+      console.error('Failed to cancel appointment:', err);
+      alert('Failed to cancel appointment. Please try again.');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleRescheduleAppointment = async () => {
+    if (!manageApt || !rescheduleDate || !rescheduleTime) return;
+    setRescheduling(true);
+    try {
+      await updateDoc(doc(db, 'appointments', manageApt.id), {
+        date: rescheduleDate,
+        time: rescheduleTime,
+        rescheduledAt: serverTimestamp(),
+        status: 'unconfirmed',
+      });
+      setShowRescheduleDialog(false);
+      setManageApt(null);
+      setRescheduleDate('');
+      setRescheduleTime('');
+    } catch (err) {
+      console.error('Failed to reschedule appointment:', err);
+      alert('Failed to reschedule appointment. Please try again.');
+    } finally {
+      setRescheduling(false);
+    }
+  };
+
+  const timeSlots = [
+    '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
+    '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM'
+  ];
 
   const menuItems = [
     { id: 'overview', label: 'Dashboard Overview', icon: <LayoutDashboard className="w-5 h-5" /> },
@@ -361,7 +417,15 @@ export default function Dashboard() {
                                 Dr. {apt.doctorName} • <span className="text-slate-900">{apt.time}</span>
                               </p>
                             </div>
-                            <button className="bg-slate-900 text-white px-5 py-2 rounded-lg text-xs font-semibold hover:bg-slate-800 transition-all shadow-sm shrink-0">
+                            <button
+                              onClick={() => {
+                                setManageApt(apt);
+                                setCancelReason('');
+                                setRescheduleDate(apt.date);
+                                setRescheduleTime(apt.time);
+                              }}
+                              className="bg-slate-900 text-white px-5 py-2 rounded-lg text-xs font-semibold hover:bg-slate-800 transition-all shadow-sm shrink-0"
+                            >
                               Manage
                             </button>
                           </div>
@@ -734,6 +798,164 @@ export default function Dashboard() {
       onCancel={() => setIsPetDialogOpen(false)}
       isSubmitting={isSubmittingPet}
     />
+
+    {/* Manage Appointment Dialog */}
+    {manageApt && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setManageApt(null)}>
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-slate-900 text-white p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold">Manage Appointment</h3>
+              <button onClick={() => setManageApt(null)} className="text-white/60 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          <div className="p-6 space-y-4">
+            {/* Appointment Details */}
+            <div className="bg-slate-50 p-4 rounded-xl space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-indigo-50 rounded-lg flex flex-col items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
+                  <span className="text-[8px] font-bold uppercase">{format(new Date(manageApt.date), 'MMM')}</span>
+                  <span className="text-lg font-bold leading-none">{format(new Date(manageApt.date), 'dd')}</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-900">{manageApt.petName}'s Visit</p>
+                  <p className="text-xs text-slate-500">Dr. {manageApt.doctorName}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Time</span>
+                <span className="font-semibold text-slate-900">{manageApt.time}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Status</span>
+                <Badge className={getStatusColor(manageApt.status)}>{manageApt.status}</Badge>
+              </div>
+              {manageApt.notes && (
+                <div className="pt-2 border-t border-slate-200">
+                  <p className="text-xs text-slate-500">Notes: {manageApt.notes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => { setShowCancelDialog(true); }}
+                className="flex items-center justify-center gap-2 p-3 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <Ban className="w-4 h-4" />
+                <span className="text-sm font-semibold">Cancel</span>
+              </button>
+              <button
+                onClick={() => { setShowRescheduleDialog(true); }}
+                className="flex items-center justify-center gap-2 p-3 rounded-xl border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-colors"
+              >
+                <Edit className="w-4 h-4" />
+                <span className="text-sm font-semibold">Reschedule</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Cancel Dialog */}
+    {showCancelDialog && manageApt && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" onClick={() => setShowCancelDialog(false)}>
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-red-600 text-white p-4">
+            <h3 className="text-lg font-bold">Cancel Appointment</h3>
+            <p className="text-red-100 text-xs mt-1">{manageApt.petName}'s visit on {format(new Date(manageApt.date), 'MMM dd, yyyy')}</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="text-sm font-semibold text-slate-700 mb-2 block">Reason for Cancellation</label>
+              <textarea
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+                placeholder="Please let us know why you need to cancel..."
+                className="w-full border border-slate-200 rounded-xl p-3 text-sm min-h-[100px] focus:ring-2 focus:ring-red-500 outline-none"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelDialog(false)}
+                className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50"
+              >
+                Keep Appointment
+              </button>
+              <button
+                onClick={handleCancelAppointment}
+                disabled={cancelling || !cancelReason.trim()}
+                className="flex-1 py-3 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
+              >
+                {cancelling ? 'Cancelling...' : 'Confirm Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Reschedule Dialog */}
+    {showRescheduleDialog && manageApt && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" onClick={() => setShowRescheduleDialog(false)}>
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-indigo-600 text-white p-4">
+            <h3 className="text-lg font-bold">Reschedule Appointment</h3>
+            <p className="text-indigo-100 text-xs mt-1">{manageApt.petName}'s visit with Dr. {manageApt.doctorName}</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="text-sm font-semibold text-slate-700 mb-2 block">New Date</label>
+              <input
+                type="date"
+                value={rescheduleDate}
+                min={format(new Date(), 'yyyy-MM-dd')}
+                onChange={e => setRescheduleDate(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-slate-700 mb-2 block">New Time</label>
+              <div className="grid grid-cols-3 gap-2">
+                {timeSlots.map(time => (
+                  <button
+                    key={time}
+                    type="button"
+                    onClick={() => setRescheduleTime(time)}
+                    className={`py-2 rounded-lg border text-xs font-semibold transition-all ${
+                      rescheduleTime === time
+                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                        : 'bg-slate-50 border-slate-200 hover:border-indigo-200 text-slate-600'
+                    }`}
+                  >
+                    {time}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRescheduleDialog(false)}
+                className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRescheduleAppointment}
+                disabled={rescheduling || !rescheduleDate || !rescheduleTime}
+                className="flex-1 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {rescheduling ? 'Rescheduling...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }
