@@ -46,7 +46,16 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
   const { user } = useAuth()
   const { theme, setTheme } = useTheme()
   const location = useLocation()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarDesktop, setSidebarDesktop] = useState(true)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)')
+    setSidebarDesktop(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setSidebarDesktop(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
   const [online, setOnline] = useState(isOnline())
   const [syncing, setSyncing] = useState(false)
   const [queuedCount, setQueuedCount] = useState(0)
@@ -341,28 +350,30 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Mobile sidebar overlay */}
-      {!sidebarOpen && (
+      {!sidebarDesktop && sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(true)}
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
         className={cn(
-          "bg-white dark:bg-card border-r border-border flex flex-col transition-all duration-300",
-          sidebarOpen ? "w-64" : "w-16"
+          "bg-white dark:bg-card border-r border-border flex flex-col z-50",
+          sidebarDesktop
+            ? cn("relative transition-all duration-300", sidebarOpen ? "w-64" : "w-16")
+            : cn("fixed inset-y-0 left-0 w-64 transition-transform duration-300", sidebarOpen ? "translate-x-0" : "-translate-x-full")
         )}
       >
         {/* Sidebar Header with Toggle */}
         <div className="p-4 border-b border-border flex items-center gap-2">
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={() => sidebarDesktop ? setSidebarOpen(!sidebarOpen) : setSidebarOpen(false)}
             className="p-1.5 rounded-lg hover:bg-muted/50 transition-colors shrink-0"
-            title={sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+            title={sidebarDesktop ? (sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar") : "Close Menu"}
           >
-            {sidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+            {sidebarDesktop ? (sidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />) : <ChevronLeft size={20} />}
           </button>
           
           <div className={cn("flex items-center gap-2 overflow-hidden transition-opacity duration-300", !sidebarOpen && "opacity-0 invisible w-0")}>
@@ -413,8 +424,19 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header Area (Breadcrumbs + Theme Toggle) */}
-        <div className="border-b border-border px-6 py-3 bg-background flex items-center justify-between">
-          <nav className="flex items-center space-x-2 text-sm">
+        <div className="border-b border-border px-4 py-3 bg-background flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Hamburger menu button for mobile */}
+            {!sidebarDesktop && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-1.5 rounded-lg hover:bg-muted/50 transition-colors shrink-0"
+                title="Open Menu"
+              >
+                <Menu size={20} />
+              </button>
+            )}
+            <nav className="flex items-center space-x-2 text-sm min-w-0">
             {getBreadcrumbs().map((crumb, index) => (
               <React.Fragment key={crumb.path}>
                 {index > 0 && <span className="text-muted-foreground">/</span>}
@@ -432,6 +454,7 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
               </React.Fragment>
             ))}
           </nav>
+          </div>
 
           <div className="flex items-center gap-3">
             {/* Online/Offline Indicator */}
