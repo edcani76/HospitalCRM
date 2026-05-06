@@ -79,7 +79,14 @@ export default function Dashboard() {
       where('clientUid', '==', user.uid)
     );
     const unsubAppointments = onSnapshot(qAppointments, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
+      const data = snapshot.docs.map(doc => {
+        const apt = { id: doc.id, ...doc.data() } as Appointment;
+        const servicesMatch = apt.notes?.match(/Services:\s*([^\n]+)/i);
+        if (servicesMatch) {
+          apt.services = servicesMatch[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+        }
+        return apt;
+      });
       setAppointments(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     });
 
@@ -840,6 +847,16 @@ export default function Dashboard() {
                 <span className="text-slate-500">Status</span>
                 <Badge className={getStatusColor(manageApt.status)}>{manageApt.status}</Badge>
               </div>
+              {manageApt.services && manageApt.services.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 mb-1">Services</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {manageApt.services.map((s, i) => (
+                      <span key={i} className="inline-block bg-indigo-50 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-md capitalize">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
               {manageApt.notes && (
                 <div className="pt-2 border-t border-slate-200">
                   <p className="text-xs text-slate-500">Notes: {manageApt.notes}</p>

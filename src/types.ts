@@ -50,6 +50,7 @@ export interface Appointment {
   notes?: string;
   createdAt: any;
   cancelReason?: string;
+  services?: string[];
   audit?: any[];
 }
 
