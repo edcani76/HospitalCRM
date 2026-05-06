@@ -59,6 +59,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'pets' | 'appointments' | 'billing' | 'records'>('overview');
   const [isPetDialogOpen, setIsPetDialogOpen] = useState(false);
   const [isSubmittingPet, setIsSubmittingPet] = useState(false);
+  const [showMoreAppointments, setShowMoreAppointments] = useState(false);
 
   useEffect(() => {
     if (!user || !user.uid) return;
@@ -296,18 +297,22 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <Clock className="w-5 h-5 text-indigo-500" />
-                    Next Clinical Appointment
+                    Upcoming Visits
                   </h3>
-                  <Link to="/appointments" className="text-xs font-medium text-slate-400 hover:text-primary transition-colors">View All History</Link>
+                  <button
+                    onClick={() => setActiveTab('appointments')}
+                    className="text-xs font-medium text-slate-400 hover:text-primary transition-colors"
+                  >
+                    View All History
+                  </button>
                 </div>
                 
                 {(() => {
                   const upcoming = appointments
                     .filter(a => a.status !== 'cancelled' && a.status !== 'completed' && new Date(a.date) >= new Date(new Date().toDateString()))
                     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-                  const nextAppt = upcoming[0];
                   
-                  if (!nextAppt) return (
+                  if (upcoming.length === 0) return (
                     <div className="bg-white/40 p-8 rounded-xl border-2 border-dashed border-slate-200 text-center space-y-3">
                       <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center mx-auto shadow-sm">
                         <Calendar className="w-6 h-6 text-slate-200" />
@@ -322,39 +327,54 @@ export default function Dashboard() {
                     </div>
                   );
 
-                  const isUnconfirmed = nextAppt.status === 'unconfirmed';
+                  const visible = showMoreAppointments ? upcoming : upcoming.slice(0, 5);
 
                   return (
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center gap-6">
-                      <div className="w-16 h-16 bg-indigo-50 rounded-lg flex flex-col items-center justify-center text-indigo-600 border border-indigo-100">
-                        <span className="text-[10px] font-bold uppercase">
-                          {format(new Date(nextAppt.date), 'MMM')}
-                        </span>
-                        <span className="text-2xl font-bold leading-none">
-                          {format(new Date(nextAppt.date), 'dd')}
-                        </span>
-                      </div>
-                      <div className="flex-1 text-center md:text-left">
-                        {isUnconfirmed && (
-                          <div className="inline-flex items-center gap-2 px-2 py-0.5 bg-amber-50 rounded-md text-amber-600 text-[10px] font-semibold mb-2">
-                            Pending Confirmation
+                    <div className="space-y-3">
+                      {visible.map((apt) => {
+                        const isUnconfirmed = apt.status === 'unconfirmed';
+                        return (
+                          <div key={apt.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center gap-4">
+                            <div className="w-14 h-14 bg-indigo-50 rounded-lg flex flex-col items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
+                              <span className="text-[10px] font-bold uppercase">
+                                {format(new Date(apt.date), 'MMM')}
+                              </span>
+                              <span className="text-xl font-bold leading-none">
+                                {format(new Date(apt.date), 'dd')}
+                              </span>
+                            </div>
+                            <div className="flex-1 text-center md:text-left min-w-0">
+                              {isUnconfirmed && (
+                                <div className="inline-flex items-center gap-2 px-2 py-0.5 bg-amber-50 rounded-md text-amber-600 text-[10px] font-semibold mb-1">
+                                  Pending Confirmation
+                                </div>
+                              )}
+                              {!isUnconfirmed && (
+                                <div className="inline-flex items-center gap-2 px-2 py-0.5 bg-indigo-50 rounded-md text-indigo-600 text-[10px] font-semibold mb-1">
+                                  Confirmed
+                                </div>
+                              )}
+                              <h4 className="text-base font-bold text-slate-900 truncate">
+                                {apt.petName}'s Visit
+                              </h4>
+                              <p className="text-slate-400 text-xs mt-0.5">
+                                Dr. {apt.doctorName} • <span className="text-slate-900">{apt.time}</span>
+                              </p>
+                            </div>
+                            <button className="bg-slate-900 text-white px-5 py-2 rounded-lg text-xs font-semibold hover:bg-slate-800 transition-all shadow-sm shrink-0">
+                              Manage
+                            </button>
                           </div>
-                        )}
-                        {!isUnconfirmed && (
-                          <div className="inline-flex items-center gap-2 px-2 py-0.5 bg-indigo-50 rounded-md text-indigo-600 text-[10px] font-semibold mb-2">
-                            General Consultation
-                          </div>
-                        )}
-                        <h4 className="text-xl font-bold text-slate-900">
-                          {nextAppt.petName}'s Visit
-                        </h4>
-                        <p className="text-slate-400 text-sm mt-1">
-                          Dr. {nextAppt.doctorName} • <span className="text-slate-900">{nextAppt.time}</span>
-                        </p>
-                      </div>
-                      <button className="bg-slate-900 text-white px-6 py-2.5 rounded-lg text-xs font-semibold hover:bg-slate-800 transition-all shadow-sm">
-                        Manage Visit
-                      </button>
+                        );
+                      })}
+                      {upcoming.length > 5 && !showMoreAppointments && (
+                        <button
+                          onClick={() => setShowMoreAppointments(true)}
+                          className="w-full py-2.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-500 hover:bg-white hover:text-slate-700 transition-all"
+                        >
+                          Load More ({upcoming.length - 5} more)
+                        </button>
+                      )}
                     </div>
                   );
                 })()}
@@ -486,60 +506,110 @@ export default function Dashboard() {
                   </div>
                   Visit History
                 </h2>
-                <p className="text-slate-500 mt-1 text-sm font-medium">Full clinical audit of your hospital visits.</p>
+                <p className="text-slate-500 mt-1 text-sm font-medium">All your appointments - upcoming and past.</p>
               </div>
             </div>
             
-            <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-              {appointments.length === 0 ? (
-                <div className="p-16 text-center space-y-4">
-                  <div className="w-16 h-16 bg-slate-50 rounded-lg flex items-center justify-center mx-auto">
-                    <Calendar className="w-8 h-8 text-slate-200" />
-                  </div>
-                  <div>
-                    <p className="text-slate-900 text-sm font-semibold">No Appointments</p>
-                    <p className="text-slate-400 text-xs">No appointments found in your clinical history.</p>
-                  </div>
-                  <Link to="/doctors" className="inline-flex items-center gap-2 bg-slate-900 text-white px-6 py-2.5 rounded-lg text-xs font-semibold hover:scale-105 transition-all">
-                    Schedule Visit <ArrowRight className="w-3 h-3" />
-                  </Link>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-50">
-                  {appointments.map((app) => (
-                    <div key={app.id} className="p-6 flex flex-col md:flex-row items-center justify-between hover:bg-slate-50/50 transition-colors group gap-4">
-                      <div className="flex items-center gap-6">
-                        <div className="w-14 h-14 bg-slate-900 rounded-lg flex flex-col items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
-                          <span className="text-[8px] font-medium uppercase opacity-60">
-                            {format(new Date(app.date), 'MMM')}
-                          </span>
-                          <span className="text-xl font-bold leading-none">
-                            {format(new Date(app.date), 'dd')}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <h4 className="font-semibold text-base text-slate-900">{app.petName}'s Consultation</h4>
-                            <Badge variant="outline" className="rounded-md text-[10px] font-medium border-slate-200">OPD</Badge>
-                          </div>
-                          <p className="text-xs font-medium text-slate-400">
-                            Dr. {app.doctorName} • <span className="text-slate-900">{app.time}</span>
-                          </p>
-                        </div>
+            {(() => {
+              const today = new Date(new Date().toDateString());
+              const upcoming = appointments
+                .filter(a => a.status !== 'cancelled' && new Date(a.date) >= today)
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+              const past = appointments
+                .filter(a => a.status === 'completed' || a.status === 'cancelled' || new Date(a.date) < today)
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+              return (
+                <>
+                  {upcoming.length > 0 && (
+                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-6 py-3 bg-indigo-50/50 border-b border-slate-100">
+                        <h3 className="text-sm font-semibold text-indigo-600">Upcoming ({upcoming.length})</h3>
                       </div>
-                      <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
-                        <div className={`px-3 py-1.5 rounded-lg text-[10px] font-semibold ${getStatusColor(app.status)} border border-current`}>
-                          {app.status}
-                        </div>
-                        <button className="w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-primary group-hover:text-white transition-all">
-                          <ArrowRight className="w-4 h-4" />
-                        </button>
+                      <div className="divide-y divide-slate-50">
+                        {upcoming.map((app) => (
+                          <div key={app.id} className="p-4 flex flex-col md:flex-row items-center justify-between hover:bg-slate-50/50 transition-colors group gap-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-indigo-50 rounded-lg flex flex-col items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
+                                <span className="text-[8px] font-bold uppercase">
+                                  {format(new Date(app.date), 'MMM')}
+                                </span>
+                                <span className="text-lg font-bold leading-none">
+                                  {format(new Date(app.date), 'dd')}
+                                </span>
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <h4 className="font-semibold text-sm text-slate-900">{app.petName}'s Consultation</h4>
+                                  {app.status === 'unconfirmed' && (
+                                    <Badge variant="outline" className="rounded-md text-[10px] font-medium bg-amber-50 text-amber-600 border-amber-200">Pending</Badge>
+                                  )}
+                                  {app.status === 'confirmed' && (
+                                    <Badge variant="outline" className="rounded-md text-[10px] font-medium bg-emerald-50 text-emerald-600 border-emerald-200">Confirmed</Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs font-medium text-slate-400">
+                                  Dr. {app.doctorName} • <span className="text-slate-900">{app.time}</span>
+                                </p>
+                              </div>
+                            </div>
+                            <button className="bg-slate-900 text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-800 transition-all shrink-0">
+                              Manage
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                  )}
+
+                  <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="px-6 py-3 bg-slate-50 border-b border-slate-100">
+                      <h3 className="text-sm font-semibold text-slate-500">Past Visits ({past.length})</h3>
+                    </div>
+                    {past.length === 0 ? (
+                      <div className="p-12 text-center">
+                        <p className="text-slate-400 text-sm">No past visits yet.</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-50">
+                        {past.map((app) => (
+                          <div key={app.id} className="p-4 flex flex-col md:flex-row items-center justify-between hover:bg-slate-50/50 transition-colors group gap-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-slate-100 rounded-lg flex flex-col items-center justify-center text-slate-500 shrink-0">
+                                <span className="text-[8px] font-medium uppercase">
+                                  {format(new Date(app.date), 'MMM')}
+                                </span>
+                                <span className="text-lg font-bold leading-none">
+                                  {format(new Date(app.date), 'dd')}
+                                </span>
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <h4 className="font-semibold text-sm text-slate-900">{app.petName}'s Consultation</h4>
+                                  <Badge variant="outline" className={`rounded-md text-[10px] font-medium border ${
+                                    app.status === 'completed' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                                    app.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-200' :
+                                    'bg-slate-50 text-slate-600 border-slate-200'
+                                  }`}>
+                                    {app.status}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs font-medium text-slate-400">
+                                  Dr. {app.doctorName} • <span className="text-slate-900">{app.time}</span>
+                                </p>
+                              </div>
+                            </div>
+                            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-primary group-hover:text-white transition-all">
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </motion.div>
         )}
 
