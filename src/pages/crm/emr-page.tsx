@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus, Loader2, Mail, Phone, User, Stethoscope, Activity, Thermometer,
   Heart, Wind, Droplets, Clock, FileText, DollarSign, History,
-  ClipboardList, Pill, FlaskConical, Upload, Printer, Eye, Bell, Check
+  ClipboardList, Pill, FlaskConical, Upload, Printer, Eye, Bell, Check,
+  ChevronDown, ChevronUp, AlertTriangle, FileCheck, Receipt, Calendar
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { format } from 'date-fns';
@@ -50,6 +51,380 @@ type TabType =
   | 'billing'
   | 'history'
   | 'audit-trail';
+
+function getStatusBadge(status: string) {
+  switch (status) {
+    case 'in-progress':
+      return <Badge className="bg-blue-600 text-white">In Progress</Badge>;
+    case 'completed':
+      return <Badge variant="success">Completed</Badge>;
+    case 'confirmed':
+      return <Badge variant="success">Confirmed</Badge>;
+    case 'pending':
+      return <Badge variant="secondary">Pending</Badge>;
+    case 'draft':
+      return <Badge variant="outline">Draft</Badge>;
+    case 'cancelled':
+      return <Badge variant="destructive">Cancelled</Badge>;
+    case 'paid':
+      return <Badge className="bg-green-600 text-white">Paid</Badge>;
+    case 'partially-paid':
+      return <Badge className="bg-yellow-600 text-white">Partially Paid</Badge>;
+    case 'ordered':
+      return <Badge className="bg-purple-600 text-white">Ordered</Badge>;
+    case 'prescribed':
+      return <Badge className="bg-indigo-600 text-white">Prescribed</Badge>;
+    case 'dispensed':
+      return <Badge className="bg-teal-600 text-white">Dispensed</Badge>;
+    default:
+      return <Badge variant="outline">{status}</Badge>;
+  }
+}
+
+// Collapsible summary section
+function SummarySection({ title, icon: Icon, children, defaultOpen = true }: { title: string; icon: any; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border rounded-lg">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4 text-gray-500" />
+          <h4 className="font-semibold text-sm">{title}</h4>
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+      </button>
+      {open && <div className="px-4 pb-4 border-t">{children}</div>}
+    </div>
+  );
+}
+
+function VisitSummaryTab({ patient, owner, encounter, encounters, vitals, services, clinicalNotes, labOrders, prescriptions, invoice, invoiceItems, payments, attachments }: {
+  patient: any;
+  owner: any;
+  encounter: any;
+  encounters: any[];
+  vitals: any[];
+  services: any[];
+  clinicalNotes: any;
+  labOrders: any[];
+  prescriptions: any[];
+  invoice: any;
+  invoiceItems: any[];
+  payments: any[];
+  attachments: any[];
+}) {
+  if (!encounter) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        <ClipboardList className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+        <p className="text-sm">No encounter selected. Please select or start a new appointment.</p>
+      </div>
+    );
+  }
+
+  const latestVitals = vitals.length > 0 ? vitals[vitals.length - 1] : null;
+  const completedLabs = labOrders.filter((l: any) => l.status === 'completed' || l.resultSummary);
+  const pendingLabs = labOrders.filter((l: any) => l.status !== 'completed' && !l.resultSummary);
+  const activeRx = prescriptions.filter((r: any) => r.status === 'prescribed' || r.status === 'dispensed');
+  const totalDue = invoice?.balanceDue || 0;
+  const totalPaid = invoice?.amountPaid || 0;
+  const grandTotal = invoice?.grandTotal || 0;
+
+  const encounterTime = encounter.startedAt?.toDate?.() || encounter.createdAt?.toDate?.();
+  const encounterDateStr = encounterTime ? format(encounterTime, 'MMM dd, yyyy hh:mm a') : 'N/A';
+
+  // Build timeline from encounters
+  const timeline = [...encounters]
+    .sort((a: any, b: any) => {
+      const aTime = a.startedAt?.toDate?.()?.getTime() || a.createdAt?.toDate?.()?.getTime() || 0;
+      const bTime = b.startedAt?.toDate?.()?.getTime() || b.createdAt?.toDate?.()?.getTime() || 0;
+      return bTime - aTime;
+    })
+    .slice(0, 10);
+
+  return (
+    <div className="p-6">
+      {/* Header: Patient, Doctor, Status */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mb-6 border border-blue-100">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-blue-100 flex items-center justify-center text-2xl font-bold text-blue-600 border-2 border-blue-200">
+              {patient?.name?.[0] || 'P'}
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">{patient?.name}</h3>
+              <p className="text-sm text-gray-600">{patient?.species} • {patient?.breed} • Age: {patient?.age || '?'}y</p>
+              {owner && <p className="text-xs text-gray-500">Owner: {owner?.displayName || owner?.name}</p>}
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-sm font-semibold text-gray-700">{encounter.doctorName || 'N/A'}</p>
+              <p className="text-xs text-gray-500">{encounterDateStr}</p>
+            </div>
+            {getStatusBadge(encounter.status)}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-3">
+          {/* Chief Complaint */}
+          <SummarySection title="Chief Complaint" icon={AlertTriangle}>
+            {clinicalNotes?.subjective ? (
+              <p className="text-sm text-gray-700 mt-2">{clinicalNotes.subjective}</p>
+            ) : (
+              <p className="text-sm text-gray-400 mt-2">No chief complaint recorded.</p>
+            )}
+          </SummarySection>
+
+          {/* Triage Snapshot */}
+          <SummarySection title="Triage Snapshot" icon={Thermometer}>
+            {latestVitals ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-blue-600 font-medium">Weight</p>
+                  <p className="text-lg font-bold text-blue-800">{latestVitals.weightKg || 0} kg</p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-red-600 font-medium">Temp</p>
+                  <p className="text-lg font-bold text-red-800">{latestVitals.temperatureC || 0}°C</p>
+                </div>
+                <div className="bg-rose-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-rose-600 font-medium">Heart Rate</p>
+                  <p className="text-lg font-bold text-rose-800">{latestVitals.heartRateBpm || 0} bpm</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-green-600 font-medium">Resp Rate</p>
+                  <p className="text-lg font-bold text-green-800">{latestVitals.respiratoryRateRpm || 0} rpm</p>
+                </div>
+                {latestVitals.mmColor && (
+                  <div className="bg-purple-50 rounded-lg p-3 text-center">
+                    <p className="text-xs text-purple-600 font-medium">MM Color</p>
+                    <p className="text-lg font-bold text-purple-800">{latestVitals.mmColor}</p>
+                  </div>
+                )}
+                {latestVitals.crtSeconds && (
+                  <div className="bg-amber-50 rounded-lg p-3 text-center">
+                    <p className="text-xs text-amber-600 font-medium">CRT</p>
+                    <p className="text-lg font-bold text-amber-800">{latestVitals.crtSeconds}s</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 mt-2">No vitals recorded for this visit.</p>
+            )}
+          </SummarySection>
+
+          {/* Services Overview */}
+          <SummarySection title="Services" icon={Activity}>
+            {services.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {services.map((srv: any) => (
+                  <div key={srv.id} className="flex justify-between items-center p-2 bg-gray-50 rounded-md">
+                    <div>
+                      <p className="text-sm font-medium">{srv.serviceName}</p>
+                      <p className="text-xs text-gray-500">{srv.serviceType} • Qty: {srv.quantity}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold">₱{(srv.unitPrice || 0) * (srv.quantity || 1)}</p>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${srv.status === 'completed' ? 'bg-green-100 text-green-700' : srv.status === 'in-progress' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {srv.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 mt-2">No services added yet.</p>
+            )}
+          </SummarySection>
+
+          {/* Clinical Summary (SOAP) */}
+          <SummarySection title="Clinical Notes" icon={Stethoscope} defaultOpen={false}>
+            {clinicalNotes && (clinicalNotes.subjective || clinicalNotes.objective || clinicalNotes.assessment || clinicalNotes.plan) ? (
+              <div className="mt-3 space-y-3">
+                {clinicalNotes.subjective && (
+                  <div>
+                    <p className="text-xs font-semibold text-blue-600 uppercase">Subjective</p>
+                    <p className="text-sm text-gray-700">{clinicalNotes.subjective}</p>
+                  </div>
+                )}
+                {clinicalNotes.objective && (
+                  <div>
+                    <p className="text-xs font-semibold text-red-600 uppercase">Objective</p>
+                    <p className="text-sm text-gray-700">{clinicalNotes.objective}</p>
+                  </div>
+                )}
+                {clinicalNotes.assessment && (
+                  <div>
+                    <p className="text-xs font-semibold text-amber-600 uppercase">Assessment</p>
+                    <p className="text-sm text-gray-700">{clinicalNotes.assessment}</p>
+                  </div>
+                )}
+                {clinicalNotes.plan && (
+                  <div>
+                    <p className="text-xs font-semibold text-green-600 uppercase">Plan</p>
+                    <p className="text-sm text-gray-700">{clinicalNotes.plan}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 mt-2">No clinical notes recorded.</p>
+            )}
+          </SummarySection>
+
+          {/* Lab Summary */}
+          <SummarySection title="Lab Orders" icon={FlaskConical}>
+            {labOrders.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {pendingLabs.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-amber-600 mb-1">Pending ({pendingLabs.length})</p>
+                    {pendingLabs.map((lab: any) => (
+                      <div key={lab.id} className="flex justify-between items-center p-2 bg-amber-50 rounded-md mb-1">
+                        <p className="text-sm font-medium">{lab.testName}</p>
+                        <Badge className="bg-amber-100 text-amber-700 text-xs">{lab.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {completedLabs.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-green-600 mb-1">Completed ({completedLabs.length})</p>
+                    {completedLabs.map((lab: any) => (
+                      <div key={lab.id} className="flex justify-between items-center p-2 bg-green-50 rounded-md mb-1">
+                        <div>
+                          <p className="text-sm font-medium">{lab.testName}</p>
+                          {lab.resultSummary && <p className="text-xs text-gray-500">{lab.resultSummary}</p>}
+                        </div>
+                        <Badge className="bg-green-100 text-green-700 text-xs">{lab.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 mt-2">No lab orders for this visit.</p>
+            )}
+          </SummarySection>
+
+          {/* Medication Summary */}
+          <SummarySection title="Medications" icon={Pill}>
+            {activeRx.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {activeRx.map((rx: any) => (
+                  <div key={rx.id} className="flex justify-between items-start p-2 bg-gray-50 rounded-md">
+                    <div>
+                      <p className="text-sm font-medium">{rx.medicationName}</p>
+                      <p className="text-xs text-gray-500">{rx.dosage} • {rx.frequency} • {rx.duration}</p>
+                    </div>
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${rx.status === 'dispensed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {rx.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 mt-2">No medications prescribed.</p>
+            )}
+          </SummarySection>
+        </div>
+
+        {/* Right Column: Billing + Timeline */}
+        <div className="space-y-3">
+          {/* Billing Snapshot */}
+          <div className="bg-gray-50 rounded-lg p-4 border">
+            <div className="flex items-center gap-2 mb-3">
+              <Receipt className="w-4 h-4 text-gray-600" />
+              <h4 className="font-semibold text-sm">Billing Snapshot</h4>
+            </div>
+            {invoice ? (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Invoice #</span>
+                  <span className="font-medium">{invoice.invoiceNo}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Grand Total</span>
+                  <span className="font-bold">₱{grandTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Paid</span>
+                  <span className="font-medium text-green-600">₱{totalPaid.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm border-t pt-2">
+                  <span className="text-gray-700 font-medium">Balance</span>
+                  <span className={cn("font-bold", totalDue > 0 ? "text-red-600" : "text-green-600")}>₱{totalDue.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Items</span>
+                  <span className="font-medium">{invoiceItems.length}</span>
+                </div>
+                {payments.length > 0 && (
+                  <div className="border-t pt-2">
+                    <p className="text-xs font-medium text-gray-500 mb-1">Payments</p>
+                    {payments.map((p: any) => (
+                      <div key={p.id} className="flex justify-between text-xs">
+                        <span>₱{p.amount?.toFixed(2)} ({p.paymentMethod})</span>
+                        <span className="text-gray-400">{p.paidAt?.toDate?.()?.toLocaleDateString?.() || ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">No invoice generated.</p>
+            )}
+          </div>
+
+          {/* Visit Timeline */}
+          <div className="bg-gray-50 rounded-lg p-4 border">
+            <div className="flex items-center gap-2 mb-3">
+              <History className="w-4 h-4 text-gray-600" />
+              <h4 className="font-semibold text-sm">Visit Timeline</h4>
+            </div>
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {timeline.map((enc: any, idx: number) => {
+                const encTime = enc.startedAt?.toDate?.() || enc.createdAt?.toDate?.();
+                const isCurrent = enc.id === encounter.id;
+                return (
+                  <div key={enc.id} className={cn(
+                    "flex items-start gap-2 text-xs p-2 rounded-md",
+                    isCurrent ? "bg-blue-100 border border-blue-200" : ""
+                  )}>
+                    <div className={cn(
+                      "w-2 h-2 rounded-full mt-1 shrink-0",
+                      enc.status === 'in-progress' ? "bg-blue-500 animate-pulse" :
+                      enc.status === 'completed' ? "bg-green-500" : "bg-gray-400"
+                    )} />
+                    <div className="min-w-0">
+                      <p className={cn("font-medium truncate", isCurrent ? "text-blue-700" : "text-gray-700")}>
+                        {encTime ? format(encTime, 'MMM dd, yyyy') : 'New'}
+                      </p>
+                      <p className="text-gray-500 truncate">{enc.doctorName || 'N/A'}</p>
+                    </div>
+                    <span className={cn(
+                      "text-[10px] px-1 py-0.5 rounded shrink-0 ml-auto",
+                      enc.status === 'in-progress' ? "bg-blue-100 text-blue-700" :
+                      enc.status === 'completed' ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                    )}>
+                      {enc.status}
+                    </span>
+                  </div>
+                );
+              })}
+              {timeline.length === 0 && <p className="text-sm text-gray-400">No visit history.</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function EMRPage() {
   const { patientId } = useParams();
@@ -1012,53 +1387,21 @@ Mode: Walk-in`,
       {/* Tab Content */}
       <div className="bg-white rounded-lg shadow">
         {activeTab === 'visit-summary' && (
-          <div className="p-6">
-            <h3 className="text-lg font-bold mb-4">Visit Summary</h3>
-            {selectedEncounter ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Encounter ID</p>
-                    <p className="font-medium">{selectedEncounter.id}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Status</p>
-                    {getStatusBadge(selectedEncounter.status)}
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Started At</p>
-                    <p className="font-medium">
-                      {selectedEncounter.startedAt?.toDate?.()?.toLocaleString?.() || 
-                       selectedEncounter.createdAt?.toDate?.()?.toLocaleString?.() || 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Doctor</p>
-                    <p className="font-medium">{selectedEncounter.doctorName || 'N/A'}</p>
-                  </div>
-                </div>
-
-                {appointmentServices.length > 0 && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-2">Services</p>
-                    <div className="space-y-2">
-                      {appointmentServices.map((srv: any) => (
-                        <div key={srv.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="font-medium">{srv.serviceName}</p>
-                            <p className="text-sm text-gray-500">{srv.serviceType} • {srv.status}</p>
-                          </div>
-                          <p className="font-bold">₱{srv.unitPrice * srv.quantity}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">No encounter selected. Please select or start a new appointment.</p>
-            )}
-          </div>
+          <VisitSummaryTab
+            patient={patient}
+            owner={owner}
+            encounter={selectedEncounter}
+            encounters={encounters}
+            vitals={triageVitals}
+            services={appointmentServices}
+            clinicalNotes={clinicalNotes}
+            labOrders={labOrders}
+            prescriptions={prescriptions}
+            invoice={invoice}
+            invoiceItems={invoiceItems}
+            payments={payments}
+            attachments={attachments}
+          />
         )}
 
         {activeTab === 'triage-vitals' && (
@@ -1882,33 +2225,4 @@ Mode: Walk-in`,
       </Dialog>
     </div>
   );
-
-  function getStatusBadge(status: string) {
-    switch (status) {
-      case 'in-progress':
-        return <Badge className="bg-blue-600 text-white">In Progress</Badge>;
-      case 'completed':
-        return <Badge variant="success">Completed</Badge>;
-      case 'confirmed':
-        return <Badge variant="success">Confirmed</Badge>;
-      case 'pending':
-        return <Badge variant="secondary">Pending</Badge>;
-      case 'draft':
-        return <Badge variant="outline">Draft</Badge>;
-      case 'cancelled':
-        return <Badge variant="destructive">Cancelled</Badge>;
-      case 'paid':
-        return <Badge className="bg-green-600 text-white">Paid</Badge>;
-      case 'partially-paid':
-        return <Badge className="bg-yellow-600 text-white">Partially Paid</Badge>;
-      case 'ordered':
-        return <Badge className="bg-purple-600 text-white">Ordered</Badge>;
-      case 'prescribed':
-        return <Badge className="bg-indigo-600 text-white">Prescribed</Badge>;
-      case 'dispensed':
-        return <Badge className="bg-teal-600 text-white">Dispensed</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  }
 }
