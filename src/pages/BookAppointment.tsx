@@ -434,6 +434,9 @@ export default function BookAppointment() {
                 onChange={setSelectedServices}
                 providerId={doctor?.id}
                 requireConsultation={true}
+                showPrice={false}
+                hideCategories={['medication', 'supply']}
+                categoryOrder={['consultation', 'vaccination', 'procedure', 'diagnostic', 'lab', 'grooming']}
               />
             </div>
             <p className="text-xs text-stone-400">
