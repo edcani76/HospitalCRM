@@ -337,13 +337,16 @@ export default function AppointmentsPage() {
     return time;
   };
 
-  const getDoctorAvailability = (doctor: Doctor, date: Date): Set<string> => {
-    const dayOfWeek = date.getDay();
-    if (doctor.availability && typeof doctor.availability === 'object' && !Array.isArray(doctor.availability) && dayOfWeek.toString() in doctor.availability) {
-      const rawSlots = (doctor.availability as any)[dayOfWeek.toString()] || [];
-      return new Set(rawSlots.map((s: string) => normalizeTimeSlot(s)));
+  const getDoctorAvailability = (doctor: Doctor, date: Date): Set<string> | null => {
+    if (!doctor.availability || typeof doctor.availability !== 'object' || Array.isArray(doctor.availability)) {
+      return null;
     }
-    return new Set();
+    const dayKey = date.getDay().toString();
+    if (!(dayKey in doctor.availability)) {
+      return null;
+    }
+    const rawSlots = (doctor.availability as any)[dayKey] || [];
+    return new Set(rawSlots.map((s: string) => normalizeTimeSlot(s)));
   };
 
   const parseTimeToSlot = (time: string): string => {
@@ -508,7 +511,7 @@ export default function AppointmentsPage() {
                           </td>
                           {displayDoctors.map(doc => {
                             const availableSlots = getDoctorAvailability(doc, selectedDate);
-                            const isAvailable = availableSlots.size === 0 || availableSlots.has(slot);
+                            const isAvailable = availableSlots === null || availableSlots.has(slot);
                             const appts = appointmentsByDoctorAndSlot[doc.id]?.[slot] || [];
 
                             if (!isAvailable) {
