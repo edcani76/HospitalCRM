@@ -35,7 +35,10 @@ export default function AppointmentsPage() {
   const [cancelAppointment, setCancelAppointment] = useState<Appointment | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [boardView, setBoardView] = useState(false);
+  const [boardView, setBoardView] = useState(() => {
+    const saved = localStorage.getItem('appointments-board-view');
+    return saved === 'true';
+  });
 
   // For doctors, find their doctor record
   const currentDoctor = user?.role === 'doctor'
@@ -51,6 +54,10 @@ export default function AppointmentsPage() {
       fetchNotifications(auth.currentUser.uid);
     }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('appointments-board-view', String(boardView));
+  }, [boardView]);
 
   // Auto-tag past confirmed appointments as no-show
   useEffect(() => {

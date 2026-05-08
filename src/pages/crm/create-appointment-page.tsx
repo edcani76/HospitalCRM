@@ -690,6 +690,7 @@ export default function CreateAppointmentPage() {
 
                 // Check readiness
                 const missingFields: string[] = [];
+                if (!selectedPet) missingFields.push('Patient');
                 if (!apt.providerId) missingFields.push('Provider');
                 if (!apt.date) missingFields.push('Date');
                 if (!apt.time) missingFields.push('Time');
@@ -711,6 +712,7 @@ export default function CreateAppointmentPage() {
                           <Badge variant={isReady ? 'success' : 'warning'} className="text-xs">{statusBadge}</Badge>
                         </div>
                         <div className={`text-sm mt-1 space-y-0.5 ${subtextColor}`}>
+                          <p>Patient: {selectedPetData?.name || 'Not selected'}</p>
                           <p>Provider: {apt.providerName || (provider ? provider.name : 'Not selected')}</p>
                           <p>Date: {apt.date || 'Not set'}</p>
                           <p>Time: {apt.time || 'Not set'}</p>
@@ -740,7 +742,7 @@ export default function CreateAppointmentPage() {
         {/* Submit */}
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={() => navigate('/crm/appointments')} disabled={loading}>Cancel</Button>
-          <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white" disabled={loading || appointments.length === 0}>
+          <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white" disabled={loading || appointments.length === 0 || !selectedPet}>
             {loading ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />{isEdit ? 'Updating...' : 'Creating...'}</>) : (isEdit ? 'Update Appointment' : 'Create Appointment')}
           </Button>
         </div>
