@@ -7,7 +7,7 @@ import { Label } from '../../components/ui/label';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { User, Stethoscope, Scissors, FlaskConical, Plus, Search, X, Trash2, AlertTriangle, ClipboardList } from 'lucide-react';
+import { User, Stethoscope, Scissors, FlaskConical, Plus, Search, X, Trash2, AlertTriangle, ClipboardList, Check } from 'lucide-react';
 import { Badge } from '../../components/ui/badge';
 import { format, startOfToday, isBefore, parse } from 'date-fns';
 import { db, auth, collection, getDocs, serverTimestamp, arrayUnion } from '../../firebase';
@@ -73,22 +73,36 @@ export default function CreateAppointmentPage() {
     { value: 'laboratory', label: 'Laboratory', icon: FlaskConical },
   ];
 
-  // Get time slots for a specific doctor and date
-  const getTimeSlotsForDoctor = (doctorId: string, date: string): string[] => {
-    const doctor = doctors.find(d => d.id === doctorId);
-    if (!doctor?.availability) return []; // No availability set
+   // Normalize time slot to consistent format (e.g., "8:00 AM")
+   const normalizeTimeSlot = (time: string): string => {
+     if (!time) return '';
+     const match = time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+     if (!match) return time;
+     let [_, hourStr, minStr, ampm] = match;
+     let hour = parseInt(hourStr);
+     if (ampm.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+     if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
+     const h = hour > 12 ? hour - 12 : hour;
+     const finalAmpm = hour >= 12 ? 'PM' : 'AM';
+     return `${h}:${minStr} ${finalAmpm}`;
+   };
 
-    // New format: availability is an object with day-of-week keys
-    if (typeof doctor.availability[0] === 'object' || doctor.availability.length === 0) {
-      const availabilityObj = doctor.availability as unknown as { [key: string]: string[] };
-      const dayOfWeek = format(new Date(date), 'i'); // '1' = Monday, '7' = Sunday (ISO)
-      const dayKey = dayOfWeek === '7' ? '0' : dayOfWeek; // Convert to 0=Sunday format
-      return availabilityObj[dayKey] || [];
-    }
+   // Get time slots for a specific doctor and date
+   const getTimeSlotsForDoctor = (doctorId: string, date: string): string[] => {
+     const doctor = doctors.find(d => d.id === doctorId);
+     if (!doctor?.availability) return []; // No availability set
 
-    // Old format: availability is a flat array (same for all days)
-    return doctor.availability as string[];
-  };
+     // New format: availability is an object with day-of-week keys
+     if (typeof doctor.availability[0] === 'object' || doctor.availability.length === 0) {
+       const availabilityObj = doctor.availability as unknown as { [key: string]: string[] };
+       const dayOfWeek = format(new Date(date), 'i'); // '1' = Monday, '7' = Sunday (ISO)
+       const dayKey = dayOfWeek === '7' ? '0' : dayOfWeek; // Convert to 0=Sunday format
+       return (availabilityObj[dayKey] || []).map(s => normalizeTimeSlot(s));
+     }
+
+     // Old format: availability is a flat array (same for all days)
+     return (doctor.availability as string[]).map(s => normalizeTimeSlot(s));
+   };
 
   // Check if a time slot is in the past
   const isTimeSlotPast = (date: string, time: string): boolean => {
@@ -509,23 +523,28 @@ export default function CreateAppointmentPage() {
                       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2">
                         {getTimeSlotsForDoctor(apt.providerId, apt.date).map(time => {
                           const status = getSlotStatus(apt, time) as any;
-                          const isSelected = apt.time === time;
+                          const isSelected = normalizeTimeSlot(apt.time) === normalizeTimeSlot(time);
                           const isPast = status === 'past';
                           const isBooked = status === 'confirmed' || status === 'unconfirmed';
+                          
+                          let btnClass = 'p-2 rounded-lg border text-sm font-medium transition-all relative ';
+                          if (isPast) btnClass += 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed';
+                          else if (isSelected) btnClass += 'bg-emerald-600 text-white border-emerald-600 border-2 border-emerald-800';
+                          else if (status === 'confirmed') btnClass += 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed';
+                          else if (status === 'unconfirmed') btnClass += 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100';
+                          else btnClass += 'bg-white border-stone-200 text-stone-700 hover:bg-emerald-50 hover:border-emerald-300';
+                          
                           return (
-                            <button key={time} type="button"
-                              disabled={isPast || (isBooked && status !== 'available')}
-                              onClick={() => ((status as string) === 'available' || (status as string) === 'unconfirmed') && updateAppointment(activeTab, { time })}
-                              className={`p-2 rounded-lg border text-sm font-medium transition-all relative ${
-                                isPast ? 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed' :
-                                isSelected ? 'bg-emerald-600 text-white border-emerald-600' :
-                                status === 'confirmed' ? 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed' :
-                                status === 'unconfirmed' ? 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100' :
-                                'bg-white border-stone-200 text-stone-700 hover:bg-emerald-50 hover:border-emerald-300'
-                              }`}>
-                              {time}
-                              {status === 'unconfirmed' && <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-500 rounded-full" />}
-                            </button>
+                              <button
+                                key={time}
+                                type="button"
+                                disabled={isPast || (isBooked && status !== 'available')}
+                                onClick={() => ((status as string) === 'available' || (status as string) === 'unconfirmed') && updateAppointment(activeTab, { time })}
+                                className={btnClass}
+                              >
+                                {time}
+                                {isSelected && <Check className="absolute top-1 right-1 w-3 h-3" />}
+                              </button>
                           );
                         })}
                       </div>
