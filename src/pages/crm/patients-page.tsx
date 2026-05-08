@@ -265,73 +265,35 @@ export default function PatientsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* Sidebar: Navigation */}
-        <div className="lg:col-span-1 md:col-span-2 sm:col-span-3 space-y-6">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <h3 className="font-bold text-gray-900 mb-6 flex items-center text-sm uppercase tracking-wider">
-              <span className="w-1 h-4 bg-blue-600 rounded-full mr-2"></span>
-              A-Z Index
-            </h3>
-            <div className="grid grid-cols-7 sm:grid-cols-6 md:grid-cols-5 gap-1.5">
-              <button
-                onClick={() => setSelectedLetter(null)}
-                className={cn(
-                  "p-2 text-xs font-bold rounded-xl transition-all flex flex-col items-center border",
-                  !selectedLetter 
-                    ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-200" 
-                    : "bg-white border-gray-100 text-gray-500 hover:border-blue-200 hover:bg-blue-50/30"
-                )}
-              >
-                ALL
-                <span className={cn(
-                  "text-[10px] font-bold mt-0.5",
-                  !selectedLetter ? "text-blue-100" : "text-blue-600"
-                )}>
-                  {patients.length}
-                </span>
-              </button>
-              {alphabet.map(letter => {
-                const count = patients.filter(p => p.name.startsWith(letter)).length;
-                return (
-                  <button
-                    key={letter}
-                    onClick={() => setSelectedLetter(letter)}
-                    className={cn(
-                      "p-2 text-xs font-bold rounded-xl transition-all flex flex-col items-center relative border",
-                      selectedLetter === letter 
-                        ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-200" 
-                        : count > 0 
-                          ? "bg-white border-gray-100 text-gray-500 hover:border-blue-200 hover:bg-blue-50/30" 
-                          : "bg-gray-50/50 border-transparent text-gray-300 cursor-not-allowed"
-                    )}
-                    disabled={count === 0}
-                  >
-                    {letter}
-                    {count > 0 && (
-                      <span className={cn(
-                        "text-[10px] font-bold mt-0.5",
-                        selectedLetter === letter ? "text-blue-100" : "text-blue-600"
-                      )}>
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+      {/* A-Z Alpha-Filter Bar */}
+      <div className="flex flex-wrap items-center justify-center gap-1 p-2 bg-white rounded-xl border border-gray-100 shadow-sm mb-10">
+        <button
+          onClick={() => setSelectedLetter(null)}
+          className={cn(
+            "h-10 w-10 p-0 rounded-xl font-bold transition-colors",
+            selectedLetter === null ? "bg-blue-600 text-white" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+          )}
+        >
+          All
+        </button>
+        {alphabet.map((letter) => (
+          <button
+            key={letter}
+            onClick={() => setSelectedLetter(letter)}
+            className={cn(
+              "h-10 w-10 p-0 rounded-xl font-bold transition-colors",
+              selectedLetter === letter
+                ? "bg-blue-600 text-white"
+                : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+            )}
+          >
+            {letter}
+          </button>
+        ))}
+      </div>
 
-          <div className="bg-blue-600 rounded-xl p-6 text-white shadow-xl shadow-blue-200">
-            <Activity className="w-10 h-10 mb-4 opacity-50" />
-            <h4 className="text-xl font-bold mb-2">Hospital Growth</h4>
-            <p className="text-blue-100 text-sm mb-4">You have registered 12 new patients this week.</p>
-            <Button className="w-full bg-white text-blue-600 hover:bg-blue-50 font-bold rounded-xl">View Analytics</Button>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="lg:col-span-4 md:col-span-10 sm:col-span-9">
+      {/* Main Content */}
+      <div className="grid grid-cols-1">
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredPatients.map(patient => (
@@ -472,7 +434,6 @@ export default function PatientsPage() {
               </div>
             </div>
           )}
-        </div>
       </div>
 
       {/* Reusable Pet Dialog for Add */}
