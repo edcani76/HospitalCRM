@@ -561,7 +561,7 @@ export default function AppointmentsPage() {
                                         doctorDepartment: doctor?.department || '',
                                         doctorExperience: doctor?.experience || 0,
                                         time: slot,
-                                        date: selectedDate,
+                                        date: format(selectedDate, 'yyyy-MM-dd'),
                                       };
                                       navigate('/crm/appointments/create', { state: { prefill: prefillData, isEdit: false } });
                                     }}
