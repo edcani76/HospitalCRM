@@ -8,9 +8,10 @@ interface CalendarProps {
   onDateSelect: (date: Date) => void;
   minDate?: Date;
   disabledDays?: Set<string>;
+  appointmentDates?: { date: string }[];
 }
 
-export function Calendar({ selectedDate, onDateSelect, minDate, disabledDays = new Set() }: CalendarProps) {
+export function Calendar({ selectedDate, onDateSelect, minDate, disabledDays = new Set(), appointmentDates = [] }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = React.useState(startOfMonth(selectedDate));
 
   const monthStart = startOfMonth(currentMonth);
@@ -52,6 +53,7 @@ export function Calendar({ selectedDate, onDateSelect, minDate, disabledDays = n
           const isTodayDate = isToday(day);
           const dateStr = format(day, 'yyyy-MM-dd');
           const isDisabled = (minDate && day < minDate) || disabledDays.has(dateStr);
+          const hasAppointment = appointmentDates.some(apt => apt.date === dateStr);
 
           return (
             <button
@@ -66,6 +68,9 @@ export function Calendar({ selectedDate, onDateSelect, minDate, disabledDays = n
               `}
             >
               {format(day, 'd')}
+              {hasAppointment && (
+                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-emerald-600 rounded-full" />
+              )}
             </button>
           );
         })}

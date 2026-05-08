@@ -9,6 +9,7 @@ import { auth, signOut } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { Breadcrumb } from './ui/breadcrumb';
 import { getNotifications, markAsRead, Notification } from '../lib/notifications';
+import { format } from 'date-fns';
 
 interface MenuItem {
   id: string;
@@ -260,7 +261,9 @@ export default function DashboardLayout({
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 8 }}
-                    className="absolute right-0 top-12 w-80 max-h-96 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-2xl z-50"
+                    transition={{ duration: 0.15 }}
+                    style={{ backgroundColor: '#ffffff' }}
+                    className="absolute right-0 top-12 w-80 max-h-96 overflow-y-auto rounded-xl shadow-2xl z-50 border border-slate-200 bg-white"
                   >
                     <div className="p-3 border-b border-slate-100">
                       <h3 className="font-semibold text-sm">Notifications</h3>
@@ -292,6 +295,14 @@ export default function DashboardLayout({
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium truncate">{notif.title}</p>
                                 <p className="text-xs text-slate-400 mt-1 line-clamp-2">{notif.message}</p>
+                                {notif.createdAt && (
+                                  <p className="text-[10px] text-slate-400 mt-1">
+                                    {format(
+                                      notif.createdAt?.toDate?.() || new Date(notif.createdAt),
+                                      'MMM dd, yyyy hh:mm a'
+                                    )}
+                                  </p>
+                                )}
                               </div>
                               {!notif.read && (
                                 <div className="w-2 h-2 bg-emerald-500 rounded-full shrink-0 mt-1.5" />

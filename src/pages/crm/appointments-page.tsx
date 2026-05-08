@@ -317,6 +317,7 @@ export default function AppointmentsPage() {
           <Calendar
             selectedDate={selectedDate}
             onDateSelect={setSelectedDate}
+            appointmentDates={appointmentDates}
           />
 
           {(user?.role === 'admin' || user?.role === 'staff') && (

@@ -195,7 +195,7 @@ export default function AppointmentDetailsPage() {
           setSelectedDoctorId(data.doctorId || '');
           setSelectedDate(data.date || '');
           setSelectedTime(data.time || '');
-          setSelectedStatus(data.status || 'pending');
+          setSelectedStatus(data.status || 'unconfirmed');
 
           // Extract services and general notes
           const servicesMatch = data.notes?.match(/Services:\s*([^\n]+)/i);
@@ -627,8 +627,8 @@ export default function AppointmentDetailsPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'pending':
-        return <Badge variant="secondary">Pending</Badge>;
+      case 'unconfirmed':
+        return <Badge variant="secondary">Unconfirmed</Badge>;
       case 'confirmed':
         return <Badge variant="success">Confirmed</Badge>;
       case 'in-progress':
@@ -734,7 +734,7 @@ export default function AppointmentDetailsPage() {
                       <Pencil className="w-4 h-4 mr-2" />
                       Edit
                     </Button>
-                    {appointment.status === 'pending' && (
+                    {appointment.status === 'unconfirmed' && (
                       <Button
                         className="bg-emerald-600 hover:bg-emerald-700 text-white"
                         onClick={confirmAppointment}
@@ -1056,7 +1056,7 @@ export default function AppointmentDetailsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="unconfirmed">Unconfirmed</SelectItem>
                       <SelectItem value="confirmed">Confirmed</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>

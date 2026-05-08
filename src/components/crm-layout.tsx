@@ -2,6 +2,7 @@ import React from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { cn } from '../lib/utils'
+import { format } from 'date-fns'
 import {
   LayoutDashboard,
   CalendarClock,
@@ -511,16 +512,16 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
 
               {/* Notification Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 top-12 w-96 max-h-96 overflow-y-auto bg-background border border-border rounded-xl shadow-2xl z-50">
-                  <div className="p-3 border-b border-border">
-                    <h3 className="font-semibold text-sm">Notifications</h3>
+                <div className="absolute right-0 top-12 w-96 max-h-96 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-2xl z-50">
+                  <div className="p-3 border-b border-slate-100">
+                    <h3 className="font-semibold text-sm text-slate-900">Notifications</h3>
                   </div>
                   {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
+                    <div className="p-4 text-center text-sm text-slate-400">
                       No notifications
                     </div>
                   ) : (
-                    <div className="divide-y divide-border">
+                    <div className="divide-y divide-slate-50">
                       {notifications.slice(0, 20).map((notif) => (
                         <div
                           key={notif.id}
@@ -534,14 +535,22 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
                               navigate(`/crm/appointments/${notif.appointmentId}`);
                             }
                           }}
-                          className={`p-3 cursor-pointer transition-colors hover:bg-muted/50 ${
+                          className={`p-3 cursor-pointer transition-colors hover:bg-slate-50 ${
                             notif.read ? '' : 'bg-blue-50/50'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{notif.title}</p>
-                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{notif.message}</p>
+                              <p className="text-sm font-medium text-slate-900 truncate">{notif.title}</p>
+                              <p className="text-xs text-slate-500 mt-1 line-clamp-2">{notif.message}</p>
+                              {notif.createdAt && (
+                                <p className="text-[10px] text-slate-400 mt-1">
+                                  {format(
+                                    notif.createdAt?.toDate?.() || new Date(notif.createdAt),
+                                    'MMM dd, yyyy hh:mm a'
+                                  )}
+                                </p>
+                              )}
                             </div>
                             {!notif.read && (
                               <div className="w-2 h-2 bg-blue-600 rounded-full shrink-0 mt-1" />

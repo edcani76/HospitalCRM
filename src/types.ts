@@ -54,7 +54,7 @@ export interface Appointment {
   doctorName: string;
   date: string;
   time: string;
-  status: 'unconfirmed' | 'confirmed' | 'cancelled' | 'completed' | 'no-show' | 'in-progress' | 'pending';
+  status: 'unconfirmed' | 'confirmed' | 'cancelled' | 'completed' | 'no-show' | 'in-progress';
   workflowStatus?: PatientStatus; // Link to active workflow status
   notes?: string;
   createdAt: any;

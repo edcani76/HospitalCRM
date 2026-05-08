@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Users, Calendar, Receipt, CreditCard, TrendingUp, Activity } from 'lucide-react'
 import { db, collection, getDocs } from '../../firebase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts'
+import { format } from 'date-fns'
 
 interface Pet {
   id: string
@@ -61,6 +62,7 @@ interface DashboardStats {
 
 export default function AdminDashboard() {
   const { user } = useAuth()
+  const [currentTime, setCurrentTime] = useState(new Date())
   const [stats, setStats] = useState<DashboardStats>({
     totalPatients: 0,
     appointmentsToday: 0,
@@ -171,6 +173,11 @@ export default function AdminDashboard() {
   }, [])
 
   useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
     fetchDashboardData()
   }, [fetchDashboardData])
 
@@ -182,8 +189,9 @@ export default function AdminDashboard() {
     <>
       <PageHeader
         title="Admin Dashboard"
-        subtitle={`Welcome back, ${user?.displayName || 'Admin'}`}
+        subtitle={<span className="text-gray-600">Welcome back, <span className="text-emerald-600 font-semibold">{user?.displayName || 'Admin'}</span></span>}
       />
+      <p className="text-sm text-muted-foreground -mt-3 mb-6">{format(currentTime, 'EEEE, MMMM dd, yyyy hh:mm:ss a')}</p>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
@@ -303,9 +311,9 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody>
                     {stats.todayAppointments.map((appointment: any, index: number) => (
-                      <tr key={index} className="border-b hover:bg-muted/50">
-                        <td className="p-2">{appointment.time}</td>
-                        <td className="p-2">{appointment.petName}</td>
+                    <tr key={index} className="border-b hover:bg-muted/50">
+                      <td className="p-2">{appointment.time}</td>
+                      <td className="p-2">{appointment.petName}</td>
                         <td className="p-2">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             appointment.status === 'confirmed'
