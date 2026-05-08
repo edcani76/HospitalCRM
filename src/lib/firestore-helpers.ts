@@ -1,6 +1,26 @@
 import { db, collection, getDocs, getDoc, doc, query, where, orderBy, addDoc, updateDoc, deleteDoc, serverTimestamp } from '../firebase';
 import { getCached, getAllCached, setCached, setManyCached, queueMutation, isOnline } from './offline-cache';
 
+// Convert Firestore Timestamps to ISO strings for safe caching
+function serializeTimestamps(obj: any): any {
+  if (!obj) return obj;
+  if (Array.isArray(obj)) return obj.map(serializeTimestamps);
+  if (typeof obj !== 'object') return obj;
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value && typeof value === 'object' && typeof value.toDate === 'function') {
+      result[key] = value.toDate().toISOString();
+    } else if (value && typeof value === 'object' && (value._seconds !== undefined)) {
+      result[key] = new Date(value._seconds * 1000).toISOString();
+    } else if (value && typeof value === 'object') {
+      result[key] = serializeTimestamps(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 // Wrapper to fetch with cache fallback
 async function fetchWithCache(collectionName: string, queryFn: () => Promise<any>, id?: string) {
   const cacheKey = id ? `${collectionName}/${id}` : collectionName;
@@ -13,7 +33,7 @@ async function fetchWithCache(collectionName: string, queryFn: () => Promise<any
         // Return cached data immediately, then update in background if online
         if (isOnline()) {
           queryFn().then(data => {
-            if (data) setCached(collectionName, id, data);
+            if (data) setCached(collectionName, id, serializeTimestamps(data));
           }).catch(() => {});
         }
         return cached;
@@ -24,7 +44,7 @@ async function fetchWithCache(collectionName: string, queryFn: () => Promise<any
         // Return cached data, update in background if online
         if (isOnline()) {
           queryFn().then(data => {
-            if (Array.isArray(data)) setManyCached(collectionName, data);
+            if (Array.isArray(data)) setManyCached(collectionName, data.map(serializeTimestamps));
           }).catch(() => {});
         }
         return cached;
@@ -44,9 +64,9 @@ async function fetchWithCache(collectionName: string, queryFn: () => Promise<any
   // Write to cache
   try {
     if (id) {
-      setCached(collectionName, id, data);
+      setCached(collectionName, id, serializeTimestamps(data));
     } else if (Array.isArray(data)) {
-      setManyCached(collectionName, data);
+      setManyCached(collectionName, data.map(serializeTimestamps));
     }
   } catch (e) {
     console.log('Cache write failed:', e);
@@ -384,7 +404,17 @@ export async function fetchTriageVitals(encounterId: string) {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   };
-  return fetchWithCache(`triage_vitals_${encounterId}`, queryFn);
+  return fetchWithCache(`triage_vitals_v2_${encounterId}`, queryFn);
+}
+
+// Fetch ALL triage vitals for a patient (for historical chart)
+export async function fetchAllPatientVitals(patientId: string) {
+  const queryFn = async () => {
+    const q = query(collection(db, 'triage_vitals'), where('patientId', '==', patientId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache(`patient_vitals_v2_${patientId}`, queryFn);
 }
 
 // Clinical Notes

@@ -96,6 +96,55 @@ async function seedEndToEndData() {
       petName: 'Buddy',
       visits: [
         {
+          daysAgo: 90,
+          doctorId: '1',
+          status: 'completed',
+          chiefComplaint: 'Annual wellness check, routine bloodwork',
+          vitals: { weightKg: 33.0, temperatureC: 38.5, heartRateBpm: 108, respiratoryRateRpm: 22, mmColor: 'Pink', crtSeconds: 1.5 },
+          soap: {
+            subjective: 'Owner reports Buddy is healthy, eating well, normal activity level.',
+            objective: 'Physical exam unremarkable. BCS 6/9. Heart and lungs clear. Teeth have mild tartar.',
+            assessment: 'Healthy, overweight tendency noted',
+            plan: 'Annual bloodwork, dental scaling recommended, weight monitoring'
+          },
+          services: [
+            { name: 'Wellness Consultation', type: 'consultation', price: 500, qty: 1 },
+            { name: 'Complete Blood Count', type: 'lab', price: 800, qty: 1 },
+            { name: 'Chemistry Panel', type: 'lab', price: 1200, qty: 1 }
+          ],
+          labs: [
+            { name: 'Complete Blood Count', code: 'CBC001', status: 'completed', result: 'All values within normal range' },
+            { name: 'Serum Chemistry', code: 'CHE001', status: 'completed', result: 'ALT mildly elevated, monitor' }
+          ],
+          diagnosis: 'Healthy - Annual Wellness'
+        },
+        {
+          daysAgo: 60,
+          doctorId: '1',
+          status: 'completed',
+          chiefComplaint: 'Vomiting and diarrhea for 2 days',
+          vitals: { weightKg: 32.8, temperatureC: 39.2, heartRateBpm: 130, respiratoryRateRpm: 30, mmColor: 'Pale Pink', crtSeconds: 2.0 },
+          soap: {
+            subjective: 'Owner reports Buddy vomited 4 times and had loose stool. Ate grass yesterday.',
+            objective: 'Mild dehydration. Abdomen slightly tender on palpation. Temp elevated at 39.2C.',
+            assessment: 'Acute gastroenteritis, likely dietary indiscretion',
+            plan: 'SubQ fluids, anti-emetics, bland diet for 3 days, recheck if no improvement'
+          },
+          services: [
+            { name: 'Emergency Consultation', type: 'consultation', price: 700, qty: 1 },
+            { name: 'Subcutaneous Fluids', type: 'procedure', price: 650, qty: 1 },
+            { name: 'Fecal Exam', type: 'lab', price: 350, qty: 1 }
+          ],
+          labs: [
+            { name: 'Fecal Floatation', code: 'FEC001', status: 'completed', result: 'No parasites detected' }
+          ],
+          prescriptions: [
+            { name: 'Metoclopramide 10mg', dosage: '1 tablet', frequency: 'Every 8 hours', duration: '3 days', qty: 9, price: 15, dispensed: true },
+            { name: 'Metronidazole 250mg', dosage: '1 tablet', frequency: 'Twice daily', duration: '5 days', qty: 10, price: 20, dispensed: true }
+          ],
+          diagnosis: 'Acute Gastroenteritis'
+        },
+        {
           daysAgo: 30,
           doctorId: '1',
           status: 'completed',
@@ -113,7 +162,7 @@ async function seedEndToEndData() {
             { name: 'Joint Supplement (1 month)', type: 'medication', price: 850, qty: 1 }
           ],
           labs: [
-            { name: 'Complete Blood Count', code: 'CBC001', status: 'completed', result: 'All values within normal range' },
+            { name: 'Complete Blood Count', code: 'CBC002', status: 'completed', result: 'All values within normal range' },
             { name: 'Hip Dysplasia Panel', code: 'HIP001', status: 'completed', result: 'Mild bilateral hip dysplasia, OFA Grade 1' }
           ],
           prescriptions: [
@@ -149,6 +198,33 @@ async function seedEndToEndData() {
       petName: 'Whiskers',
       visits: [
         {
+          daysAgo: 45,
+          doctorId: '3',
+          status: 'completed',
+          chiefComplaint: 'Not eating, hiding more than usual',
+          vitals: { weightKg: 4.2, temperatureC: 39.0, heartRateBpm: 200, respiratoryRateRpm: 35, mmColor: 'Pale', crtSeconds: 2.0 },
+          soap: {
+            subjective: 'Owner reports Whiskers has been hiding under the bed and refusing food for 2 days.',
+            objective: 'Temp elevated. Mild dehydration. Abdominal palpation reveals enlarged left kidney.',
+            assessment: 'Possible upper urinary tract infection, early kidney disease suspected',
+            plan: 'Urinalysis, blood panel, ultrasound referral, start antibiotics pending results'
+          },
+          services: [
+            { name: 'General Consultation', type: 'consultation', price: 500, qty: 1 },
+            { name: 'Urinalysis', type: 'lab', price: 450, qty: 1 },
+            { name: 'Complete Blood Panel', type: 'lab', price: 1500, qty: 1 }
+          ],
+          labs: [
+            { name: 'Urinalysis', code: 'URIN001', status: 'completed', result: 'WBC elevated, bacteria present' },
+            { name: 'CBC + Chemistry', code: 'CBC003', status: 'completed', result: 'BUN/Creatinine mildly elevated' }
+          ],
+          prescriptions: [
+            { name: 'Amoxicillin-Clavulanate', dosage: '62.5mg', frequency: 'Twice daily', duration: '14 days', qty: 28, price: 35, dispensed: true },
+            { name: 'Fluid Therapy (SubQ)', dosage: '100ml', frequency: 'Once daily x 3 days', duration: '3 days', qty: 3, price: 200, dispensed: true }
+          ],
+          diagnosis: 'Pyelonephritis, Early CKD Stage 1'
+        },
+        {
           daysAgo: 20,
           doctorId: '3',
           status: 'completed',
@@ -175,12 +251,52 @@ async function seedEndToEndData() {
             { name: 'Meloxicam Oral Suspension', dosage: '0.1ml', frequency: 'Once daily', duration: '3 days', qty: 3, price: 85, dispensed: true }
           ],
           diagnosis: 'Periodontal Disease Grade 3, Tooth Resorption'
+        },
+        {
+          daysAgo: 5,
+          doctorId: '3',
+          status: 'completed',
+          chiefComplaint: 'CKD recheck, bloodwork follow-up',
+          vitals: { weightKg: 4.3, temperatureC: 38.6, heartRateBpm: 175, respiratoryRateRpm: 28, mmColor: 'Pink', crtSeconds: 1.0 },
+          soap: {
+            subjective: 'Whiskers eating better, more active. Owner giving renal diet food as recommended.',
+            objective: 'Weight stable. Kidneys still mildly enlarged but less painful. Coat improved.',
+            assessment: 'Responding well to renal diet and supportive care',
+            plan: 'Continue renal diet, recheck bloodwork in 3 months, consider renal supplement'
+          },
+          services: [
+            { name: 'Follow-up Consultation', type: 'consultation', price: 350, qty: 1 },
+            { name: 'Kidney Panel', type: 'lab', price: 900, qty: 1 }
+          ],
+          labs: [
+            { name: 'SDMA + Creatinine', code: 'KID001', status: 'completed', result: 'BUN improved, creatinine stable, SDMA within acceptable range' }
+          ],
+          diagnosis: 'CKD Stage 1 - Stable'
         }
       ]
     },
     {
       petName: 'Max',
       visits: [
+        {
+          daysAgo: 60,
+          doctorId: '1',
+          status: 'completed',
+          chiefComplaint: 'Routine vaccination due',
+          vitals: { weightKg: 34.5, temperatureC: 38.4, heartRateBpm: 112, respiratoryRateRpm: 24, mmColor: 'Pink', crtSeconds: 1.5 },
+          soap: {
+            subjective: 'Max is healthy, active, no complaints. Ready for annual vaccines.',
+            objective: 'Physical exam normal. BCS 5/9. All vitals within normal limits.',
+            assessment: 'Healthy, due for DHPP and rabies booster',
+            plan: 'Administer DHPP and rabies vaccines'
+          },
+          services: [
+            { name: 'Wellness Consultation', type: 'consultation', price: 400, qty: 1 },
+            { name: 'DHPP Vaccine', type: 'vaccination', price: 400, qty: 1 },
+            { name: 'Rabies Vaccine', type: 'vaccination', price: 250, qty: 1 }
+          ],
+          diagnosis: 'Healthy - Annual Vaccination'
+        },
         {
           daysAgo: 18,
           doctorId: '1',
@@ -195,8 +311,8 @@ async function seedEndToEndData() {
           },
           services: [
             { name: 'Allergy Consultation', type: 'consultation', price: 600, qty: 1 },
-            { name: 'Skin Scraping', type: 'diagnostic', price: 350, qty: 1 },
-            { name: 'Allergy Test Panel', type: 'lab', price: 2800, qty: 1 },
+            { name: 'Allergy Test Panel', type: 'lab', price: 2500, qty: 1 },
+            { name: 'Skin Cytology', type: 'lab', price: 400, qty: 1 },
             { name: 'Medicated Shampoo', type: 'supply', price: 450, qty: 1 }
           ],
           labs: [
@@ -209,12 +325,60 @@ async function seedEndToEndData() {
             { name: 'Chlorhexidine Shampoo', dosage: 'Apply to affected areas', frequency: 'Twice weekly', duration: '4 weeks', qty: 1, price: 450, dispensed: true }
           ],
           diagnosis: 'Atopic Dermatitis, Pyoderma (Secondary)'
+        },
+        {
+          daysAgo: 2,
+          doctorId: '1',
+          status: 'completed',
+          chiefComplaint: 'Allergy follow-up, skin condition improving',
+          vitals: { weightKg: 33.5, temperatureC: 38.5, heartRateBpm: 108, respiratoryRateRpm: 22, mmColor: 'Pink', crtSeconds: 1.5 },
+          soap: {
+            subjective: 'Owner reports 70% improvement in scratching. Skin redness significantly reduced.',
+            objective: 'Hot spots healing well. Coat regrowth visible on thighs. Ears clear.',
+            assessment: 'Excellent response to Apoquel and antibiotics',
+            plan: 'Taper Apoquel to every other day, continue shampoo, recheck in 2 months'
+          },
+          services: [
+            { name: 'Follow-up Consultation', type: 'consultation', price: 350, qty: 1 },
+            { name: 'Skin Scraping', type: 'lab', price: 250, qty: 1 }
+          ],
+          labs: [
+            { name: 'Skin Scraping', code: 'SKN002', status: 'completed', result: 'No mites detected, minimal bacteria' }
+          ],
+          diagnosis: 'Atopic Dermatitis - Improving'
         }
       ]
     },
     {
       petName: 'Luna',
       visits: [
+        {
+          daysAgo: 50,
+          doctorId: '3',
+          status: 'completed',
+          chiefComplaint: 'Urinating outside litter box, straining to urinate',
+          vitals: { weightKg: 3.6, temperatureC: 38.7, heartRateBpm: 195, respiratoryRateRpm: 32, mmColor: 'Pink', crtSeconds: 1.0 },
+          soap: {
+            subjective: 'Luna has been urinating on the bathroom rug. Owner noticed she strains and produces only small amounts.',
+            objective: 'Bladder palpable but small. No crystals on urine dipstick. Mild discomfort on abdominal palpation.',
+            assessment: 'Feline idiopathic cystitis (FIC), stress-related',
+            plan: 'Anti-inflammatory, stress reduction, increased water intake, monitor for blockage'
+          },
+          services: [
+            { name: 'General Consultation', type: 'consultation', price: 500, qty: 1 },
+            { name: 'Urinalysis', type: 'lab', price: 450, qty: 1 },
+            { name: 'Bladder Ultrasound', type: 'diagnostic', price: 1800, qty: 1 }
+          ],
+          labs: [
+            { name: 'Urinalysis', code: 'URIN002', status: 'completed', result: 'No crystals or bacteria, RBC present - consistent with FIC' },
+            { name: 'Bladder Ultrasound', code: 'US001', status: 'completed', result: 'Bladder wall mildly thickened, no stones detected' }
+          ],
+          prescriptions: [
+            { name: 'Meloxicam Oral Suspension', dosage: '0.05ml', frequency: 'Once daily', duration: '5 days', qty: 5, price: 85, dispensed: true },
+            { name: 'Feliway Diffuser', dosage: '1 unit', frequency: 'Continuous', duration: '30 days', qty: 1, price: 950, dispensed: true }
+          ],
+          diagnosis: 'Feline Idiopathic Cystitis'
+        },
         {
           daysAgo: 12,
           doctorId: '3',
@@ -243,6 +407,33 @@ async function seedEndToEndData() {
       petName: 'Charlie',
       visits: [
         {
+          daysAgo: 40,
+          doctorId: '3',
+          status: 'completed',
+          chiefComplaint: 'Coughing, especially at night',
+          vitals: { weightKg: 32.0, temperatureC: 39.1, heartRateBpm: 140, respiratoryRateRpm: 36, mmColor: 'Pale Pink', crtSeconds: 2.0 },
+          soap: {
+            subjective: 'Charlie has been coughing for 5 days, worse at night. Sounds like honking goose. No nasal discharge.',
+            objective: 'Tracheal sensitivity on palpation triggers cough. Lungs clear on auscultation. Mild tonsillitis.',
+            assessment: 'Kennel cough (tracheobronchitis), likely Bordetella',
+            plan: 'Antibiotics, cough suppressant, rest for 7-10 days, isolate from other dogs'
+          },
+          services: [
+            { name: 'General Consultation', type: 'consultation', price: 500, qty: 1 },
+            { name: 'Thoracic X-Ray', type: 'diagnostic', price: 2000, qty: 1 },
+            { name: 'Tracheal Wash', type: 'lab', price: 800, qty: 1 }
+          ],
+          labs: [
+            { name: 'Thoracic X-Ray', code: 'XRY002', status: 'completed', result: 'Mild peribronchial pattern, no pneumonia' },
+            { name: 'Tracheal Wash Culture', code: 'TWC001', status: 'completed', result: 'Bordetella bronchiseptica isolated' }
+          ],
+          prescriptions: [
+            { name: 'Doxycycline 100mg', dosage: '1 tablet', frequency: 'Once daily', duration: '10 days', qty: 10, price: 40, dispensed: true },
+            { name: 'Hydrocodone-Homatropine', dosage: '2.5ml', frequency: 'Every 8 hours', duration: '5 days', qty: 75, price: 55, dispensed: true }
+          ],
+          diagnosis: 'Kennel Cough (Bordetella)'
+        },
+        {
           daysAgo: 10,
           doctorId: '3',
           status: 'completed',
@@ -261,7 +452,7 @@ async function seedEndToEndData() {
           ],
           labs: [
             { name: 'Thyroid Function Test', code: 'THR001', status: 'completed', result: 'T4 within normal range - hypothyroidism ruled out' },
-            { name: 'Complete Blood Count', code: 'CBC002', status: 'completed', result: 'Normal' }
+            { name: 'Complete Blood Count', code: 'CBC004', status: 'completed', result: 'Normal' }
           ],
           prescriptions: [
             { name: 'Hill\'s Metabolic Diet', dosage: '2 cups/day (measured)', frequency: 'Split into 2 meals', duration: 'Ongoing', qty: 1, price: 1200, dispensed: true }
@@ -273,6 +464,62 @@ async function seedEndToEndData() {
     {
       petName: 'Rocky',
       visits: [
+        {
+          daysAgo: 45,
+          doctorId: '4',
+          status: 'completed',
+          chiefComplaint: 'Non-weight bearing lameness on left hind leg after playing fetch',
+          vitals: { weightKg: 26.0, temperatureC: 38.5, heartRateBpm: 140, respiratoryRateRpm: 30, mmColor: 'Pink', crtSeconds: 1.5 },
+          soap: {
+            subjective: 'Rocky yelped while playing and has not put weight on left hind leg since.',
+            objective: 'Left stifle swollen. Positive cranial drawer test. Pain on manipulation.',
+            assessment: 'Cranial cruciate ligament (CCL) rupture, left stifle',
+            plan: 'X-rays for surgical planning, TPLO surgery recommended, pain management'
+          },
+          services: [
+            { name: 'Orthopedic Consultation', type: 'consultation', price: 700, qty: 1 },
+            { name: 'X-Ray (Stifle)', type: 'diagnostic', price: 1800, qty: 1 },
+            { name: 'Pre-Surgical Blood Panel', type: 'lab', price: 900, qty: 1 }
+          ],
+          labs: [
+            { name: 'Pre-Surgical Panel', code: 'PSP001', status: 'completed', result: 'All values normal - cleared for surgery' },
+            { name: 'Stifle X-Ray', code: 'XRY003', status: 'completed', result: 'CCL rupture confirmed, no concurrent meniscal tear' }
+          ],
+          prescriptions: [
+            { name: 'Carprofen 75mg', dosage: '1 tablet', frequency: 'Twice daily', duration: '7 days', qty: 14, price: 45, dispensed: true },
+            { name: 'Tramadol 50mg', dosage: '1 tablet', frequency: 'Every 8 hours', duration: '7 days', qty: 21, price: 30, dispensed: true }
+          ],
+          diagnosis: 'CCL Rupture - Left Stifle'
+        },
+        {
+          daysAgo: 30,
+          doctorId: '4',
+          status: 'completed',
+          chiefComplaint: 'ACL repair surgery',
+          vitals: { weightKg: 25.5, temperatureC: 38.3, heartRateBpm: 125, respiratoryRateRpm: 26, mmColor: 'Pink', crtSeconds: 1.5 },
+          soap: {
+            subjective: 'Rocky prepped for TPLO surgery. Fasting confirmed. Pre-op bloodwork normal.',
+            objective: 'Patient under general anesthesia. Surgical site prepped. TPLO procedure completed successfully.',
+            assessment: 'Post-TPLO, surgery uncomplicated, stable in recovery',
+            plan: 'Post-op pain management, strict cage rest, antibiotics, recheck in 2 weeks'
+          },
+          services: [
+            { name: 'Surgical Consultation', type: 'consultation', price: 500, qty: 1 },
+            { name: 'TPLO Surgery', type: 'procedure', price: 15000, qty: 1 },
+            { name: 'General Anesthesia', type: 'procedure', price: 3000, qty: 1 },
+            { name: 'Post-Op Monitoring (4hr)', type: 'procedure', price: 800, qty: 1 },
+            { name: 'Post-Op X-Ray', type: 'diagnostic', price: 1500, qty: 1 }
+          ],
+          labs: [
+            { name: 'Post-Op X-Ray', code: 'XRY004', status: 'completed', result: 'TPLO plate and screws in good position, tibial plateau angle corrected' }
+          ],
+          prescriptions: [
+            { name: 'Carprofen 75mg', dosage: '1 tablet', frequency: 'Twice daily', duration: '14 days', qty: 28, price: 45, dispensed: true },
+            { name: 'Tramadol 50mg', dosage: '1 tablet', frequency: 'Every 8 hours', duration: '14 days', qty: 42, price: 30, dispensed: true },
+            { name: 'Amoxicillin-Clavulanate', dosage: '250mg', frequency: 'Twice daily', duration: '10 days', qty: 20, price: 35, dispensed: true }
+          ],
+          diagnosis: 'Post-TPLO Surgery, Stable'
+        },
         {
           daysAgo: 15,
           doctorId: '4',
@@ -290,13 +537,35 @@ async function seedEndToEndData() {
             { name: 'X-Ray (Stifle)', type: 'diagnostic', price: 1800, qty: 1 }
           ],
           labs: [
-            { name: 'Post-Surgery X-Ray', code: 'XRY001', status: 'completed', result: 'Implant in good position, no complications' }
+            { name: 'Post-Surgery X-Ray', code: 'XRY005', status: 'completed', result: 'Implant in good position, no complications' }
           ],
           prescriptions: [
             { name: 'Tramadol 50mg', dosage: '1 tablet', frequency: 'Every 8-12 hours as needed', duration: '14 days', qty: 42, price: 30, dispensed: true },
             { name: 'Carprofen 75mg', dosage: '1 tablet', frequency: 'Once daily', duration: '14 days', qty: 14, price: 45, dispensed: true }
           ],
           diagnosis: 'Post-ACL Repair (2 weeks), Healing Well'
+        },
+        {
+          daysAgo: 1,
+          doctorId: '4',
+          status: 'in-progress',
+          chiefComplaint: '4-week post-op recheck, physical therapy evaluation',
+          vitals: { weightKg: 24.8, temperatureC: 38.4, heartRateBpm: 120, respiratoryRateRpm: 24, mmColor: 'Pink', crtSeconds: 1.5 },
+          soap: {
+            subjective: 'Rocky walking better on left leg but still favors it slightly. Owner has been doing passive range of motion exercises.',
+            objective: 'Incision fully healed. Muscle atrophy still present but improving. Stifle range of motion 90% of normal. Good weight bearing.',
+            assessment: 'Excellent post-op progress at 4 weeks',
+            plan: 'Gradually increase exercise, begin hydrotherapy, recheck in 4 weeks, continue joint supplements'
+          },
+          services: [
+            { name: 'Post-Surgical Consultation', type: 'consultation', price: 400, qty: 1 },
+            { name: 'Physical Therapy Evaluation', type: 'procedure', price: 600, qty: 1 },
+            { name: 'Joint Supplement', type: 'medication', price: 850, qty: 1 }
+          ],
+          prescriptions: [
+            { name: 'Glucosamine Complex', dosage: '1 chewable', frequency: 'Once daily', duration: '90 days', qty: 90, price: 28, dispensed: true }
+          ],
+          diagnosis: 'Post-TPLO (4 weeks), Excellent Recovery'
         }
       ]
     }
@@ -476,7 +745,59 @@ async function seedEndToEndData() {
       // 7. Create invoice
       const taxAmount = subTotal * 0.12;
       const grandTotal = subTotal + taxAmount;
-      const isPaid = visit.status === 'completed';
+
+      // Billing scenarios: paid, partial, unpaid
+      let billingStatus: 'paid' | 'partial' | 'unpaid' = 'paid';
+      let amountPaid = grandTotal;
+      let balanceDue = 0;
+
+      // Assign billing scenarios based on visit position
+      const petVisitIndex = (createdEncounters[scenario.petName] || []).length;
+      const petName = scenario.petName;
+
+      if (petName === 'Buddy' && petVisitIndex === 1) {
+        // Buddy's 2nd visit (day 60) - partially paid
+        billingStatus = 'partial';
+        amountPaid = grandTotal * 0.4;
+        balanceDue = grandTotal - amountPaid;
+      } else if (petName === 'Whiskers' && petVisitIndex === 0) {
+        // Whiskers' 1st visit (day 45) - partially paid
+        billingStatus = 'partial';
+        amountPaid = grandTotal * 0.5;
+        balanceDue = grandTotal - amountPaid;
+      } else if (petName === 'Charlie' && petVisitIndex === 0) {
+        // Charlie's 1st visit (day 40) - unpaid
+        billingStatus = 'unpaid';
+        amountPaid = 0;
+        balanceDue = grandTotal;
+      } else if (petName === 'Charlie' && petVisitIndex === 1) {
+        // Charlie's 2nd visit (day 10) - partially paid
+        billingStatus = 'partial';
+        amountPaid = grandTotal * 0.3;
+        balanceDue = grandTotal - amountPaid;
+      } else if (petName === 'Rocky' && petVisitIndex === 0) {
+        // Rocky's 1st visit (day 45) - partially paid (surgery deposit)
+        billingStatus = 'partial';
+        amountPaid = grandTotal * 0.5;
+        balanceDue = grandTotal - amountPaid;
+      } else if (petName === 'Rocky' && petVisitIndex === 3) {
+        // Rocky's latest visit (day 1, in-progress) - unpaid
+        billingStatus = 'unpaid';
+        amountPaid = 0;
+        balanceDue = grandTotal;
+      } else if (petName === 'Max' && petVisitIndex === 2) {
+        // Max's latest visit (day 2) - partially paid
+        billingStatus = 'partial';
+        amountPaid = grandTotal * 0.6;
+        balanceDue = grandTotal - amountPaid;
+      } else if (petName === 'Luna' && petVisitIndex === 0) {
+        // Luna's 1st visit (day 50) - unpaid
+        billingStatus = 'unpaid';
+        amountPaid = 0;
+        balanceDue = grandTotal;
+      }
+
+      const invoiceStatus = billingStatus === 'paid' ? 'paid' : billingStatus === 'partial' ? 'partially_paid' : 'active';
       const dueDate = new Date(visitDate);
       dueDate.setDate(dueDate.getDate() + 30);
 
@@ -486,13 +807,13 @@ async function seedEndToEndData() {
         petName: pet.name,
         clientUid: pet.ownerUid,
         invoiceNo: `INV-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-        status: isPaid ? 'paid' : 'draft',
+        status: invoiceStatus,
         subTotal,
         taxAmount,
         discountTotal: 0,
         grandTotal,
-        amountPaid: isPaid ? grandTotal : 0,
-        balanceDue: isPaid ? 0 : grandTotal,
+        amountPaid: Math.round(amountPaid * 100) / 100,
+        balanceDue: Math.round(balanceDue * 100) / 100,
         issueDate: visitDate,
         dueDate: dueDate,
         notes: visit.diagnosis || '',
@@ -517,27 +838,27 @@ async function seedEndToEndData() {
         });
       }
 
-      // Add tax line
-      await addDoc(collection(db, 'invoice_items'), {
-        invoiceId,
-        encounterId,
-        petId: pet.id,
-        description: 'VAT (12%)',
-        itemType: 'tax',
-        quantity: 1,
-        unitPrice: taxAmount,
-        lineTotal: taxAmount,
-        createdAt: visitDate
-      });
-
-      // 9. Create payment record if paid
-      if (isPaid) {
+      // 9. Create payment record(s)
+      if (billingStatus === 'paid') {
         await addDoc(collection(db, 'payments'), {
           invoiceId,
           encounterId,
           petId: pet.id,
           amount: grandTotal,
           paymentMethod: 'cash',
+          referenceNo: `PAY-${Date.now()}`,
+          receivedBy: 'cashier',
+          paidAt: visitDate,
+          createdAt: visitDate
+        });
+      } else if (billingStatus === 'partial' && amountPaid > 0) {
+        // Create initial partial payment
+        await addDoc(collection(db, 'payments'), {
+          invoiceId,
+          encounterId,
+          petId: pet.id,
+          amount: Math.round(amountPaid * 100) / 100,
+          paymentMethod: Math.random() > 0.5 ? 'cash' : 'gcash',
           referenceNo: `PAY-${Date.now()}`,
           receivedBy: 'cashier',
           paidAt: visitDate,
@@ -563,10 +884,11 @@ async function seedEndToEndData() {
         status: visit.status,
         diagnosis: visit.diagnosis,
         invoiceId,
-        grandTotal
+        grandTotal,
+        billingStatus
       });
 
-      console.log(`   Created encounter for ${pet.name}: ${dateStr} - ${visit.diagnosis || 'Consultation'}`);
+      console.log(`   Created encounter for ${pet.name}: ${dateStr} - ${visit.diagnosis || 'Consultation'} [${billingStatus.toUpperCase()}]`);
     }
   }
 
@@ -609,7 +931,8 @@ async function seedEndToEndData() {
     const visits = createdEncounters[petName];
     console.log(`   ${petName}: ${visits.length} visit(s)`);
     for (const v of visits) {
-      console.log(`     - ${v.date}: ${v.diagnosis} (${v.status}) - ₱${v.grandTotal.toFixed(2)}`);
+      const billingTag = v.billingStatus === 'paid' ? '✓ Paid' : v.billingStatus === 'partial' ? '◐ Partial' : '○ Unpaid';
+      console.log(`     - ${v.date}: ${v.diagnosis} (${v.status}) - ₱${v.grandTotal.toFixed(2)} [${billingTag}]`);
     }
   }
 

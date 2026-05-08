@@ -25,7 +25,9 @@ export default function EMRDirectory() {
           fetchUsers()
         ]);
         setPets(petsData);
-        setUsers(usersData);
+        const usersMap: { [uid: string]: any } = {};
+        usersData.forEach((u: any) => { usersMap[u.id] = u; });
+        setUsers(usersMap);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {

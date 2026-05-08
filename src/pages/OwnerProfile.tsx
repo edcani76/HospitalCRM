@@ -49,7 +49,7 @@ export default function OwnerProfile() {
         { id: 'queue', label: 'Patient Queue', icon: <ClipboardList className="w-5 h-5" /> },
         { id: 'appointments', label: 'Schedules', icon: <Calendar className="w-5 h-5" /> },
         { id: 'emr', label: 'Medical Records', icon: <Activity className="w-5 h-5" /> },
-        { id: 'billing', label: 'Billing', icon: <DollarSign className="w-5 h-5" /> },
+        { id: 'billing', label: 'Billing', icon: <FileText className="w-5 h-5" /> },
         { id: 'inventory', label: 'Inventory', icon: <FileText className="w-5 h-5" /> },
         { id: 'users', label: 'User Management', icon: <Users className="w-5 h-5" /> },
       ];

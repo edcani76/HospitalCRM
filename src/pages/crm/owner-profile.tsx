@@ -140,7 +140,7 @@ export default function OwnerProfilePage() {
               Add Pet
             </Button>
             <Button className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-100 rounded-xl px-6">
-              <DollarSign className="w-4 h-4 mr-2" />
+              <FileText className="w-4 h-4 mr-2" />
               Create Invoice
             </Button>
           </div>
@@ -306,7 +306,7 @@ export default function OwnerProfilePage() {
               <CardContent className="px-8 pb-8">
                 {ownerBills.length === 0 ? (
                   <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                    <DollarSign className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p className="text-slate-400 font-medium">No billing records found</p>
                   </div>
                 ) : (

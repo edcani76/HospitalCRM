@@ -1,182 +1,58 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
 
-// Register fonts
 Font.register({
   family: 'Helvetica',
   fonts: [
-    { src: 'https://fonts.gstatic.com/s/helvetica/v10/ Helvetica.woff' }
+    { src: 'https://fonts.gstatic.com/s/helvetica/v10/Helvetica.woff' }
   ]
 });
 
+const fmt = (n: number) => {
+  return `PHP ${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
 const styles = StyleSheet.create({
-  page: {
-    padding: 40,
-    fontFamily: 'Helvetica',
-    fontSize: 10,
-    color: '#1a1a1a',
-  },
-  header: {
-    marginBottom: 30,
-    paddingBottom: 20,
-    borderBottom: 2,
-    borderBottomColor: '#2563eb',
-  },
-  logo: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2563eb',
-    marginBottom: 5,
-  },
-  clinicInfo: {
-    fontSize: 9,
-    color: '#64748b',
-    lineHeight: 1.6,
-  },
-  invoiceTitle: {
-    position: 'absolute',
-    right: 40,
-    top: 40,
-    textAlign: 'right',
-  },
-  invoiceTitleText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2563eb',
-    marginBottom: 5,
-  },
-  invoiceNo: {
-    fontSize: 10,
-    color: '#64748b',
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#2563eb',
-    marginBottom: 10,
-    paddingBottom: 5,
-    borderBottom: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  row: {
-    flexDirection: 'row',
-    marginBottom: 4,
-  },
-  label: {
-    width: 100,
-    color: '#64748b',
-    fontSize: 9,
-  },
-  value: {
-    flex: 1,
-    fontSize: 10,
-  },
-  table: {
-    marginTop: 10,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#f1f5f9',
-    padding: 8,
-    fontWeight: 'bold',
-    fontSize: 9,
-    borderBottom: 1,
-    borderBottomColor: '#cbd5e1',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    padding: 8,
-    borderBottom: 1,
-    borderBottomColor: '#f1f5f9',
-    fontSize: 9,
-  },
-  col1: { width: 60 },
-  col2: { flex: 1 },
-  col3: { width: 60, textAlign: 'right' },
-  col4: { width: 50, textAlign: 'right' },
-  col5: { width: 70, textAlign: 'right' },
-  totals: {
-    marginTop: 15,
-    alignItems: 'flex-end',
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 200,
-    paddingVertical: 4,
-  },
-  totalLabel: {
-    fontSize: 10,
-    color: '#64748b',
-  },
-  totalValue: {
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  grandTotal: {
-    borderTop: 1,
-    borderTopColor: '#2563eb',
-    marginTop: 5,
-    paddingTop: 5,
-  },
-  grandTotalLabel: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-  },
-  grandTotalValue: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#2563eb',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    fontSize: 9,
-    fontWeight: 'bold',
-    marginTop: 10,
-    alignSelf: 'flex-start',
-  },
-  statusPaid: {
-    backgroundColor: '#dcfce7',
-    color: '#166534',
-  },
-  statusDraft: {
-    backgroundColor: '#f1f5f9',
-    color: '#64748b',
-  },
-  statusPartial: {
-    backgroundColor: '#fef3c7',
-    color: '#92400e',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 40,
-    left: 40,
-    right: 40,
-    borderTop: 1,
-    borderTopColor: '#e2e8f0',
-    paddingTop: 15,
-    textAlign: 'center',
-    fontSize: 8,
-    color: '#94a3b8',
-  },
-  notes: {
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: '#f8fafc',
-    borderLeft: 3,
-    borderLeftColor: '#2563eb',
-  },
-  notesText: {
-    fontSize: 9,
-    color: '#475569',
-    lineHeight: 1.5,
-  },
+  page: { padding: 36, fontFamily: 'Helvetica', fontSize: 9, color: '#1e293b' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 28, paddingBottom: 16, borderBottom: '2px solid #1e40af' },
+  logoBlock: { flex: 1 },
+  logoName: { fontSize: 18, fontWeight: 'bold', color: '#1e40af', marginBottom: 4 },
+  logoSub: { fontSize: 8, color: '#64748b', lineHeight: 1.5 },
+  invoiceBlock: { alignItems: 'flex-end' },
+  invoiceLabel: { fontSize: 22, fontWeight: 'bold', color: '#1e40af', letterSpacing: 1 },
+  invoiceNo: { fontSize: 9, color: '#64748b', marginTop: 2 },
+  invoiceDate: { fontSize: 9, color: '#64748b', marginTop: 1 },
+  infoSection: { marginBottom: 20 },
+  sectionTitle: { fontSize: 10, fontWeight: 'bold', color: '#1e40af', marginBottom: 8, paddingBottom: 4, borderBottom: '1px solid #e2e8f0', textTransform: 'uppercase', letterSpacing: 0.5 },
+  infoRow: { flexDirection: 'row', marginBottom: 3 },
+  infoLabel: { width: 80, color: '#64748b', fontSize: 8 },
+  infoValue: { flex: 1, fontSize: 9, fontWeight: 'bold' },
+  table: { marginBottom: 16 },
+  tableHeader: { flexDirection: 'row', backgroundColor: '#f1f5f9', paddingVertical: 6, paddingHorizontal: 8, fontWeight: 'bold', fontSize: 8, borderBottom: '1px solid #cbd5e1', color: '#334155' },
+  tableRow: { flexDirection: 'row', paddingVertical: 6, paddingHorizontal: 8, borderBottom: '1px solid #f1f5f9', fontSize: 8 },
+  colNum: { width: 30, textAlign: 'center' },
+  colDesc: { flex: 1, paddingRight: 8 },
+  colPrice: { width: 75, textAlign: 'right' },
+  colTotal: { width: 75, textAlign: 'right' },
+  totalsBlock: { alignItems: 'flex-end', marginTop: 8 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', width: 180, paddingVertical: 3 },
+  totalLabel: { fontSize: 9, color: '#64748b' },
+  totalValue: { fontSize: 9, fontWeight: 'bold' },
+  grandRow: { borderTop: '2px solid #1e40af', marginTop: 4, paddingTop: 4 },
+  grandLabel: { fontSize: 10, fontWeight: 'bold', color: '#1e293b' },
+  grandValue: { fontSize: 11, fontWeight: 'bold', color: '#1e40af' },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 4, fontSize: 8, fontWeight: 'bold', marginTop: 12, alignSelf: 'flex-start' },
+  statusPaid: { backgroundColor: '#dcfce7', color: '#166534' },
+  statusDraft: { backgroundColor: '#f1f5f9', color: '#64748b' },
+  statusPartial: { backgroundColor: '#fef3c7', color: '#92400e' },
+  paymentsSection: { marginTop: 16 },
+  paymentHeader: { flexDirection: 'row', backgroundColor: '#f1f5f9', paddingVertical: 5, paddingHorizontal: 8, fontWeight: 'bold', fontSize: 8, borderBottom: '1px solid #cbd5e1', color: '#334155' },
+  paymentRow: { flexDirection: 'row', paddingVertical: 5, paddingHorizontal: 8, borderBottom: '1px solid #f1f5f9', fontSize: 8 },
+  notesBox: { marginTop: 16, padding: 10, backgroundColor: '#f8fafc', borderLeft: '3px solid #1e40af' },
+  notesText: { fontSize: 8, color: '#475569', lineHeight: 1.5 },
+  footer: { position: 'absolute', bottom: 36, left: 36, right: 36, borderTop: '1px solid #e2e8f0', paddingTop: 12, textAlign: 'center', fontSize: 7, color: '#94a3b8' },
+  emptyRow: { paddingVertical: 20, alignItems: 'center' },
+  emptyText: { fontSize: 9, color: '#94a3b8' },
 });
 
 interface InvoicePDFProps {
@@ -197,27 +73,25 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
   encounter,
 }) => {
   const encounterDate = encounter?.startedAt?.toDate?.() || encounter?.createdAt?.toDate?.();
-  const dateStr = encounterDate ? encounterDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+  const dateStr = encounterDate
+    ? encounterDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'N/A';
+
+  const lineItems = (invoiceItems || []).filter((i: any) => i.itemType !== 'tax');
 
   const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'paid':
-        return styles.statusPaid;
-      case 'partially-paid':
-        return styles.statusPartial;
-      default:
-        return styles.statusDraft;
+      case 'paid': return styles.statusPaid;
+      case 'active': return styles.statusPartial;
+      default: return styles.statusDraft;
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'paid':
-        return 'PAID';
-      case 'partially-paid':
-        return 'PARTIALLY PAID';
-      default:
-        return status?.toUpperCase() || 'DRAFT';
+      case 'paid': return 'PAID IN FULL';
+      case 'active': return 'OUTSTANDING';
+      default: return (status || 'DRAFT').toUpperCase();
     }
   };
 
@@ -226,109 +100,115 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.logo}>MediPaws Veterinary Clinic</Text>
-          <Text style={styles.clinicInfo}>123 Pet Care Street, Animal City 12345</Text>
-          <Text style={styles.clinicInfo}>Phone: (555) 123-4567 | Email: info@medipaws.com</Text>
+          <View style={styles.logoBlock}>
+            <Text style={styles.logoName}>EdvirontVet Animal Hospital</Text>
+            <Text style={styles.logoSub}>Unit 7, Sunrise Business Complex, 8th Avenue, BGC</Text>
+            <Text style={styles.logoSub}>Taguig City 1634</Text>
+            <Text style={styles.logoSub}>+63 917 123 4567 | info@edvirontvet.com</Text>
+          </View>
+          <View style={styles.invoiceBlock}>
+            <Text style={styles.invoiceLabel}>INVOICE</Text>
+            <Text style={styles.invoiceNo}>{invoice?.invoiceNo || 'N/A'}</Text>
+            <Text style={styles.invoiceDate}>{dateStr}</Text>
+          </View>
         </View>
 
-        {/* Invoice Title & Number */}
-        <View style={styles.invoiceTitle}>
-          <Text style={styles.invoiceTitleText}>INVOICE</Text>
-          <Text style={styles.invoiceNo}>{invoice?.invoiceNo || 'N/A'}</Text>
-          <Text style={styles.invoiceNo}>Date: {dateStr}</Text>
-        </View>
-
-        {/* Client & Patient Info */}
-        <View style={styles.section}>
+        {/* Bill To */}
+        <View style={styles.infoSection}>
           <Text style={styles.sectionTitle}>Bill To</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Client:</Text>
-            <Text style={styles.value}>{owner?.displayName || owner?.name || 'N/A'}</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Client:</Text>
+            <Text style={styles.infoValue}>{owner?.displayName || owner?.name || 'N/A'}</Text>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Patient:</Text>
-            <Text style={styles.value}>{patient?.name || 'N/A'}</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Patient:</Text>
+            <Text style={styles.infoValue}>{patient?.name || 'N/A'}</Text>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Species:</Text>
-            <Text style={styles.value}>{patient?.species || 'N/A'}</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Species:</Text>
+            <Text style={styles.infoValue}>{patient?.species || 'N/A'}</Text>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Breed:</Text>
-            <Text style={styles.value}>{patient?.breed || 'N/A'}</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Breed:</Text>
+            <Text style={styles.infoValue}>{patient?.breed || 'N/A'}</Text>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Doctor:</Text>
-            <Text style={styles.value}>{encounter?.doctorName || 'N/A'}</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Doctor:</Text>
+            <Text style={styles.infoValue}>{encounter?.doctorName || 'N/A'}</Text>
           </View>
         </View>
 
         {/* Services Table */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Services & Items</Text>
-          <View style={styles.table}>
-            <View style={styles.tableHeader}>
-              <Text style={styles.col1}>Qty</Text>
-              <Text style={styles.col2}>Description</Text>
-              <Text style={styles.col3}>Unit Price</Text>
-              <Text style={styles.col4}>Tax</Text>
-              <Text style={styles.col5}>Total</Text>
-            </View>
-            {invoiceItems?.map((item: any, index: number) => (
-              <View key={index} style={styles.tableRow}>
-                <Text style={styles.col1}>{item.quantity || 1}</Text>
-                <Text style={styles.col2}>{item.description || 'Service'}</Text>
-                <Text style={styles.col3}>₱{(item.unitPrice || 0).toFixed(2)}</Text>
-                <Text style={styles.col4}>{((item.taxRate || 0) * 100).toFixed(0)}%</Text>
-                <Text style={styles.col5}>₱{(item.lineTotal || 0).toFixed(2)}</Text>
-              </View>
-            ))}
+        <View style={styles.table}>
+          <Text style={styles.sectionTitle}>Services &amp; Items</Text>
+          <View style={styles.tableHeader}>
+            <Text style={styles.colNum}>Qty</Text>
+            <Text style={styles.colDesc}>Description</Text>
+            <Text style={styles.colPrice}>Unit Price</Text>
+            <Text style={styles.colTotal}>Amount</Text>
           </View>
+          {lineItems.length > 0 ? lineItems.map((item: any, index: number) => (
+            <View key={index} style={styles.tableRow}>
+              <Text style={styles.colNum}>{item.quantity || 1}</Text>
+              <Text style={styles.colDesc}>{item.description || 'Service'}</Text>
+              <Text style={styles.colPrice}>{fmt(item.unitPrice || 0)}</Text>
+              <Text style={styles.colTotal}>{fmt(item.lineTotal || 0)}</Text>
+            </View>
+          )) : (
+            <View style={styles.emptyRow}>
+              <Text style={styles.emptyText}>No items on this invoice</Text>
+            </View>
+          )}
         </View>
 
         {/* Totals */}
-        <View style={styles.totals}>
+        <View style={styles.totalsBlock}>
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Subtotal:</Text>
-            <Text style={styles.totalValue}>₱{(invoice?.subTotal || 0).toFixed(2)}</Text>
+            <Text style={styles.totalLabel}>Subtotal</Text>
+            <Text style={styles.totalValue}>{fmt(invoice?.subTotal || 0)}</Text>
           </View>
           {invoice?.discountTotal > 0 && (
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Discount:</Text>
-              <Text style={styles.totalValue}>-₱{(invoice.discountTotal || 0).toFixed(2)}</Text>
+              <Text style={styles.totalLabel}>Discount</Text>
+              <Text style={styles.totalValue}>- {fmt(invoice.discountTotal || 0)}</Text>
             </View>
           )}
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Tax (12%):</Text>
-            <Text style={styles.totalValue}>₱{(invoice?.taxAmount || 0).toFixed(2)}</Text>
+            <Text style={styles.totalLabel}>VAT (12%)</Text>
+            <Text style={styles.totalValue}>{fmt(invoice?.taxAmount || 0)}</Text>
           </View>
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Amount Paid:</Text>
-            <Text style={[styles.totalValue, { color: '#166534' }]}>₱{(invoice?.amountPaid || 0).toFixed(2)}</Text>
+            <Text style={styles.totalLabel}>Amount Paid</Text>
+            <Text style={[styles.totalValue, { color: '#166534' }]}>- {fmt(invoice?.amountPaid || 0)}</Text>
           </View>
-          <View style={[styles.totalRow, styles.grandTotal]}>
-            <Text style={styles.grandTotalLabel}>Balance Due:</Text>
-            <Text style={styles.grandTotalValue}>₱{(invoice?.balanceDue || 0).toFixed(2)}</Text>
+          <View style={[styles.totalRow, styles.grandRow]}>
+            <Text style={styles.grandLabel}>Balance Due</Text>
+            <Text style={styles.grandValue}>{fmt(invoice?.balanceDue || 0)}</Text>
           </View>
         </View>
 
-        {/* Status Badge */}
+        {/* Status */}
         <Text style={[styles.statusBadge, getStatusStyle(invoice?.status)]}>
           {getStatusText(invoice?.status)}
         </Text>
 
-        {/* Payments */}
+        {/* Payment History */}
         {payments?.length > 0 && (
-          <View style={styles.section}>
+          <View style={styles.paymentsSection}>
             <Text style={styles.sectionTitle}>Payment History</Text>
+            <View style={styles.paymentHeader}>
+              <Text style={{ flex: 1 }}>Date</Text>
+              <Text style={{ width: 80, textAlign: 'right' }}>Method</Text>
+              <Text style={{ width: 75, textAlign: 'right' }}>Amount</Text>
+            </View>
             {payments.map((payment: any, index: number) => {
               const paymentDate = payment.paidAt?.toDate?.() || payment.createdAt?.toDate?.();
-              const dateStr = paymentDate ? paymentDate.toLocaleDateString() : 'N/A';
+              const pDate = paymentDate ? paymentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
               return (
-                <View key={index} style={styles.tableRow}>
-                  <Text style={styles.col1}>{dateStr}</Text>
-                  <Text style={styles.col2}>{payment.paymentMethod || 'Cash'}</Text>
-                  <Text style={styles.col5}>₱{(payment.amount || 0).toFixed(2)}</Text>
+                <View key={index} style={styles.paymentRow}>
+                  <Text style={{ flex: 1 }}>{pDate}</Text>
+                  <Text style={{ width: 80, textAlign: 'right', textTransform: 'capitalize' }}>{payment.paymentMethod || 'cash'}</Text>
+                  <Text style={{ width: 75, textAlign: 'right' }}>{fmt(payment.amount || 0)}</Text>
                 </View>
               );
             })}
@@ -337,15 +217,15 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
 
         {/* Notes */}
         {invoice?.notes && (
-          <View style={styles.notes}>
-            <Text style={styles.notesText}>{invoice.notes}</Text>
+          <View style={styles.notesBox}>
+            <Text style={styles.notesText}>Diagnosis: {invoice.notes}</Text>
           </View>
         )}
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text>Thank you for choosing MediPaws Veterinary Clinic!</Text>
-          <Text>For inquiries, please contact us at info@medipaws.com or call (555) 123-4567</Text>
+          <Text>Thank you for choosing EdvirontVet Animal Hospital!</Text>
+          <Text>For inquiries, please contact us at info@edvirontvet.com or call +63 917 123 4567</Text>
         </View>
       </Page>
     </Document>

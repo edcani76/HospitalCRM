@@ -307,7 +307,7 @@ export default function OwnersPage() {
                 </div>
 
                 <h3 className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{owner.displayName || owner.name}</h3>
-                <p className="text-sm text-gray-400 font-medium mb-3">{owner.id}</p>
+                <p className="text-sm text-gray-400 font-medium mb-3">{owner.petCount} pet{owner.petCount !== 1 ? 's' : ''}</p>
                 <Badge 
                   className={cn(
                     "px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-wider",
@@ -370,7 +370,7 @@ export default function OwnersPage() {
                       </div>
                       <div>
                         <p className="font-bold text-gray-900">{owner.displayName || owner.name}</p>
-                        <p className="text-xs text-gray-400">{owner.id}</p>
+                        <p className="text-xs text-gray-400">{owner.petCount} pet{owner.petCount !== 1 ? 's' : ''}</p>
                       </div>
                     </div>
                   </td>

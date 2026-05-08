@@ -18,7 +18,9 @@ import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import {
   fetchPetById, fetchEncounters, fetchEncounterById, fetchServiceCatalog,
-  fetchAppointmentServices, fetchTriageVitals, fetchClinicalNotes,
+  fetchAppointmentServices,   fetchTriageVitals,
+  fetchAllPatientVitals,
+  fetchClinicalNotes,
   fetchLabOrders, fetchPrescriptions, fetchDispensingRecords,
   fetchInvoicesByEncounter, fetchInvoiceItems, fetchPayments,
   fetchAttachments, fetchAuditLogs,
@@ -26,7 +28,7 @@ import {
 } from '../../lib/firestore-helpers';
 import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp, db, auth } from '../../firebase';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { uploadToGoogleDrive, getGoogleDriveLink } from '../../lib/google-drive';
 import { InvoicePDF } from '../../components/invoice-pdf';
@@ -41,6 +43,25 @@ function getFileType(fileName: string): string {
     'xls': 'document', 'xlsx': 'document', 'txt': 'document', 'csv': 'document'
   };
   return typeMap[ext || ''] || 'other';
+}
+
+// Helper to parse Firestore timestamps or ISO strings into millisecond timestamps
+function parseDate(val: any): number {
+  if (!val) return 0;
+  // Firestore Timestamp object
+  if (typeof val?.toDate === 'function') return val.toDate().getTime();
+  // Cached serialized Timestamp {_seconds, _nanoseconds}
+  if (val?._seconds !== undefined) return val._seconds * 1000;
+  // ISO string or date string
+  if (typeof val === 'string') {
+    const ts = Date.parse(val);
+    return isNaN(ts) ? 0 : ts;
+  }
+  // JS Date
+  if (val instanceof Date) return val.getTime();
+  // Millisecond timestamp
+  if (typeof val === 'number') return val > 1e12 ? val : val * 1000;
+  return 0;
 }
 
 type TabType =
@@ -193,7 +214,7 @@ function VisitSummaryTab({ patient, owner, encounter, encounters, vitals, servic
                 </div>
                 <div className="bg-red-50 rounded-lg p-3 text-center">
                   <p className="text-xs text-red-600 font-medium">Temp</p>
-                  <p className="text-lg font-bold text-red-800">{latestVitals.temperatureC || 0}°C</p>
+                  <p className="text-lg font-bold text-red-800">{parseFloat(String(latestVitals.temperatureC || 0)).toFixed(1)}°C</p>
                 </div>
                 <div className="bg-rose-50 rounded-lg p-3 text-center">
                   <p className="text-xs text-rose-600 font-medium">Heart Rate</p>
@@ -448,6 +469,8 @@ export default function EMRPage() {
   // Current encounter data
   const [appointmentServices, setAppointmentServices] = useState<any[]>([]);
   const [triageVitals, setTriageVitals] = useState<any[]>([]);
+  const [allPatientVitals, setAllPatientVitals] = useState<any[]>([]);
+  const [hiddenLines, setHiddenLines] = useState<Set<string>>(new Set());
   const [clinicalNotes, setClinicalNotes] = useState<any>(null);
   const [labOrders, setLabOrders] = useState<any[]>([]);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
@@ -457,6 +480,8 @@ export default function EMRPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [showAllAudit, setShowAllAudit] = useState(false);
+  const [showAllEncounters, setShowAllEncounters] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState<any>({});
@@ -650,6 +675,10 @@ Mode: Walk-in`,
         const encounterData = await fetchEncounters(patientId);
         setEncounters(encounterData);
 
+        // Fetch ALL patient vitals for historical chart
+        const allVitals = await fetchAllPatientVitals(patientId || '');
+        setAllPatientVitals(allVitals);
+
         // Check for active encounter (in-progress with startedAt)
         const activeEncounter = encounterData.find((e: any) => 
           e.status === 'in-progress' && e.startedAt
@@ -751,6 +780,86 @@ Mode: Walk-in`,
     loadEncounterData();
   }, [selectedEncounter?.id]);
 
+  const handleLegendClick = (dataKey: string) => {
+    setHiddenLines(prev => {
+      const next = new Set(prev);
+      if (next.has(dataKey)) {
+        next.delete(dataKey);
+      } else {
+        next.add(dataKey);
+      }
+      return next;
+    });
+  };
+
+  const generateVitalsAnalysis = () => {
+    if (allPatientVitals.length < 2) return null;
+    const sorted = allPatientVitals.slice().sort((a: any, b: any) => parseDate(a.createdAt) - parseDate(b.createdAt));
+    const latest = sorted[sorted.length - 1];
+    const previous = sorted[sorted.length - 2];
+    const first = sorted[0];
+    const insights: string[] = [];
+
+    const wtLatest = parseFloat(String(latest.weightKg || 0));
+    const wtPrev = parseFloat(String(previous.weightKg || 0));
+    const wtFirst = parseFloat(String(first.weightKg || 0));
+    if (wtLatest > 0 && wtPrev > 0) {
+      const wtChange = wtLatest - wtPrev;
+      const wtPct = ((wtLatest - wtFirst) / wtFirst * 100).toFixed(1);
+      if (Math.abs(wtChange) < 0.3) insights.push(`Weight stable at ${wtLatest.toFixed(1)} kg — well-maintained body condition.`);
+      else if (wtChange > 0) insights.push(`Weight increased by ${Math.abs(wtChange).toFixed(1)} kg from previous visit (+${wtPct}% overall). Monitor for obesity risk.`);
+      else insights.push(`Weight decreased by ${Math.abs(wtChange).toFixed(1)} kg from previous visit (${wtPct}% from baseline). Assess if intentional weight management.`);
+    }
+
+    const tempLatest = parseFloat(String(latest.temperatureC || 0));
+    const tempPrev = parseFloat(String(previous.temperatureC || 0));
+    if (tempLatest > 0) {
+      if (tempLatest > 39.2) insights.push(`Temperature elevated at ${tempLatest.toFixed(1)}°C — pyrexia detected. Consider infectious or inflammatory process.`);
+      else if (tempLatest > 38.9) insights.push(`Temperature mildly elevated at ${tempLatest.toFixed(1)}°C — monitor for trending fever.`);
+      else if (tempLatest < 37.8) insights.push(`Temperature below normal range at ${tempLatest.toFixed(1)}°C — hypothermia concern. Assess perfusion status.`);
+      else if (tempPrev > 39.0 && tempLatest <= 38.9) insights.push(`Temperature normalized to ${tempLatest.toFixed(1)}°C from previous pyrexia — treatment response favorable.`);
+      else insights.push(`Temperature within normal range at ${tempLatest.toFixed(1)}°C — thermoregulation stable.`);
+    }
+
+    const hrLatest = latest.heartRateBpm || 0;
+    const hrPrev = previous.heartRateBpm || 0;
+    const hrFirst = first.heartRateBpm || 0;
+    if (hrLatest > 0) {
+      const species = patient?.species?.toLowerCase() || '';
+      const isCat = species === 'cat';
+      const normalLow = isCat ? 140 : 60;
+      const normalHigh = isCat ? 220 : 140;
+      if (hrLatest > normalHigh) insights.push(`Heart rate elevated at ${hrLatest} bpm (tachycardia). Evaluate for pain, anxiety, or cardiovascular compromise.`);
+      else if (hrLatest < normalLow) insights.push(`Heart rate below normal at ${hrLatest} bpm (bradycardia). Assess cardiac conduction and metabolic status.`);
+      else if (hrPrev > normalHigh && hrLatest <= normalHigh) insights.push(`Heart rate normalized to ${hrLatest} bpm from previous tachycardia — clinical improvement noted.`);
+      else insights.push(`Heart rate within normal parameters at ${hrLatest} bpm — cardiovascular status stable.`);
+    }
+
+    const rrLatest = latest.respiratoryRateRpm || 0;
+    const rrPrev = previous.respiratoryRateRpm || 0;
+    if (rrLatest > 0) {
+      const species = patient?.species?.toLowerCase() || '';
+      const isCat = species === 'cat';
+      const normalLow = isCat ? 20 : 10;
+      const normalHigh = isCat ? 42 : 30;
+      if (rrLatest > normalHigh) insights.push(`Respiratory rate elevated at ${rrLatest} rpm (tachypnea). Assess for respiratory distress, pain, or metabolic acidosis.`);
+      else if (rrLatest < normalLow) insights.push(`Respiratory rate below normal at ${rrLatest} rpm. Monitor for respiratory depression.`);
+      else if (rrPrev > normalHigh && rrLatest <= normalHigh) insights.push(`Respiratory rate normalized to ${rrLatest} rpm from previous tachypnea — respiratory status improving.`);
+      else insights.push(`Respiratory rate within normal limits at ${rrLatest} rpm — pulmonary function adequate.`);
+    }
+
+    const mmLatest = latest.mmColor || '';
+    if (mmLatest && mmLatest.toLowerCase() !== 'pink') insights.push(`Mucous membrane color: ${mmLatest} — warrants further assessment of perfusion and oxygenation status.`);
+
+    const crtLatest = parseFloat(String(latest.crtSeconds || 0));
+    if (crtLatest > 0 && crtLatest > 2.0) insights.push(`Capillary refill time prolonged at ${crtLatest}s — possible peripheral perfusion deficit or dehydration.`);
+
+    const trend = wtLatest > wtFirst ? 'upward' : wtLatest < wtFirst ? 'downward' : 'stable';
+    if (sorted.length >= 3) insights.push(`Overall trend: ${sorted.length} recorded visits with ${trend === 'stable' ? 'stable' : trend + '-trending'} weight trajectory. Continue monitoring at each visit.`);
+
+    return insights;
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     if (mode === 'view') return; // Ignore changes in view mode
     const { name, value } = e.target;
@@ -797,6 +906,11 @@ Mode: Walk-in`,
       // Refresh vitals list
       const updatedVitals = await fetchTriageVitals(selectedEncounter.id);
       setTriageVitals(updatedVitals);
+
+      // Refresh all patient vitals for chart
+      const updatedAllVitals = await fetchAllPatientVitals(patientId || '');
+      setAllPatientVitals(updatedAllVitals);
+
       setFormData({});
       alert('Vitals saved successfully!');
     } catch (error) {
@@ -1265,7 +1379,7 @@ Mode: Walk-in`,
     { id: 'orders-services' as TabType, label: 'Orders & Services', icon: Activity },
     { id: 'medications-pharmacy' as TabType, label: 'Medications', icon: Pill },
     { id: 'diagnostics-files' as TabType, label: 'Diagnostics', icon: FlaskConical },
-    { id: 'billing' as TabType, label: 'Billing', icon: DollarSign },
+    { id: 'billing' as TabType, label: 'Billing', icon: FileText },
     { id: 'history' as TabType, label: 'History', icon: History },
   ];
 
@@ -1368,25 +1482,49 @@ Mode: Walk-in`,
           <div className="border-t pt-4">
             <Label className="text-sm font-medium text-gray-600">Select Encounter:</Label>
             <div className="flex gap-2 mt-2 flex-wrap">
-              {encounters.map((enc: any) => (
-                <Button
-                  key={enc.id}
-                  variant={selectedEncounter?.id === enc.id ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedEncounter(enc)}
-                  className={cn(
-                    selectedEncounter?.id === enc.id
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : 'text-blue-600 border-blue-200 hover:bg-blue-50'
-                  )}
-                >
-                  {enc.startedAt?.toDate?.()?.toLocaleDateString?.() || 'New'}
-                  {enc.status === 'in-progress' && (
-                    <span className="ml-2 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                  )}
-                </Button>
-              ))}
+              {encounters
+                .sort((a: any, b: any) => {
+                  const aRaw = a.startedAt || a.createdAt;
+                  const bRaw = b.startedAt || b.createdAt;
+                  const aTs = typeof aRaw?.toDate === 'function' ? aRaw.toDate() : aRaw;
+                  const bTs = typeof bRaw?.toDate === 'function' ? bRaw.toDate() : bRaw;
+                  return (bTs ? new Date(bTs).getTime() : 0) - (aTs ? new Date(aTs).getTime() : 0);
+                })
+                .slice(0, showAllEncounters ? undefined : 5)
+                .map((enc: any) => (
+                  <Button
+                    key={enc.id}
+                    variant={selectedEncounter?.id === enc.id ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedEncounter(enc)}
+                    className={cn(
+                      selectedEncounter?.id === enc.id
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'text-blue-600 border-blue-200 hover:bg-blue-50'
+                    )}
+                  >
+                    {(() => {
+                      const raw = enc.startedAt || enc.createdAt;
+                      const ts = typeof raw?.toDate === 'function' ? raw.toDate() : raw;
+                      if (!ts) return 'New';
+                      const d = new Date(ts);
+                      if (isNaN(d.getTime())) return 'New';
+                      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    })()}
+                    {enc.status === 'in-progress' && (
+                      <span className="ml-2 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                    )}
+                  </Button>
+                ))}
             </div>
+            {encounters.length > 5 && (
+              <button
+                onClick={() => setShowAllEncounters(!showAllEncounters)}
+                className="mt-2 w-full text-center text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+              >
+                {showAllEncounters ? 'Show Less' : `See More (${encounters.length - 5} more)`}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1542,28 +1680,90 @@ Mode: Walk-in`,
             </div>
 
             {/* Historical Vitals Chart */}
-            {triageVitals.length > 0 && (
+            {allPatientVitals.length > 0 && (
               <div>
-                <h4 className="font-semibold mb-3">Historical Trends</h4>
+                <h4 className="font-semibold mb-3">Historical Vitals Trends</h4>
                 <div className="h-80 w-full">
                   <ResponsiveContainer width="100%" height={320}>
-                    <LineChart data={triageVitals.map((v: any) => ({
-                      date: v.createdAt?.toDate?.()?.toLocaleDateString?.() || '',
-                      weight: v.weightKg || 0,
-                      temp: v.temperatureC || 0,
-                      hr: v.heartRateBpm || 0
-                    }))}>
+                    <LineChart
+                      data={allPatientVitals
+                        .slice()
+                        .sort((a: any, b: any) => {
+                          const da = parseDate(a.createdAt);
+                          const db = parseDate(b.createdAt);
+                          return da - db;
+                        })
+                        .map((v: any) => {
+                          const ts = parseDate(v.createdAt);
+                          const dateObj = new Date(ts);
+                          return {
+                            date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }),
+                            fullDate: dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                            weight: parseFloat(String(v.weightKg || 0)),
+                            temp: parseFloat((v.temperatureC || 0).toFixed(1)),
+                            hr: v.heartRateBpm || 0,
+                            rr: v.respiratoryRateRpm || 0,
+                          };
+                        })}
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis yAxisId="left" />
-                      <YAxis yAxisId="right" orientation="right" />
-                      <Tooltip />
-                      <Line yAxisId="left" type="monotone" dataKey="weight" stroke="#3b82f6" name="Weight (kg)" />
-                      <Line yAxisId="left" type="monotone" dataKey="temp" stroke="#ef4444" name="Temp (°C)" />
-                      <Line yAxisId="right" type="monotone" dataKey="hr" stroke="#10b981" name="HR (bpm)" />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={(label: string) => {
+                          return label;
+                        }}
+                      />
+                      <YAxis />
+                      <Tooltip
+                        formatter={(value: any, name: string) => {
+                          if (name === 'weight') return [`${value} kg`, 'Weight'];
+                          if (name === 'temp') return [`${value}°C`, 'Temperature'];
+                          if (name === 'hr') return [`${value} bpm`, 'Heart Rate'];
+                          if (name === 'rr') return [`${value} rpm`, 'Resp Rate'];
+                          return [value, name];
+                        }}
+                        labelFormatter={(date: string, payload: any) => {
+                          if (payload && payload[0]?.payload?.fullDate) {
+                            return payload[0].payload.fullDate;
+                          }
+                          return date;
+                        }}
+                      />
+                      <Legend
+                        verticalAlign="top"
+                        height={36}
+                        onClick={(e: any) => handleLegendClick(e.dataKey)}
+                        wrapperStyle={{ cursor: 'pointer' }}
+                      />
+                      <Line type="monotone" dataKey="weight" stroke="#3b82f6" activeDot={{ r: 8 }} name="Weight" hide={hiddenLines.has('weight')} />
+                      <Line type="monotone" dataKey="temp" stroke="#ef4444" activeDot={{ r: 8 }} name="Temperature" hide={hiddenLines.has('temp')} />
+                      <Line type="monotone" dataKey="hr" stroke="#10b981" activeDot={{ r: 8 }} name="Heart Rate" hide={hiddenLines.has('hr')} />
+                      <Line type="monotone" dataKey="rr" stroke="#f59e0b" activeDot={{ r: 8 }} name="Resp Rate" hide={hiddenLines.has('rr')} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
+
+                {/* Intelligent Vitals Trend Analysis */}
+                {(() => {
+                  const analysis = generateVitalsAnalysis();
+                  if (!analysis || analysis.length === 0) return null;
+                  return (
+                    <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                      <div className="flex items-start gap-2 mb-2">
+                        <Activity className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <h5 className="font-semibold text-blue-900 text-sm">Clinical Vitals Analysis</h5>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {analysis.map((insight: string, i: number) => (
+                          <li key={i} className="text-sm text-blue-800 flex items-start gap-2">
+                            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5 flex-shrink-0" />
+                            {insight}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -1966,7 +2166,7 @@ Mode: Walk-in`,
                     onClick={() => setShowPaymentDialog(true)}
                     className="bg-green-600 hover:bg-green-700 text-white"
                   >
-                    <DollarSign className="w-4 h-4 mr-2" />
+                    <FileText className="w-4 h-4 mr-2" />
                     Record Payment
                   </Button>
                 )}
@@ -2054,7 +2254,7 @@ Mode: Walk-in`,
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <DollarSign className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                <FileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
                 <p>No invoice generated yet.</p>
                 <Button
                   onClick={generateDraftInvoice}
@@ -2117,14 +2317,16 @@ Mode: Walk-in`,
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="space-y-2">
                 {auditLogs
                   .sort((a: any, b: any) => {
-                    const aTime = a.timestamp?.toDate?.()?.getTime() || 0;
-                    const bTime = b.timestamp?.toDate?.()?.getTime() || 0;
-                    return bTime - aTime;
+                    const aRaw = a.timestamp || a.createdAt;
+                    const bRaw = b.timestamp || b.createdAt;
+                    const aTs = typeof aRaw?.toDate === 'function' ? aRaw.toDate() : aRaw;
+                    const bTs = typeof bRaw?.toDate === 'function' ? bRaw.toDate() : bRaw;
+                    return (bTs ? new Date(bTs).getTime() : 0) - (aTs ? new Date(aTs).getTime() : 0);
                   })
-                  .slice(0, 10)
+                  .slice(0, showAllAudit ? undefined : 5)
                   .map((log: any, idx: number) => (
                     <div key={log.id || idx} className="text-sm flex justify-between items-start py-2 border-b border-gray-100 last:border-0">
                       <div>
@@ -2133,11 +2335,27 @@ Mode: Walk-in`,
                         <span className="text-gray-500 ml-2 text-xs">by {log.userId || log.staff}</span>
                       </div>
                       <span className="text-xs text-gray-400 whitespace-nowrap">
-                        {log.timestamp?.toDate?.()?.toLocaleDateString?.() || 'N/A'}
+                        {(() => {
+                          const raw = log.timestamp || log.createdAt;
+                          const ts = typeof raw?.toDate === 'function' ? raw.toDate() : raw;
+                          if (!ts) return 'N/A';
+                          const d = new Date(ts);
+                          if (isNaN(d.getTime())) return 'N/A';
+                          return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+                            ' at ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        })()}
                       </span>
                     </div>
                   ))}
               </div>
+              {auditLogs.length > 5 && (
+                <button
+                  onClick={() => setShowAllAudit(!showAllAudit)}
+                  className="mt-3 w-full text-center text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  {showAllAudit ? 'Show Less' : `See More (${auditLogs.length - 5} more)`}
+                </button>
+              )}
             </CardContent>
           </Card>
         </div>
