@@ -308,10 +308,33 @@ export default function AppointmentsPage() {
     return slots;
   }, []);
 
+  const normalizeTimeSlot = (time: string): string => {
+    if (!time) return '';
+    const match12 = time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (match12) {
+      let [_, hourStr, minStr, ampm] = match12;
+      let hour = parseInt(hourStr);
+      if (ampm.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+      if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
+      const h = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+      return `${h}:${minStr.padStart(2, '0')} ${ampm.toUpperCase()}`;
+    }
+    const match24 = time.match(/(\d+):(\d+)/);
+    if (match24) {
+      let [_, hourStr, minStr] = match24;
+      let hour = parseInt(hourStr);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const h = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+      return `${h}:${minStr.padStart(2, '0')} ${ampm}`;
+    }
+    return time;
+  };
+
   const getDoctorAvailability = (doctor: Doctor, date: Date): Set<string> => {
     const dayOfWeek = date.getDay();
     if (doctor.availability && typeof doctor.availability === 'object' && !Array.isArray(doctor.availability) && dayOfWeek.toString() in doctor.availability) {
-      return new Set((doctor.availability as any)[dayOfWeek.toString()] || []);
+      const rawSlots = (doctor.availability as any)[dayOfWeek.toString()] || [];
+      return new Set(rawSlots.map((s: string) => normalizeTimeSlot(s)));
     }
     return new Set();
   };
