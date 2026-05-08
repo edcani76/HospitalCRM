@@ -1032,17 +1032,27 @@ export default function AppointmentDetailsPage() {
                         <SelectValue placeholder="Select time" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="08:00 AM">08:00 AM</SelectItem>
+                        <SelectItem value="08:30 AM">08:30 AM</SelectItem>
                         <SelectItem value="09:00 AM">09:00 AM</SelectItem>
                         <SelectItem value="09:30 AM">09:30 AM</SelectItem>
                         <SelectItem value="10:00 AM">10:00 AM</SelectItem>
                         <SelectItem value="10:30 AM">10:30 AM</SelectItem>
                         <SelectItem value="11:00 AM">11:00 AM</SelectItem>
+                        <SelectItem value="11:30 AM">11:30 AM</SelectItem>
+                        <SelectItem value="12:00 PM">12:00 PM</SelectItem>
+                        <SelectItem value="12:30 PM">12:30 PM</SelectItem>
+                        <SelectItem value="01:00 PM">01:00 PM</SelectItem>
+                        <SelectItem value="01:30 PM">01:30 PM</SelectItem>
                         <SelectItem value="02:00 PM">02:00 PM</SelectItem>
                         <SelectItem value="02:30 PM">02:30 PM</SelectItem>
                         <SelectItem value="03:00 PM">03:00 PM</SelectItem>
                         <SelectItem value="03:30 PM">03:30 PM</SelectItem>
                         <SelectItem value="04:00 PM">04:00 PM</SelectItem>
                         <SelectItem value="04:30 PM">04:30 PM</SelectItem>
+                        <SelectItem value="05:00 PM">05:00 PM</SelectItem>
+                        <SelectItem value="05:30 PM">05:30 PM</SelectItem>
+                        <SelectItem value="06:00 PM">06:00 PM</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
