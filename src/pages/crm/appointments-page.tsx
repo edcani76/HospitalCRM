@@ -450,15 +450,26 @@ export default function AppointmentsPage() {
                   <CalendarClock className="w-4 h-4 lg:w-5 lg:h-5 text-emerald-600" />
                   {boardView ? 'Board View' : `Appointments for ${format(selectedDate, 'MMMM d, yyyy')}`}
                 </h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setBoardView(!boardView)}
-                  className="flex items-center gap-2"
-                >
-                  {boardView ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
-                  {boardView ? 'List View' : 'Board View'}
-                </Button>
+                <div className="flex bg-stone-100 p-1 rounded-lg">
+                  <button
+                    onClick={() => setBoardView(false)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                      !boardView ? 'bg-white text-emerald-600 shadow-sm' : 'text-stone-400 hover:text-stone-600'
+                    }`}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                    List
+                  </button>
+                  <button
+                    onClick={() => setBoardView(true)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                      boardView ? 'bg-white text-emerald-600 shadow-sm' : 'text-stone-400 hover:text-stone-600'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    Board
+                  </button>
+                </div>
               </div>
 
               {boardView ? (
@@ -484,8 +495,8 @@ export default function AppointmentsPage() {
                     </thead>
                     <tbody>
                       {timeSlots.map(slot => (
-                        <tr key={slot} className="border-b border-stone-50 hover:bg-stone-50/50">
-                          <td className="sticky left-0 bg-white z-10 p-3 text-xs font-semibold text-stone-400 whitespace-nowrap">
+                        <tr key={slot} className="border-b border-stone-200 hover:bg-stone-50/50">
+                          <td className="sticky left-0 bg-white z-10 p-3 text-xs font-bold text-stone-600 whitespace-nowrap">
                             {slot}
                           </td>
                           {displayDoctors.map(doc => {
