@@ -551,7 +551,25 @@ export default function AppointmentsPage() {
                                     })}
                                   </div>
                                 ) : (
-                                  <div className="bg-white rounded-lg p-2 border border-stone-100 min-h-[50px]"></div>
+                                  <div
+                                    className="bg-white rounded-lg p-2 border border-stone-100 min-h-[50px] cursor-pointer hover:border-emerald-300 hover:bg-emerald-50/30 transition-colors group"
+                                    onClick={() => {
+                                      const doctor = doctors.find(d => d.id === doc.id);
+                                      const prefillData = {
+                                        doctorId: doc.id,
+                                        doctorName: doctor?.name || '',
+                                        doctorDepartment: doctor?.department || '',
+                                        doctorExperience: doctor?.experience || 0,
+                                        time: slot,
+                                        date: selectedDate,
+                                      };
+                                      navigate('/crm/appointments/create', { state: { prefill: prefillData, isEdit: false } });
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-center h-full">
+                                      <Plus className="w-3 h-3 text-stone-300 group-hover:text-emerald-600 transition-colors" />
+                                    </div>
+                                  </div>
                                 )}
                               </td>
                             );
