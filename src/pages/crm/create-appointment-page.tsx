@@ -517,37 +517,59 @@ export default function CreateAppointmentPage() {
                       }} min={format(startOfToday(), 'yyyy-MM-dd')} />
                     </div>
 
-                    {/* Time Slots Grid */}
-                    <div>
-                      <Label>Available Time Slots</Label>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2">
-                        {getTimeSlotsForDoctor(apt.providerId, apt.date).map(time => {
-                          const status = getSlotStatus(apt, time) as any;
-                          const isSelected = normalizeTimeSlot(apt.time) === normalizeTimeSlot(time);
-                          const isPast = status === 'past';
-                          const isBooked = status === 'confirmed' || status === 'unconfirmed';
-                          
-                          let btnClass = 'p-2 rounded-lg border text-sm font-medium transition-all relative ';
-                          if (isPast) btnClass += 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed';
-                          else if (isSelected) btnClass += 'bg-emerald-600 text-white border-emerald-600 border-2 border-emerald-800';
-                          else if (status === 'confirmed') btnClass += 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed';
-                          else if (status === 'unconfirmed') btnClass += 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100';
-                          else btnClass += 'bg-white border-stone-200 text-stone-700 hover:bg-emerald-50 hover:border-emerald-300';
-                          
-                          return (
-                              <button
-                                key={time}
-                                type="button"
-                                disabled={isPast || (isBooked && status !== 'available')}
-                                onClick={() => ((status as string) === 'available' || (status as string) === 'unconfirmed') && updateAppointment(activeTab, { time })}
-                                className={btnClass}
-                              >
-                                {time}
-                                {isSelected && <Check className="absolute top-1 right-1 w-3 h-3" />}
-                              </button>
-                          );
-                        })}
-                      </div>
+                      {/* Time Slots Grid */}
+                      <div>
+                        <Label>Available Time Slots</Label>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2">
+                          {(() => {
+                            // Get available slots from doctor's schedule
+                            const availableSlots = getTimeSlotsForDoctor(apt.providerId, apt.date);
+                            // Always include the pre-filled time slot if it's not already in the list
+                            const allSlots = apt.time && !availableSlots.includes(normalizeTimeSlot(apt.time))
+                              ? [...availableSlots, apt.time].sort((a, b) => {
+                                  const timeToMinutes = (t: string) => {
+                                    const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+                                    if (!match) return 0;
+                                    let [, h, m, ap] = match;
+                                    let hour = parseInt(h);
+                                    if (ap.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+                                    if (ap.toUpperCase() === 'AM' && hour === 12) hour = 0;
+                                    return hour * 60 + parseInt(m);
+                                  };
+                                  return timeToMinutes(a) - timeToMinutes(b);
+                                })
+                              : availableSlots;
+                            
+                            return allSlots.map(time => {
+                              const status = getSlotStatus(apt, time) as any;
+                              const normalizedTime = normalizeTimeSlot(time);
+                              const normalizedAptTime = normalizeTimeSlot(apt.time);
+                              const isSelected = normalizedAptTime === normalizedTime;
+                              const isPast = status === 'past';
+                              const isBooked = status === 'confirmed' || status === 'unconfirmed';
+                              
+                              let btnClass = 'p-2 rounded-lg border text-sm font-medium transition-all relative ';
+                              if (isPast) btnClass += 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed';
+                              else if (isSelected) btnClass += 'bg-emerald-600 text-white border-emerald-600 border-2 border-emerald-800';
+                              else if (status === 'confirmed') btnClass += 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed';
+                              else if (status === 'unconfirmed') btnClass += 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100';
+                              else btnClass += 'bg-white border-stone-200 text-stone-700 hover:bg-emerald-50 hover:border-emerald-300';
+                              
+                              return (
+                                  <button
+                                    key={time}
+                                    type="button"
+                                    disabled={isPast || (isBooked && status !== 'available')}
+                                    onClick={() => ((status as string) === 'available' || (status as string) === 'unconfirmed') && updateAppointment(activeTab, { time })}
+                                    className={btnClass}
+                                  >
+                                    {time}
+                                    {isSelected && <Check className="absolute top-1 right-1 w-3 h-3" />}
+                                  </button>
+                              );
+                            });
+                          })()}
+                        </div>
                       {(!apt.providerId || getTimeSlotsForDoctor(apt.providerId, apt.date).length === 0) && (
                         <p className="text-xs text-stone-500 mt-1">Select a provider and date to see available slots</p>
                       )}
