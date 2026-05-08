@@ -104,30 +104,44 @@ export default function EMRDirectory() {
       </div>
 
       {/* A-Z Alpha-Filter Bar */}
-      <div className="flex flex-wrap items-center justify-center gap-1 p-2 bg-white rounded-xl border border-gray-100 shadow-sm mb-10">
+      <div className="flex flex-wrap items-center justify-center gap-1 p-3 bg-white rounded-xl border border-gray-100 shadow-sm mb-10">
         <button
           onClick={() => setSelectedLetter(null)}
           className={cn(
-            "h-10 w-10 p-0 rounded-xl font-bold transition-colors",
+            "flex flex-col items-center justify-center h-10 w-10 p-0 rounded-xl font-bold transition-colors",
             selectedLetter === null ? "bg-blue-600 text-white" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
           )}
         >
           All
         </button>
-        {alphabet.map((letter) => (
-          <button
-            key={letter}
-            onClick={() => setSelectedLetter(letter)}
-            className={cn(
-              "h-10 w-10 p-0 rounded-xl font-bold transition-colors",
-              selectedLetter === letter
-                ? "bg-blue-600 text-white"
-                : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
-            )}
-          >
-            {letter}
-          </button>
-        ))}
+        {alphabet.map((letter) => {
+          const count = pets.filter(p => p.name.startsWith(letter)).length;
+          return (
+            <button
+              key={letter}
+              onClick={() => setSelectedLetter(letter)}
+              className={cn(
+                "flex flex-col items-center justify-center h-10 w-10 p-0 rounded-xl font-bold transition-colors",
+                selectedLetter === letter
+                  ? "bg-blue-600 text-white"
+                  : count > 0
+                    ? "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                    : "text-gray-200 cursor-not-allowed"
+              )}
+              disabled={count === 0}
+            >
+              {letter}
+              {count > 0 && (
+                <span className={cn(
+                  "text-[8px] font-bold leading-none mt-0.5",
+                  selectedLetter === letter ? "text-blue-100" : "text-blue-600"
+                )}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Main Content */}

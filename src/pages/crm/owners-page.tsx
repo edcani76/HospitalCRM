@@ -43,6 +43,9 @@ import { db, collection, getDocs, query, where, addDoc, updateDoc, deleteDoc, do
 
 interface Owner {
   id: string;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
   name: string;
   displayName?: string;
   email: string;
@@ -75,11 +78,17 @@ export default function OwnersPage() {
       // Fetch users with role 'client'
       const q = query(collection(db, 'users'), where('role', '==', 'client'));
       const usersSnapshot = await getDocs(q);
-      const usersData = usersSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        name: doc.data().displayName || doc.data().email || 'Unknown',
-      } as Owner));
+      const usersData = usersSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          firstName: data.firstName || '',
+          middleName: data.middleName || '',
+          lastName: data.lastName || '',
+          name: [data.lastName, data.firstName, data.middleName].filter(Boolean).join(' ') || data.displayName || data.email || 'Unknown',
+        } as Owner;
+      });
 
       // Fetch pets to count per owner
       const petsSnapshot = await getDocs(collection(db, 'pets'));
@@ -127,15 +136,28 @@ export default function OwnersPage() {
     return isNaN(date.getTime()) ? 'N/A' : format(date, 'MMMM yyyy');
   };
 
+  const getOwnerName = (owner: Owner) => {
+    if (owner.lastName && owner.firstName) {
+      return owner.middleName ? `${owner.lastName}, ${owner.firstName} ${owner.middleName}` : `${owner.lastName}, ${owner.firstName}`;
+    }
+    return owner.displayName || owner.name || 'Unknown';
+  };
+
+  const getOwnerInitials = (owner: Owner) => {
+    const parts = [owner.lastName, owner.firstName, owner.middleName].filter(Boolean);
+    if (parts.length > 0) return parts[0][0].toUpperCase();
+    return (owner.displayName || owner.name || '?')[0].toUpperCase();
+  };
+
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
   const filteredOwners = useMemo(() => {
     return owners.filter(owner => {
-      const name = owner.displayName || owner.name || '';
-      const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      const fullName = [owner.lastName, owner.firstName, owner.middleName].filter(Boolean).join(' ') || owner.displayName || owner.name || '';
+      const matchesSearch = fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            (owner.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                            (owner.id || '').toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesLetter = selectedLetter ? name.startsWith(selectedLetter) : true;
+      const matchesLetter = selectedLetter ? (owner.lastName || fullName).startsWith(selectedLetter) : true;
       return matchesSearch && matchesLetter;
     });
   }, [owners, searchQuery, selectedLetter]);
@@ -167,7 +189,10 @@ export default function OwnersPage() {
     try {
       const formData = new FormData(e.currentTarget);
       const updatedData = {
-        displayName: formData.get('name') as string,
+        firstName: formData.get('firstName') as string,
+        middleName: formData.get('middleName') as string,
+        lastName: formData.get('lastName') as string,
+        displayName: `${formData.get('firstName')} ${formData.get('middleName')} ${formData.get('lastName')}`.replace(/\s+/g, ' ').trim(),
         phoneNumber: formData.get('contact') as string,
         email: formData.get('email') as string,
       };
@@ -254,30 +279,44 @@ export default function OwnersPage() {
       </div>
 
       {/* A-Z Alpha-Filter Bar */}
-      <div className="flex flex-wrap items-center justify-center gap-1 p-2 bg-white rounded-xl border border-gray-100 shadow-sm mb-10">
-        <Button
-          variant={selectedLetter === null ? "default" : "ghost"}
-          className={cn(
-            "h-10 w-10 p-0 rounded-xl font-bold",
-            selectedLetter === null ? "bg-emerald-600 text-white" : "text-gray-400 hover:text-emerald-600"
-          )}
+      <div className="flex flex-wrap items-center justify-center gap-1 p-3 bg-white rounded-xl border border-gray-100 shadow-sm mb-10">
+        <button
           onClick={() => setSelectedLetter(null)}
+          className={cn(
+            "flex flex-col items-center justify-center h-10 w-10 p-0 rounded-xl font-bold transition-colors",
+            selectedLetter === null ? "bg-emerald-600 text-white" : "text-gray-400 hover:text-emerald-600 hover:bg-emerald-50"
+          )}
         >
           All
-        </Button>
-        {alphabet.map((letter) => (
-          <Button
-            key={letter}
-            variant={selectedLetter === letter ? "default" : "ghost"}
-            className={cn(
-              "h-10 w-10 p-0 rounded-xl font-bold",
-              selectedLetter === letter ? "bg-emerald-600 text-white" : "text-gray-400 hover:text-emerald-600 hover:bg-emerald-50"
-            )}
-            onClick={() => setSelectedLetter(letter)}
-          >
-            {letter}
-          </Button>
-        ))}
+        </button>
+        {alphabet.map((letter) => {
+          const count = owners.filter(o => (o.lastName || o.displayName || o.name).startsWith(letter)).length;
+          return (
+            <button
+              key={letter}
+              onClick={() => setSelectedLetter(letter)}
+              className={cn(
+                "flex flex-col items-center justify-center h-10 w-10 p-0 rounded-xl font-bold transition-colors",
+                selectedLetter === letter
+                  ? "bg-emerald-600 text-white"
+                  : count > 0
+                    ? "text-gray-400 hover:text-emerald-600 hover:bg-emerald-50"
+                    : "text-gray-200 cursor-not-allowed"
+              )}
+              disabled={count === 0}
+            >
+              {letter}
+              {count > 0 && (
+                <span className={cn(
+                  "text-[8px] font-bold leading-none mt-0.5",
+                  selectedLetter === letter ? "text-emerald-100" : "text-emerald-600"
+                )}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Owner Grid/List Display */}
@@ -290,7 +329,7 @@ export default function OwnersPage() {
             >
               <div className="flex flex-col items-center text-center mb-6">
                 <div className="w-24 h-24 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-3xl font-bold mb-4 group-hover:scale-110 transition-transform">
-                  {(owner.displayName || owner.name || '?')[0]}
+                        {getOwnerInitials(owner)}
                 </div>
                 
                 {/* Card Actions */}
@@ -320,7 +359,7 @@ export default function OwnersPage() {
                   </DropdownMenu>
                 </div>
 
-                <h3 className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{owner.displayName || owner.name}</h3>
+                <h3 className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{getOwnerName(owner)}</h3>
                 <p className="text-sm text-gray-400 font-medium mb-3">Member since {formatDate(owner.joinDate)}</p>
                 <Badge 
                   className={cn(
@@ -380,10 +419,10 @@ export default function OwnersPage() {
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
-                        {(owner.displayName || owner.name || '?')[0]}
+                  {getOwnerInitials(owner)}
                       </div>
                         <div>
-                        <p className="font-bold text-gray-900">{owner.displayName || owner.name}</p>
+                        <p className="font-bold text-gray-900">{getOwnerName(owner)}</p>
                         <p className="text-xs text-gray-400">Member since {formatDate(owner.joinDate)}</p>
                       </div>
                     </div>
@@ -458,10 +497,18 @@ export default function OwnersPage() {
             <DialogDescription>Add a new pet owner to the hospital database.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAddOwner} className="space-y-6 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="name" className="font-bold text-gray-700">Full Name</Label>
-                <Input id="name" name="name" required className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
+                <Label htmlFor="lastName" className="font-bold text-gray-700">Last Name</Label>
+                <Input id="lastName" name="lastName" required className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="firstName" className="font-bold text-gray-700">First Name</Label>
+                <Input id="firstName" name="firstName" required className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="middleName" className="font-bold text-gray-700">Middle Name</Label>
+                <Input id="middleName" name="middleName" className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="contact" className="font-bold text-gray-700">Phone Number</Label>
@@ -471,7 +518,7 @@ export default function OwnersPage() {
                 <Label htmlFor="email" className="font-bold text-gray-700">Email Address</Label>
                 <Input id="email" name="email" type="email" required className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <Label htmlFor="address" className="font-bold text-gray-700">Home Address</Label>
                 <Input id="address" name="address" required className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
               </div>
@@ -488,17 +535,36 @@ export default function OwnersPage() {
         <DialogContent className="max-w-2xl rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">Edit Client Information</DialogTitle>
-            <DialogDescription>Update contact details for {editingOwner?.name}.</DialogDescription>
+            <DialogDescription>Update contact details for {editingOwner ? getOwnerName(editingOwner) : ''}.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdateOwner} className="space-y-6 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="edit-name" className="font-bold text-gray-700">Full Name</Label>
+                <Label htmlFor="edit-lastName" className="font-bold text-gray-700">Last Name</Label>
                 <Input 
-                  id="edit-name" 
-                  name="name" 
-                  defaultValue={editingOwner?.name} 
+                  id="edit-lastName" 
+                  name="lastName" 
+                  defaultValue={editingOwner?.lastName} 
                   required 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-firstName" className="font-bold text-gray-700">First Name</Label>
+                <Input 
+                  id="edit-firstName" 
+                  name="firstName" 
+                  defaultValue={editingOwner?.firstName} 
+                  required 
+                  className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-middleName" className="font-bold text-gray-700">Middle Name</Label>
+                <Input 
+                  id="edit-middleName" 
+                  name="middleName" 
+                  defaultValue={editingOwner?.middleName} 
                   className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
                 />
               </div>
@@ -523,7 +589,7 @@ export default function OwnersPage() {
                   className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" 
                 />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <Label htmlFor="edit-address" className="font-bold text-gray-700">Home Address</Label>
                 <Input 
                   id="edit-address" 
