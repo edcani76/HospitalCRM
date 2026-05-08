@@ -1439,7 +1439,7 @@ Mode: Walk-in`,
       <div className="bg-white rounded-lg p-6 shadow mb-8">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
           <div className="flex items-center gap-6">
-            <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-white shadow-xl bg-blue-50 flex items-center justify-center text-3xl font-bold text-blue-600">
+            <div className="w-24 h-24 rounded-xl overflow-hidden border-4 border-white shadow-xl bg-blue-50 flex items-center justify-center text-3xl font-bold text-blue-600">
               {patient?.imageUrl || patient?.photo ? (
                 <img src={patient.imageUrl || patient.photo} alt={patient.name} className="w-full h-full object-cover" />
               ) : (

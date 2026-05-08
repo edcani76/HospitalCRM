@@ -167,7 +167,7 @@ export default function AppointmentsPage() {
     try {
       const today = format(startOfToday(), 'yyyy-MM-dd');
       const pastConfirmed = allAppointments.filter(apt => 
-        apt.status === 'confirmed' && apt.date < today
+        (apt.status === 'confirmed' || apt.status === 'unconfirmed') && apt.date < today
       );
       
       for (const apt of pastConfirmed) {

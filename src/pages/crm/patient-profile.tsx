@@ -531,7 +531,7 @@ export default function PatientProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Core Info Card */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col items-center text-center">
+          <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 flex flex-col items-center text-center">
             <div className="relative mb-6 group">
               <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-xl relative cursor-pointer group">
                 {patient.photo || patient.imageUrl ? (
@@ -660,7 +660,7 @@ export default function PatientProfilePage() {
           </div>
 
           {/* Alerts Card */}
-          <div className="bg-red-50 rounded-2xl p-6 border border-red-100">
+          <div className="bg-red-50 rounded-xl p-6 border border-red-100">
             <h4 className="flex items-center gap-2 text-red-800 font-bold mb-3">
               <ShieldAlert className="w-5 h-5" />
               Critical Alerts
@@ -681,7 +681,7 @@ export default function PatientProfilePage() {
         {/* Middle & Right Column: Details & Timeline */}
         <div className="lg:col-span-2 space-y-8">
           {/* Owner & Contact Details */}
-          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
             <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
               <User className="w-6 h-6 text-blue-500" />
               Contact & Ownership
@@ -689,7 +689,7 @@ export default function PatientProfilePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
                     <User className="w-6 h-6" />
                   </div>
                   <div>
@@ -705,7 +705,7 @@ export default function PatientProfilePage() {
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
                     <Phone className="w-6 h-6" />
                   </div>
                   <div>
@@ -716,7 +716,7 @@ export default function PatientProfilePage() {
               </div>
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
                     <Mail className="w-6 h-6" />
                   </div>
                   <div>
@@ -725,7 +725,7 @@ export default function PatientProfilePage() {
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
                     <MapPin className="w-6 h-6" />
                   </div>
                   <div>
@@ -738,7 +738,7 @@ export default function PatientProfilePage() {
           </div>
 
           {/* Recent Activity Timeline */}
-          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                 <Clock className="w-6 h-6 text-blue-500" />
@@ -775,7 +775,7 @@ export default function PatientProfilePage() {
           </div>
 
           {/* Weight History */}
-          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                 <Activity className="w-6 h-6 text-green-500" />
@@ -936,7 +936,7 @@ export default function PatientProfilePage() {
         setIsCameraModalOpen(open);
         if (!open) stopCamera();
       }}>
-        <DialogContent className="max-w-xl rounded-3xl p-0 overflow-hidden bg-black">
+        <DialogContent className="max-w-xl rounded-xl p-0 overflow-hidden bg-black">
           <DialogTitle className="sr-only">Camera Capture</DialogTitle>
           <DialogDescription className="sr-only">Capture a photo using your camera</DialogDescription>
           <div className="relative aspect-video bg-gray-900 flex items-center justify-center">
@@ -997,10 +997,10 @@ export default function PatientProfilePage() {
               <img 
                 src={patient.photo || patient.imageUrl} 
                 alt={patient.name} 
-                className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl" 
+                className="max-w-full max-h-[85vh] rounded-xl shadow-2xl" 
               />
             ) : (
-              <div className="w-64 h-64 bg-blue-100 text-blue-600 flex items-center justify-center text-6xl font-bold rounded-2xl">
+              <div className="w-64 h-64 bg-blue-100 text-blue-600 flex items-center justify-center text-6xl font-bold rounded-xl">
                 {patient.name[0]}
               </div>
             )}
@@ -1080,14 +1080,14 @@ export default function PatientProfilePage() {
       
       {/* Quick Photo Update Modal */}
       <Dialog open={isPhotoActionModalOpen} onOpenChange={setIsPhotoActionModalOpen}>
-        <DialogContent className="max-w-md rounded-3xl">
+        <DialogContent className="max-w-md rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">Update Patient Photo</DialogTitle>
             <DialogDescription>Capture a new photo or upload an image file for {patient.name}.</DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-4">
             <div className="flex flex-col items-center gap-6">
-              <div className="w-48 h-48 rounded-2xl overflow-hidden bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center relative">
+              <div className="w-48 h-48 rounded-xl overflow-hidden bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center relative">
                 {tempPhoto ? (
                   <img src={tempPhoto} alt="Preview" className="w-full h-full object-cover" />
                 ) : (
@@ -1102,7 +1102,7 @@ export default function PatientProfilePage() {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  className="rounded-2xl border-blue-200 text-blue-600 hover:bg-blue-50 h-14"
+                  className="rounded-xl border-blue-200 text-blue-600 hover:bg-blue-50 h-14"
                   onClick={() => {
                     setIsCameraModalOpen(true);
                     startCamera();
@@ -1114,7 +1114,7 @@ export default function PatientProfilePage() {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  className="rounded-2xl border-gray-200 text-gray-600 hover:bg-gray-50 h-14"
+                  className="rounded-xl border-gray-200 text-gray-600 hover:bg-gray-50 h-14"
                   onClick={() => {
                     const uploadInput = document.getElementById('quick-photo-upload') as HTMLInputElement;
                     if (uploadInput) uploadInput.click();

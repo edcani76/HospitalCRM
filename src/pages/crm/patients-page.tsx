@@ -229,7 +229,7 @@ export default function PatientsPage() {
         actions={
           <Button 
             onClick={() => setIsAddModalOpen(true)} 
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 py-6 rounded-2xl"
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 py-6 rounded-xl"
           >
             <Plus className="w-5 h-5 mr-2" />
             Register New Patient
@@ -243,13 +243,13 @@ export default function PatientsPage() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
           <input
             type="text"
-            className="block w-full pl-12 pr-4 py-4 bg-white border border-gray-100 shadow-sm rounded-2xl text-lg focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all placeholder:text-gray-300"
+            className="block w-full pl-12 pr-4 py-4 bg-white border border-gray-100 shadow-sm rounded-xl text-lg focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all placeholder:text-gray-300"
             placeholder="Search by Name, ID, Owner..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100 h-fit self-center">
+        <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-100 h-fit self-center">
           <button 
             onClick={() => setViewMode('grid')}
             className={cn("p-3 rounded-xl transition-all", viewMode === 'grid' ? "bg-blue-600 text-white shadow-md shadow-blue-100" : "text-gray-400 hover:bg-gray-50")}
@@ -267,13 +267,13 @@ export default function PatientsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Sidebar: Navigation */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <div className="lg:col-span-1 md:col-span-2 sm:col-span-3 space-y-6">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <h3 className="font-bold text-gray-900 mb-6 flex items-center text-sm uppercase tracking-wider">
               <span className="w-1 h-4 bg-blue-600 rounded-full mr-2"></span>
               A-Z Index
             </h3>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-7 sm:grid-cols-6 md:grid-cols-5 gap-1.5">
               <button
                 onClick={() => setSelectedLetter(null)}
                 className={cn(
@@ -322,7 +322,7 @@ export default function PatientsPage() {
             </div>
           </div>
 
-          <div className="bg-blue-600 rounded-3xl p-6 text-white shadow-xl shadow-blue-200">
+          <div className="bg-blue-600 rounded-xl p-6 text-white shadow-xl shadow-blue-200">
             <Activity className="w-10 h-10 mb-4 opacity-50" />
             <h4 className="text-xl font-bold mb-2">Hospital Growth</h4>
             <p className="text-blue-100 text-sm mb-4">You have registered 12 new patients this week.</p>
@@ -331,17 +331,17 @@ export default function PatientsPage() {
         </div>
 
         {/* Main Content */}
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 md:col-span-10 sm:col-span-9">
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredPatients.map(patient => (
                 <div 
                   key={patient.id}
                   onClick={() => navigate(`/crm/patients/${patient.id}`, { state: { from: '/crm/patients' } })}
-                  className="group bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all cursor-pointer"
+                  className="group bg-white rounded-xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all cursor-pointer"
                 >
                   <div className="flex flex-col items-center text-center">
-                    <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-white shadow-md relative mb-4">
+                    <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-white shadow-md relative mb-4">
                       {patient.photo ? (
                         <img src={patient.photo} alt={patient.name} className="w-full h-full object-cover" />
                       ) : (
@@ -399,7 +399,7 @@ export default function PatientsPage() {
               ))}
             </div>
           ) : (
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="divide-y divide-gray-50">
                 {filteredPatients.map(patient => (
                   <div 
@@ -503,7 +503,7 @@ export default function PatientsPage() {
 
       {/* Delete Confirmation Modal */}
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <DialogContent className="max-w-md rounded-[2.5rem]">
+        <DialogContent className="max-w-md rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-red-600 flex items-center gap-2">
               <Trash2 className="w-6 h-6" />

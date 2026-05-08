@@ -84,26 +84,26 @@ export default function AuditLogPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white dark:bg-card p-6 rounded-3xl border border-border shadow-sm">
+        <div className="bg-white dark:bg-card p-6 rounded-xl border border-border shadow-sm">
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Total Actions</p>
           <p className="text-3xl font-bold text-foreground">{allLogs.length}</p>
         </div>
-        <div className="bg-white dark:bg-card p-6 rounded-3xl border border-border shadow-sm">
+        <div className="bg-white dark:bg-card p-6 rounded-xl border border-border shadow-sm">
           <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider mb-1">Clinical Updates</p>
           <p className="text-3xl font-bold text-foreground">{allLogs.filter(l => l.type === 'emr').length}</p>
         </div>
-        <div className="bg-white dark:bg-card p-6 rounded-3xl border border-border shadow-sm">
+        <div className="bg-white dark:bg-card p-6 rounded-xl border border-border shadow-sm">
           <p className="text-xs font-bold text-blue-500 uppercase tracking-wider mb-1">Staff Involved</p>
           <p className="text-3xl font-bold text-foreground">{new Set(allLogs.map(l => l.staff)).size}</p>
         </div>
-        <div className="bg-white dark:bg-card p-6 rounded-3xl border border-border shadow-sm">
+        <div className="bg-white dark:bg-card p-6 rounded-xl border border-border shadow-sm">
           <p className="text-xs font-bold text-purple-500 uppercase tracking-wider mb-1">Patients Affected</p>
           <p className="text-3xl font-bold text-foreground">{new Set(allLogs.map(l => l.patientId)).size}</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-card rounded-3xl border border-border shadow-sm p-6 mb-8">
+      <div className="bg-white dark:bg-card rounded-xl border border-border shadow-sm p-6 mb-8">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -111,7 +111,7 @@ export default function AuditLogPage() {
               placeholder="Search by event, staff, or patient..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 py-6 text-lg rounded-2xl"
+              className="pl-12 py-6 text-lg rounded-xl"
             />
           </div>
           <div className="flex gap-2">
@@ -130,7 +130,7 @@ export default function AuditLogPage() {
       </div>
 
       {/* Audit Table */}
-      <div className="bg-white dark:bg-card rounded-3xl border border-border shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-card rounded-xl border border-border shadow-sm overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="bg-slate-900 text-white">

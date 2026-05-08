@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 import {
   Search,
   User,
@@ -98,7 +99,7 @@ export default function OwnersPage() {
         ...owner,
         petCount: ownerPetCount[owner.id] || 0,
         status: 'Active', // Default status
-        joinDate: owner.createdAt || new Date().toISOString().split('T')[0],
+        joinDate: owner.createdAt,
       }));
 
       setOwners(ownersWithPetCount);
@@ -112,6 +113,19 @@ export default function OwnersPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const formatDate = (dateValue: any): string => {
+    if (!dateValue) return 'N/A';
+    let date: Date;
+    if (dateValue?.toDate) {
+      date = dateValue.toDate();
+    } else if (dateValue?.seconds) {
+      date = new Date(dateValue.seconds * 1000);
+    } else {
+      date = new Date(dateValue);
+    }
+    return isNaN(date.getTime()) ? 'N/A' : format(date, 'MMMM yyyy');
+  };
 
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -199,7 +213,7 @@ export default function OwnersPage() {
         actions={
           <Button 
             onClick={() => setIsAddModalOpen(true)} 
-            className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200 px-6 py-6 rounded-2xl"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200 px-6 py-6 rounded-xl"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add New Client
@@ -213,13 +227,13 @@ export default function OwnersPage() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
           <input
             type="text"
-            className="block w-full pl-12 pr-4 py-4 bg-white border border-gray-100 shadow-sm rounded-2xl text-lg focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all placeholder:text-gray-300"
+            className="block w-full pl-12 pr-4 py-4 bg-white border border-gray-100 shadow-sm rounded-xl text-lg focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all placeholder:text-gray-300"
             placeholder="Search by Name, ID, Email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="flex gap-2 p-1.5 bg-gray-50 rounded-2xl border border-gray-100">
+        <div className="flex gap-2 p-1.5 bg-gray-50 rounded-xl border border-gray-100">
           <Button
             variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
             size="icon"
@@ -240,7 +254,7 @@ export default function OwnersPage() {
       </div>
 
       {/* A-Z Alpha-Filter Bar */}
-      <div className="flex flex-wrap items-center justify-center gap-1 p-2 bg-white rounded-2xl border border-gray-100 shadow-sm mb-10">
+      <div className="flex flex-wrap items-center justify-center gap-1 p-2 bg-white rounded-xl border border-gray-100 shadow-sm mb-10">
         <Button
           variant={selectedLetter === null ? "default" : "ghost"}
           className={cn(
@@ -272,7 +286,7 @@ export default function OwnersPage() {
           {filteredOwners.map((owner) => (
             <div 
               key={owner.id} 
-              className="group relative bg-white rounded-[2.5rem] p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-emerald-100/50 hover:-translate-y-1 transition-all duration-300"
+              className="group relative bg-white rounded-xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-emerald-100/50 hover:-translate-y-1 transition-all duration-300"
             >
               <div className="flex flex-col items-center text-center mb-6">
                 <div className="w-24 h-24 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-3xl font-bold mb-4 group-hover:scale-110 transition-transform">
@@ -307,7 +321,7 @@ export default function OwnersPage() {
                 </div>
 
                 <h3 className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{owner.displayName || owner.name}</h3>
-                <p className="text-sm text-gray-400 font-medium mb-3">{owner.petCount} pet{owner.petCount !== 1 ? 's' : ''}</p>
+                <p className="text-sm text-gray-400 font-medium mb-3">Member since {formatDate(owner.joinDate)}</p>
                 <Badge 
                   className={cn(
                     "px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-wider",
@@ -319,11 +333,11 @@ export default function OwnersPage() {
               </div>
 
               <div className="space-y-4 mb-6">
-                <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 p-3 rounded-2xl">
-                  <Mail className="w-4 h-4 text-emerald-500" />
-                  <span className="truncate">{owner.email}</span>
+                <div className="flex items-start gap-3 text-sm text-gray-600 bg-gray-50 p-3 rounded-xl">
+                  <Mail className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  <span className="break-all">{owner.email}</span>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 p-3 rounded-2xl">
+                <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 p-3 rounded-xl">
                   <Phone className="w-4 h-4 text-emerald-500" />
                   <span>{owner.phoneNumber || owner.contact || 'N/A'}</span>
                 </div>
@@ -335,7 +349,7 @@ export default function OwnersPage() {
 
               <Button 
                 variant="outline" 
-                className="w-full rounded-2xl h-12 border-gray-100 group-hover:border-emerald-200 group-hover:bg-emerald-50 group-hover:text-emerald-700 transition-all font-bold"
+                className="w-full rounded-xl h-12 border-gray-100 group-hover:border-emerald-200 group-hover:bg-emerald-50 group-hover:text-emerald-700 transition-all font-bold"
                 onClick={() => navigate(`/crm/owners/${owner.id}`, { state: { from: '/crm/owners' } })}
               >
                 View Profile
@@ -368,9 +382,9 @@ export default function OwnersPage() {
                       <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
                         {(owner.displayName || owner.name || '?')[0]}
                       </div>
-                      <div>
+                        <div>
                         <p className="font-bold text-gray-900">{owner.displayName || owner.name}</p>
-                        <p className="text-xs text-gray-400">{owner.petCount} pet{owner.petCount !== 1 ? 's' : ''}</p>
+                        <p className="text-xs text-gray-400">Member since {formatDate(owner.joinDate)}</p>
                       </div>
                     </div>
                   </td>
@@ -438,7 +452,7 @@ export default function OwnersPage() {
 
       {/* Add Owner Modal */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="max-w-2xl rounded-[2.5rem]">
+        <DialogContent className="max-w-2xl rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">Register New Client</DialogTitle>
             <DialogDescription>Add a new pet owner to the hospital database.</DialogDescription>
@@ -471,7 +485,7 @@ export default function OwnersPage() {
       </Dialog>
       {/* Edit Owner Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-2xl rounded-[2.5rem]">
+        <DialogContent className="max-w-2xl rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">Edit Client Information</DialogTitle>
             <DialogDescription>Update contact details for {editingOwner?.name}.</DialogDescription>
@@ -530,7 +544,7 @@ export default function OwnersPage() {
 
       {/* Delete Confirmation Modal */}
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <DialogContent className="max-w-md rounded-[2.5rem]">
+        <DialogContent className="max-w-md rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-red-600 flex items-center gap-2">
               <Trash2 className="w-6 h-6" />

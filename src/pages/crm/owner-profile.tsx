@@ -150,11 +150,11 @@ export default function OwnerProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
         {/* Left Column: Owner Info & Stats */}
         <div className="space-y-8">
-          <Card className="border-none shadow-sm rounded-[2.5rem] overflow-hidden bg-white">
+          <Card className="border-none shadow-sm rounded-xl overflow-hidden bg-white">
             <div className="h-32 bg-gradient-to-br from-emerald-500 to-teal-600" />
             <CardContent className="px-8 pb-8 -mt-12">
               <div className="flex flex-col items-center text-center">
-                <div className="w-24 h-24 rounded-[2rem] border-4 border-white shadow-xl overflow-hidden bg-white mb-4">
+                <div className="w-24 h-24 rounded-xl border-4 border-white shadow-xl overflow-hidden bg-white mb-4">
                   <img 
                     src={owner.photo || `https://ui-avatars.com/api/?name=${owner.displayName || owner.name}&background=10b981&color=fff&size=256`} 
                     alt={owner.displayName || owner.name} 
@@ -171,21 +171,21 @@ export default function OwnerProfilePage() {
               </div>
 
               <div className="mt-8 space-y-4">
-                <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-2xl">
+                <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-xl">
                   <Mail className="w-5 h-5 text-emerald-500" />
                   <div className="flex flex-col">
                     <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Email Address</span>
                     <span className="text-sm font-medium truncate">{owner.email}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-2xl">
+                <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-xl">
                   <Phone className="w-5 h-5 text-emerald-500" />
                   <div className="flex flex-col">
                     <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Phone Number</span>
                     <span className="text-sm font-medium">{owner.phoneNumber || 'N/A'}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-2xl">
+                <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-xl">
                   <MapPin className="w-5 h-5 text-emerald-500" />
                   <div className="flex flex-col">
                     <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Home Address</span>
@@ -196,11 +196,11 @@ export default function OwnerProfilePage() {
 
               <div className="mt-8 pt-8 border-t border-slate-100">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-4 bg-emerald-50/50 rounded-3xl border border-emerald-100/50">
+                  <div className="text-center p-4 bg-emerald-50/50 rounded-xl border border-emerald-100/50">
                     <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider mb-1">Total Spent</p>
                     <p className="text-xl font-bold text-emerald-700">₱{totalSpent.toFixed(2)}</p>
                   </div>
-                  <div className="text-center p-4 bg-amber-50/50 rounded-3xl border border-amber-100/50">
+                  <div className="text-center p-4 bg-amber-50/50 rounded-xl border border-amber-100/50">
                     <p className="text-[10px] text-amber-600 uppercase font-bold tracking-wider mb-1">Pending</p>
                     <p className="text-xl font-bold text-amber-700">₱{UnconfirmedAmount.toFixed(2)}</p>
                   </div>
@@ -261,7 +261,7 @@ export default function OwnerProfilePage() {
               {ownerPets.map(pet => (
                 <Card 
                   key={pet.id} 
-                  className="border-none shadow-sm rounded-[2rem] hover:shadow-md transition-all cursor-pointer group"
+                  className="border-none shadow-sm rounded-xl hover:shadow-md transition-all cursor-pointer group"
                   onClick={() => navigate(`/crm/patients/${pet.id}`, { 
                     state: { 
                       from: `/crm/owners/${owner.id}`,
@@ -270,7 +270,7 @@ export default function OwnerProfilePage() {
                   })}
                 >
                   <CardContent className="p-4 flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-inner bg-slate-100">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden shadow-inner bg-slate-100">
                       <img 
                         src={pet.photo || `https://ui-avatars.com/api/?name=${pet.name}&background=10b981&color=fff`} 
                         alt={pet.name} 
@@ -296,7 +296,7 @@ export default function OwnerProfilePage() {
           {/* Billing & Appointments Tabs (Simplified Sections for CRM) */}
           <div className="grid grid-cols-1 gap-8">
             {/* Billing History */}
-            <Card className="border-none shadow-sm rounded-[2.5rem] bg-white overflow-hidden">
+            <Card className="border-none shadow-sm rounded-xl bg-white overflow-hidden">
               <CardHeader className="px-8 pt-8 pb-4">
                 <CardTitle className="text-xl font-bold flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-emerald-500" />
@@ -305,12 +305,12 @@ export default function OwnerProfilePage() {
               </CardHeader>
               <CardContent className="px-8 pb-8">
                 {ownerBills.length === 0 ? (
-                  <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                  <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                     <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p className="text-slate-400 font-medium">No billing records found</p>
                   </div>
                 ) : (
-                  <div className="overflow-hidden rounded-2xl border border-slate-100">
+                  <div className="overflow-hidden rounded-xl border border-slate-100">
                     <table className="w-full">
                       <thead className="bg-slate-50 border-b border-slate-100">
                         <tr>
@@ -343,7 +343,7 @@ export default function OwnerProfilePage() {
             </Card>
 
             {/* Appointment History */}
-            <Card className="border-none shadow-sm rounded-[2.5rem] bg-white overflow-hidden">
+            <Card className="border-none shadow-sm rounded-xl bg-white overflow-hidden">
               <CardHeader className="px-8 pt-8 pb-4">
                 <CardTitle className="text-xl font-bold flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-emerald-500" />
@@ -352,15 +352,15 @@ export default function OwnerProfilePage() {
               </CardHeader>
               <CardContent className="px-8 pb-8">
                 {ownerAppointments.length === 0 ? (
-                  <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                  <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                     <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p className="text-slate-400 font-medium">No appointment history</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {ownerAppointments.map(app => (
-                      <div key={app.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-3xl border border-slate-100 hover:border-emerald-200 transition-colors">
-                        <div className="w-12 h-12 rounded-2xl bg-white flex flex-col items-center justify-center shadow-sm border border-slate-100">
+                      <div key={app.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-emerald-200 transition-colors">
+                        <div className="w-12 h-12 rounded-xl bg-white flex flex-col items-center justify-center shadow-sm border border-slate-100">
                           <span className="text-[10px] font-bold text-emerald-600 uppercase">{new Date(app.date).toLocaleString('default', { month: 'short' })}</span>
                           <span className="text-lg font-black text-slate-900 leading-tight">{new Date(app.date).getDate()}</span>
                         </div>
