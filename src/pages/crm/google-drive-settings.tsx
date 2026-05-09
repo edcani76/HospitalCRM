@@ -55,10 +55,16 @@ export default function GoogleDriveSettingsPage() {
   async function fetchStatus() {
     try {
       const res = await fetch('/api/drive/status');
+      if (!res.ok) {
+        console.error('Failed to fetch Drive status: HTTP', res.status);
+        setStatus({ connected: false, hasFolder: false, folderId: null });
+        return;
+      }
       const data = await res.json();
       setStatus(data);
     } catch (err) {
       console.error('Failed to fetch Drive status:', err);
+      setStatus({ connected: false, hasFolder: false, folderId: null });
     } finally {
       setLoading(false);
     }

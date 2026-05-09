@@ -93,8 +93,19 @@ async function startServer() {
 
   app.use(express.json());
 
+  // API routes FIRST (before static files)
   app.get("/api/health", (req: express.Request, res: express.Response) => {
     res.json({ status: "ok", geminiConfigured: !!process.env.GEMINI_API_KEY });
+  });
+
+  app.get("/api/drive/status", async (req: express.Request, res: express.Response) => {
+    const hasRefreshToken = !!GOOGLE_DRIVE_REFRESH_TOKEN;
+    const hasFolder = !!GOOGLE_DRIVE_FOLDER_ID;
+    res.json({
+      connected: hasRefreshToken,
+      hasFolder,
+      folderId: GOOGLE_DRIVE_FOLDER_ID || null,
+    });
   });
 
   app.post("/api/ai/chat", async (req: express.Request, res: express.Response) => {
@@ -249,16 +260,6 @@ async function startServer() {
       console.error("[GDrive] Server upload error:", error);
       res.status(500).json({ success: false, message: error.message || "Upload error" });
     }
-  });
-
-  app.get("/api/drive/status", async (req: express.Request, res: express.Response) => {
-    const hasRefreshToken = !!GOOGLE_DRIVE_REFRESH_TOKEN;
-    const hasFolder = !!GOOGLE_DRIVE_FOLDER_ID;
-    res.json({
-      connected: hasRefreshToken,
-      hasFolder,
-      folderId: GOOGLE_DRIVE_FOLDER_ID || null,
-    });
   });
 
   if (process.env.NODE_ENV !== "production") {
