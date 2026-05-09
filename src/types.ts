@@ -43,6 +43,20 @@ export interface Pet {
   currentStatus?: PatientStatus;
   medicalHistory?: string;
   size?: string;
+  // Alerts & Warnings
+  allergies?: string[];
+  chronicConditions?: string[];
+  aggressionWarning?: boolean;
+  aggressionNotes?: string;
+  specialHandlingNotes?: string;
+  medicationReactions?: string[];
+  contagiousDiseaseFlag?: boolean;
+  contagiousDiseaseNotes?: string;
+  // Consent fields
+  consentPrivacy?: boolean;
+  consentTerms?: boolean;
+  consentPrivacyTimestamp?: string;
+  consentTermsTimestamp?: string;
 }
 
 export interface Appointment {

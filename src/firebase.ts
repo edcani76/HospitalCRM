@@ -9,7 +9,6 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firestore with settings to avoid QUIC protocol errors
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true, // Force long polling to avoid QUIC errors
-  useFetchStreams: false,
 }, firebaseConfig.firestoreDatabaseId);
 
 export const auth = getAuth(app);

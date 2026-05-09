@@ -8,10 +8,10 @@ function serializeTimestamps(obj: any): any {
   if (typeof obj !== 'object') return obj;
   const result: any = {};
   for (const [key, value] of Object.entries(obj)) {
-    if (value && typeof value === 'object' && typeof value.toDate === 'function') {
-      result[key] = value.toDate().toISOString();
-    } else if (value && typeof value === 'object' && (value._seconds !== undefined)) {
-      result[key] = new Date(value._seconds * 1000).toISOString();
+    if (value && typeof value === 'object' && typeof (value as any).toDate === 'function') {
+      result[key] = (value as any).toDate().toISOString();
+    } else if (value && typeof value === 'object' && (value as any)._seconds !== undefined) {
+      result[key] = new Date((value as any)._seconds * 1000).toISOString();
     } else if (value && typeof value === 'object') {
       result[key] = serializeTimestamps(value);
     } else {

@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/button'
 import { Label } from '../../components/ui/label'
 import { Input } from '../../components/ui/input'
 import { useAuth } from '../../contexts/AuthContext'
-import { Search, ChevronDown, User, Activity, Camera, Upload, X, Loader2 } from 'lucide-react'
+import { Search, ChevronDown, User, Activity, Camera, Upload, X, Loader2, ShieldAlert } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
 
 // Common species list
@@ -371,23 +371,39 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
     const species = selectedSpecies === 'Other' ? customSpecies : selectedSpecies
     const breed = selectedBreed === 'Other' ? customBreed : selectedBreed
 
+    // Parse comma-separated text fields into arrays
+    const parseCommaList = (value: string | null): string[] | null => {
+      if (!value) return null
+      const list = value.split(',').map(s => s.trim()).filter(Boolean)
+      return list.length > 0 ? list : null
+    }
+
     onSubmit({
-      name: formData.get('name'),
+      name: formData.get('name') as string,
       species: species,
       breed: breed,
       weight: parseFloat(weightValue) || 0,
-      dateOfBirth: formData.get('dob'),
-      gender: formData.get('gender'),
-      bloodType: formData.get('bloodType'),
-      color: formData.get('color'),
-      microchipId: formData.get('microchipId'),
-      medicalHistory: formData.get('medicalHistory'),
-      ownerUid: mode === 'edit' ? pet?.ownerUid : formData.get('ownerUid'),
+      dateOfBirth: formData.get('dob') as string || null,
+      gender: (formData.get('gender') as string) || null,
+      bloodType: (formData.get('bloodType') as string) || null,
+      color: (formData.get('color') as string) || null,
+      microchipId: (formData.get('microchipId') as string) || null,
+      medicalHistory: (formData.get('medicalHistory') as string) || null,
+      // Alerts & Warnings
+      allergies: parseCommaList(formData.get('allergies') as string),
+      chronicConditions: parseCommaList(formData.get('chronicConditions') as string),
+      medicationReactions: parseCommaList(formData.get('medicationReactions') as string),
+      aggressionWarning: formData.has('aggressionWarning') ? true : (mode === 'edit' ? pet?.aggressionWarning : false),
+      aggressionNotes: (formData.get('aggressionNotes') as string) || null,
+      specialHandlingNotes: (formData.get('specialHandlingNotes') as string) || null,
+      contagiousDiseaseFlag: formData.has('contagiousDiseaseFlag') ? true : (mode === 'edit' ? pet?.contagiousDiseaseFlag : false),
+      contagiousDiseaseNotes: (formData.get('contagiousDiseaseNotes') as string) || null,
+      ownerUid: mode === 'edit' ? pet?.ownerUid : (formData.get('ownerUid') as string) || null,
       photoFile,
       consentPrivacy: mode === 'add' ? consentPrivacy : undefined,
       consentTerms: mode === 'add' ? consentTerms : undefined,
-      consentPrivacyTimestamp: mode === 'add' && consentPrivacy ? new Date().toISOString() : undefined,
-      consentTermsTimestamp: mode === 'add' && consentTerms ? new Date().toISOString() : undefined,
+      consentPrivacyTimestamp: mode === 'add' && consentPrivacy ? new Date().toISOString() : null,
+      consentTermsTimestamp: mode === 'add' && consentTerms ? new Date().toISOString() : null,
     })
   }
 
@@ -678,6 +694,121 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
                   className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white p-3 text-sm min-h-[80px] resize-none"
                   placeholder="Any pre-existing conditions, allergies, or relevant medical history..."
                 />
+              </div>
+
+              {/* Alerts & Warnings Section */}
+              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-2 pb-2">
+                  <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
+                    <ShieldAlert className="w-4 h-4 text-red-600" />
+                  </div>
+                  <h3 className="font-bold text-gray-900">Alerts & Warnings</h3>
+                </div>
+
+                {/* Allergies */}
+                <div className="space-y-2">
+                  <Label htmlFor="allergies" className="font-bold text-gray-700">Allergies</Label>
+                  <input
+                    id="allergies"
+                    name="allergies"
+                    type="text"
+                    defaultValue={mode === 'edit' ? (pet?.allergies?.join(', ') || '') : ''}
+                    className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white h-11 px-3 text-sm"
+                    placeholder="e.g., Penicillin, Beef, Chicken (comma-separated)"
+                  />
+                </div>
+
+                {/* Chronic Conditions */}
+                <div className="space-y-2">
+                  <Label htmlFor="chronicConditions" className="font-bold text-gray-700">Chronic Conditions</Label>
+                  <input
+                    id="chronicConditions"
+                    name="chronicConditions"
+                    type="text"
+                    defaultValue={mode === 'edit' ? (pet?.chronicConditions?.join(', ') || '') : ''}
+                    className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white h-11 px-3 text-sm"
+                    placeholder="e.g., Diabetes, Heart Disease, Arthritis (comma-separated)"
+                  />
+                </div>
+
+                {/* Medication Reactions */}
+                <div className="space-y-2">
+                  <Label htmlFor="medicationReactions" className="font-bold text-gray-700">Medication Reactions</Label>
+                  <input
+                    id="medicationReactions"
+                    name="medicationReactions"
+                    type="text"
+                    defaultValue={mode === 'edit' ? (pet?.medicationReactions?.join(', ') || '') : ''}
+                    className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white h-11 px-3 text-sm"
+                    placeholder="e.g., Ibuprofen causes vomiting (comma-separated)"
+                  />
+                </div>
+
+                {/* Special Handling Notes */}
+                <div className="space-y-2">
+                  <Label htmlFor="specialHandlingNotes" className="font-bold text-gray-700">Special Handling Notes</Label>
+                  <textarea
+                    id="specialHandlingNotes"
+                    name="specialHandlingNotes"
+                    defaultValue={mode === 'edit' ? pet?.specialHandlingNotes : ''}
+                    className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white p-3 text-sm min-h-[60px] resize-none"
+                    placeholder="Notes for handling during examination (e.g., anxious without owner, prefers gentle approach)"
+                  />
+                </div>
+
+                {/* Aggression Warning */}
+                <div className="flex items-center gap-3 p-3 bg-red-50 rounded-xl">
+                  <input
+                    id="aggressionWarning"
+                    name="aggressionWarning"
+                    type="checkbox"
+                    defaultChecked={mode === 'edit' ? pet?.aggressionWarning : false}
+                    className="w-5 h-5 rounded border-red-300 text-red-600 focus:ring-red-500"
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="aggressionWarning" className="font-bold text-red-800 cursor-pointer">Aggression Warning</Label>
+                    <p className="text-xs text-red-600">Check if pet has shown aggressive behavior</p>
+                  </div>
+                </div>
+
+                {/* Aggression Notes */}
+                <div className="space-y-2">
+                  <Label htmlFor="aggressionNotes" className="font-bold text-gray-700">Aggression Notes</Label>
+                  <textarea
+                    id="aggressionNotes"
+                    name="aggressionNotes"
+                    defaultValue={mode === 'edit' ? pet?.aggressionNotes : ''}
+                    className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white p-3 text-sm min-h-[60px] resize-none"
+                    placeholder="Describe triggers and behavior patterns"
+                  />
+                </div>
+
+                {/* Contagious Disease Flag */}
+                <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
+                  <input
+                    id="contagiousDiseaseFlag"
+                    name="contagiousDiseaseFlag"
+                    type="checkbox"
+                    defaultChecked={mode === 'edit' ? pet?.contagiousDiseaseFlag : false}
+                    className="w-5 h-5 rounded border-purple-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="contagiousDiseaseFlag" className="font-bold text-purple-800 cursor-pointer">Contagious Disease Flag</Label>
+                    <p className="text-xs text-purple-600">Check if pet has or may have a contagious condition</p>
+                  </div>
+                </div>
+
+                {/* Contagious Disease Notes */}
+                <div className="space-y-2">
+                  <Label htmlFor="contagiousDiseaseNotes" className="font-bold text-gray-700">Contagious Disease Notes</Label>
+                  <textarea
+                    id="contagiousDiseaseNotes"
+                    name="contagiousDiseaseNotes"
+                    defaultValue={mode === 'edit' ? pet?.contagiousDiseaseNotes : ''}
+                    className="w-full rounded-xl border border-gray-100 bg-gray-50 focus:bg-white p-3 text-sm min-h-[60px] resize-none"
+                    placeholder="Describe condition and precautions needed"
+                  />
+                </div>
               </div>
             </div>
 

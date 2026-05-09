@@ -28,7 +28,7 @@ import {
 } from '../../lib/firestore-helpers';
 import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp, db, auth } from '../../firebase';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { uploadToGoogleDrive, getGoogleDriveLink } from '../../lib/google-drive';
 import { InvoicePDF } from '../../components/invoice-pdf';
@@ -1392,8 +1392,7 @@ Mode: Walk-in`,
             ? `🟢 Active Visit in Progress - ${patient.name}`
             : `⚪ No Active Visit - ${patient.name}`
         }
-        backTo={location.state?.from || '/crm/emr'}
-        backText="Back to Previous Page"
+        backText={location.state?.backText || 'Back'}
       />
 
       {mode === 'view' && (
@@ -1729,12 +1728,29 @@ Mode: Walk-in`,
                           return date;
                         }}
                       />
-                      <Legend
-                        verticalAlign="top"
-                        height={36}
-                        onClick={(e: any) => handleLegendClick(e.dataKey)}
-                        wrapperStyle={{ cursor: 'pointer' }}
-                      />
+                      <div className="flex gap-4 justify-center pt-2">
+                        {[
+                          { key: 'weight', label: 'Weight', color: '#3b82f6' },
+                          { key: 'temp', label: 'Temperature', color: '#ef4444' },
+                          { key: 'hr', label: 'Heart Rate', color: '#10b981' },
+                          { key: 'rr', label: 'Resp Rate', color: '#f59e0b' },
+                        ].map(item => (
+                          <button
+                            key={item.key}
+                            onClick={() => handleLegendClick(item.key)}
+                            className={cn(
+                              "flex items-center gap-1.5 text-xs font-medium transition-opacity",
+                              hiddenLines.has(item.key) && "opacity-40 line-through"
+                            )}
+                          >
+                            <span
+                              className="w-3 h-0.5 rounded"
+                              style={{ backgroundColor: item.color }}
+                            />
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
                       <Line type="monotone" dataKey="weight" stroke="#3b82f6" activeDot={{ r: 8 }} name="Weight" hide={hiddenLines.has('weight')} />
                       <Line type="monotone" dataKey="temp" stroke="#ef4444" activeDot={{ r: 8 }} name="Temperature" hide={hiddenLines.has('temp')} />
                       <Line type="monotone" dataKey="hr" stroke="#10b981" activeDot={{ r: 8 }} name="Heart Rate" hide={hiddenLines.has('hr')} />

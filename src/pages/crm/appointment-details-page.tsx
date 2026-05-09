@@ -705,8 +705,7 @@ export default function AppointmentDetailsPage() {
           </div>
         }
         subtitle={`${appointment.petName} - ${format(new Date(appointment.date), 'MMM dd, yyyy')} at ${appointment.time}`}
-        backTo="/crm/appointments"
-        backText="Back to Appointments"
+        backText="Back"
         actions={
           <div className="flex gap-2 items-center">
             {/* View Medical Record button (when in-progress) */}

@@ -25,6 +25,7 @@ import { Badge } from '../../components/ui/badge';
 import { PageHeader } from '../../components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { db, doc, getDoc, collection, getDocs, query, where } from '../../firebase';
+import PetDialog from '../../components/crm/pet-dialog';
 
 interface OwnerProfile {
   id: string;
@@ -53,6 +54,8 @@ export default function OwnerProfilePage() {
   const [ownerPets, setOwnerPets] = useState<any[]>([]);
   const [ownerBills, setOwnerBills] = useState<any[]>([]);
   const [ownerAppointments, setOwnerAppointments] = useState<any[]>([]);
+  const [users, setUsers] = useState<Record<string, any>>({});
+  const [isAddPetDialogOpen, setIsAddPetDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchOwner = async () => {
@@ -93,7 +96,69 @@ export default function OwnerProfilePage() {
     if (ownerId) {
       fetchOwner();
     }
+
+    // Fetch users for PetDialog
+    const fetchUsers = async () => {
+      try {
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const usersData: Record<string, any> = {};
+        usersSnapshot.docs.forEach(d => { usersData[d.id] = d.data(); });
+        setUsers(usersData);
+      } catch (err) {
+        console.error('Error fetching users:', err);
+      }
+    };
+    fetchUsers();
   }, [ownerId]);
+
+  const handleAddPet = async (formData: any) => {
+    try {
+      const { addDoc, collection: coll, serverTimestamp } = await import('../../firebase');
+      
+      // Convert comma-separated strings to arrays if needed
+      const parseCommaList = (value: string | null): string[] | null => {
+        if (!value) return null;
+        const list = value.split(',').map((s: string) => s.trim()).filter(Boolean);
+        return list.length > 0 ? list : null;
+      };
+
+      const newPet = {
+        name: formData.name,
+        species: formData.species,
+        breed: formData.breed,
+        ownerUid: ownerId,
+        weight: formData.weight || 0,
+        dateOfBirth: formData.dateOfBirth || null,
+        gender: formData.gender || null,
+        bloodType: formData.bloodType || null,
+        color: formData.color || null,
+        microchipId: formData.microchipId || null,
+        medicalHistory: formData.medicalHistory || null,
+        imageUrl: null,
+        currentStatus: 'active',
+        allergies: parseCommaList(formData.allergies),
+        chronicConditions: parseCommaList(formData.chronicConditions),
+        medicationReactions: parseCommaList(formData.medicationReactions),
+        aggressionWarning: formData.aggressionWarning || false,
+        aggressionNotes: formData.aggressionNotes || null,
+        specialHandlingNotes: formData.specialHandlingNotes || null,
+        contagiousDiseaseFlag: formData.contagiousDiseaseFlag || false,
+        contagiousDiseaseNotes: formData.contagiousDiseaseNotes || null,
+        createdAt: serverTimestamp(),
+        consentPrivacyTimestamp: formData.consentPrivacyTimestamp,
+        consentTermsTimestamp: formData.consentTermsTimestamp,
+      };
+
+      const docRef = await addDoc(coll(db, 'pets'), newPet);
+      
+      // Add to local state
+      setOwnerPets(prev => [...prev, { id: docRef.id, ...newPet }]);
+      setIsAddPetDialogOpen(false);
+    } catch (error) {
+      console.error('Error adding pet:', error);
+      alert('Failed to add pet. Please try again.');
+    }
+  };
 
   const getStatusColor = (status: string | undefined) => {
     if (!status) return 'bg-slate-50 text-slate-600 border-slate-100';
@@ -131,11 +196,10 @@ export default function OwnerProfilePage() {
       <PageHeader 
         title="Owner Profile" 
         subtitle={`Client Management: ${owner.displayName || owner.name}`}
-        backTo="/crm/owners"
-        backText="Back to Owners"
+        backText="Back"
         actions={
           <div className="flex gap-3">
-            <Button variant="outline" className="rounded-xl border-slate-200">
+            <Button variant="outline" className="rounded-xl border-slate-200" onClick={() => setIsAddPetDialogOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Pet
             </Button>
@@ -388,6 +452,16 @@ export default function OwnerProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Add Pet Dialog */}
+      <PetDialog
+        open={isAddPetDialogOpen}
+        onOpenChange={setIsAddPetDialogOpen}
+        mode="add"
+        users={users}
+        onSubmit={handleAddPet}
+        onCancel={() => setIsAddPetDialogOpen(false)}
+      />
     </div>
   );
 }

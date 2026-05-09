@@ -78,8 +78,7 @@ export default function LinkDoctorUidPage() {
     <div className="max-w-4xl mx-auto space-y-6 px-2 sm:px-0">
       <PageHeader
         title="Link Doctor UID"
-        backTo="/crm/staff"
-        backText="Back to Staff"
+        backText="Back"
       />
 
       <Card>

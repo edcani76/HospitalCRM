@@ -403,8 +403,7 @@ export default function CreateAppointmentPage() {
     <div className="max-w-6xl mx-auto space-y-4 md:space-y-6 px-2 sm:px-0">
       <PageHeader
         title={isEdit ? 'Edit Appointment' : 'Create New Appointment'}
-        backTo={location.state?.from || '/crm/appointments'}
-        backText="Back to Appointments"
+        backText={location.state?.backText || 'Back'}
       />
 
       <form onSubmit={handleCreateAppointment}>

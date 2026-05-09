@@ -22,15 +22,26 @@ const ROUTE_MAP: Record<string, BreadcrumbItem> = {
   '/signup': { name: 'Sign Up', path: '/signup' },
 };
 
+const STORAGE_KEY = 'crm_breadcrumbs';
+
 export function Breadcrumb({ items, className }: BreadcrumbProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Save breadcrumbs to sessionStorage when items are passed
+  React.useEffect(() => {
+    if (items && items.length > 0) {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    }
+  }, [items]);
 
   const getAutoBreadcrumbs = (): BreadcrumbItem[] => {
     const pathname = location.pathname;
     const state = location.state as any;
     const crumbs: BreadcrumbItem[] = [];
 
-    if (state?.breadcrumbs) {
+    // Check for explicitly passed breadcrumbs in state
+    if (state?.breadcrumbs && Array.isArray(state.breadcrumbs)) {
       return state.breadcrumbs as BreadcrumbItem[];
     }
 
@@ -46,7 +57,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
       return crumbs;
     }
 
-    if (!state?.breadcrumbParent) {
+    if (!state?.breadcrumbParent && !state?.breadcrumbs) {
       crumbs.push({ name: 'Dashboard', path: '/dashboard' });
     }
 
@@ -54,7 +65,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
       const segment = segments[i];
       const path = '/' + segments.slice(0, i + 1).join('/');
 
-      if (segment === 'dashboard') continue;
+      if (segment === 'dashboard' || segment === 'crm') continue;
 
       const routeMatch = ROUTE_MAP[path];
       if (routeMatch) {
@@ -83,6 +94,14 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
 
   if (breadcrumbs.length <= 1 && !items) return null;
 
+  const handleBackClick = () => {
+    // Save current breadcrumbs before going back
+    if (breadcrumbs.length > 1) {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(breadcrumbs));
+    }
+    navigate(-1);
+  };
+
   return (
     <nav className={`flex items-center gap-1 text-sm ${className || ''}`}>
       <Link
@@ -93,7 +112,6 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
       </Link>
       {breadcrumbs.map((crumb, index) => {
         const isLast = index === breadcrumbs.length - 1;
-        const hasAction = crumb.onClick || (crumb.path && !isLast);
 
         const content = (
           <span className="text-slate-400 hover:text-slate-700 transition-colors truncate max-w-[160px]">
@@ -139,4 +157,14 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
       })}
     </nav>
   );
+}
+
+// Export helper to restore breadcrumbs from storage (for use in layout)
+export function getStoredBreadcrumbs(): BreadcrumbItem[] | null {
+  try {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
 }

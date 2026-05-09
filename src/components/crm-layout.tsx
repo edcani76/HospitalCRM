@@ -34,6 +34,14 @@ import { useTheme } from '../contexts/ThemeContext'
 import { fetchPets, fetchUsers } from '../lib/firestore-helpers'
 import { getNotifications, markAsRead, Notification } from '../lib/notifications'
 import { Badge } from './ui/badge'
+
+interface CRMBreadcrumb {
+  name: string;
+  path?: string;
+}
+
+const BREADCRUMB_KEY = 'crm_breadcrumbs';
+
 interface CRMLayoutProps {
   children: React.ReactNode
 }
@@ -270,18 +278,110 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
     loadData()
   }, [])
 
-  const getBreadcrumbs = () => {
+const getBreadcrumbs = (): CRMBreadcrumb[] => {
     const pathname = location.pathname
     const segments = pathname.split('/').filter(Boolean)
     const state = location.state as any
     
-    const breadcrumbs = [
+    // Build breadcrumbs from navigation state if available
+    if (state?.breadcrumbParent) {
+      const breadcrumbs: CRMBreadcrumb[] = [
+        { name: 'Home', path: '/' },
+        { name: 'CRM Portal', path: `/crm/${user?.role}-dashboard` },
+      ]
+      
+      // Resolve hierarchy from breadcrumbParent
+      const resolveHierarchy = (parent: any): CRMBreadcrumb[] => {
+        if (!parent) return [];
+        return [...resolveHierarchy(parent.parent), { name: parent.name, path: parent.path }];
+      };
+      
+      const hierarchy = resolveHierarchy(state.breadcrumbParent);
+      
+      if (hierarchy.length > 0) {
+        if (hierarchy[0].path.includes('/crm/owners')) {
+          breadcrumbs.push({ name: 'Pet Owners', path: '/crm/owners' });
+        } else if (hierarchy[0].path.includes('/crm/patients')) {
+          breadcrumbs.push({ name: 'Patients', path: '/crm/patients' });
+        }
+      }
+      
+      breadcrumbs.push(...hierarchy);
+      
+      // Add current page
+      const lastSegment = segments[segments.length - 1];
+      const pet = pets.find(p => p.id === lastSegment);
+      const owner = users.find(u => u.id === lastSegment);
+      const entityName = pet?.name || owner?.displayName || (lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1));
+      
+      breadcrumbs.push({ name: entityName, path: pathname });
+      
+      // Save to sessionStorage for back navigation
+      sessionStorage.setItem(BREADCRUMB_KEY, JSON.stringify(breadcrumbs));
+      
+      return breadcrumbs;
+    }
+    
+    // If navigating from another page (with 'from' in state), include that
+    if (state?.from) {
+      const breadcrumbs: CRMBreadcrumb[] = [
+        { name: 'Home', path: '/' },
+        { name: 'CRM Portal', path: `/crm/${user?.role}-dashboard` },
+      ]
+      
+      const fromPath = state.from;
+      
+      // Parse the 'from' path to extract the page and entity
+      const fromSegments = fromPath.split('/').filter(Boolean);
+      
+      if (fromSegments.includes('patients')) {
+        breadcrumbs.push({ name: 'Patients', path: '/crm/patients' });
+        // Find the patient ID in the path
+        const patientIdx = fromSegments.indexOf('patients');
+        if (fromSegments[patientIdx + 1]) {
+          const patientId = fromSegments[patientIdx + 1];
+          const patient = pets.find(p => p.id === patientId);
+          if (patient) {
+            breadcrumbs.push({ name: patient.name, path: fromPath });
+          }
+        }
+      } else if (fromSegments.includes('owners')) {
+        breadcrumbs.push({ name: 'Pet Owners', path: '/crm/owners' });
+        const ownerIdx = fromSegments.indexOf('owners');
+        if (fromSegments[ownerIdx + 1]) {
+          const ownerId = fromSegments[ownerIdx + 1];
+          const owner = users.find(u => u.id === ownerId);
+          if (owner) {
+            breadcrumbs.push({ name: owner.displayName || owner.name, path: fromPath });
+          }
+        }
+      } else if (fromSegments.includes('appointments')) {
+        breadcrumbs.push({ name: 'Appointments', path: '/crm/appointments' });
+      } else if (fromSegments.includes('emr')) {
+        breadcrumbs.push({ name: 'Medical Records', path: '/crm/emr' });
+      }
+      
+      // Add current page
+      const lastSegment = segments[segments.length - 1];
+      const pet = pets.find(p => p.id === lastSegment);
+      const owner = users.find(u => u.id === lastSegment);
+      const entityName = pet?.name || owner?.displayName || (lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1));
+      
+      breadcrumbs.push({ name: entityName, path: pathname });
+      
+      // Save to sessionStorage
+      sessionStorage.setItem(BREADCRUMB_KEY, JSON.stringify(breadcrumbs));
+      
+      return breadcrumbs;
+    }
+
+    // Default: generate breadcrumbs from path segments
+    const breadcrumbs: CRMBreadcrumb[] = [
       { name: 'Home', path: '/' },
       { name: 'CRM Portal', path: `/crm/${user?.role}-dashboard` },
     ]
 
     const pageNames: { [key: string]: string } = {
-      'crm': 'CRM Portal',
       'admin-dashboard': 'Admin Dashboard',
       'doctor-dashboard': 'Doctor Dashboard',
       'staff-dashboard': 'Staff Dashboard',
@@ -301,34 +401,6 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
       'settings': 'Settings',
     }
 
-    // Recursive function to resolve hierarchical breadcrumbs from state
-    const resolveHierarchy = (parent: any): any[] => {
-      if (!parent) return [];
-      return [...resolveHierarchy(parent.parent), { name: parent.name, path: parent.path }];
-    };
-    
-    if (state?.breadcrumbParent) {
-      const hierarchy = resolveHierarchy(state.breadcrumbParent);
-      
-      if (hierarchy.length > 0) {
-        if (hierarchy[0].path.includes('/crm/owners')) {
-          breadcrumbs.push({ name: 'Pet Owners', path: '/crm/owners' });
-        } else if (hierarchy[0].path.includes('/crm/patients')) {
-          breadcrumbs.push({ name: 'Patients', path: '/crm/patients' });
-        }
-      }
-      
-      breadcrumbs.push(...hierarchy);
-      
-      const lastSegment = segments[segments.length - 1];
-      const pet = pets.find(p => p.id === lastSegment);
-      const owner = users.find(u => u.id === lastSegment);
-      const entityName = pet?.name || owner?.displayName || (lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1));
-      
-      breadcrumbs.push({ name: entityName, path: pathname });
-      return breadcrumbs;
-    }
-
     segments.forEach((segment, index) => {
       if (segment === 'crm') return;
       const path = '/' + segments.slice(0, index + 1).join('/');
@@ -345,7 +417,10 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
       }
     })
 
-    return breadcrumbs
+    // Save to sessionStorage
+    sessionStorage.setItem(BREADCRUMB_KEY, JSON.stringify(breadcrumbs));
+
+return breadcrumbs
   }
 
   return (

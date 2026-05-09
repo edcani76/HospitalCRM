@@ -23,7 +23,10 @@ import {
   Thermometer,
   CreditCard,
   Plus,
-  Loader2
+  Loader2,
+  AlertCircle,
+  Syringe,
+  Scale
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
@@ -126,6 +129,7 @@ export default function PatientProfilePage() {
           // Map Firebase fields to UI fields
           foundPet.status = foundPet.currentStatus;
           foundPet.size = foundPet.weight > 25 ? 'Large' : foundPet.weight > 10 ? 'Medium' : 'Small';
+          foundPet.medicalHistory = foundPet.medicalHistory || '';
 
           setPatient(foundPet);
 
@@ -306,17 +310,28 @@ export default function PatientProfilePage() {
         imageUrl = result.downloadUrl || result.webViewLink;
       }
 
-      const updatedData = {
+      const updatedData: Record<string, any> = {
         name: formData.name,
         species: formData.species,
         breed: formData.breed,
-        ownerUid: formData.ownerUid || patient.ownerUid,
-        weight: formData.weight || patient.weight,
-        dateOfBirth: formData.dateOfBirth || patient.dateOfBirth,
-        gender: formData.gender || patient.gender,
-        bloodType: formData.bloodType || patient.bloodType,
-        color: formData.color || patient.color,
-        imageUrl,
+        ownerUid: formData.ownerUid || patient.ownerUid || null,
+        weight: formData.weight ?? patient.weight ?? null,
+        dateOfBirth: formData.dateOfBirth || patient.dateOfBirth || null,
+        gender: formData.gender || patient.gender || null,
+        bloodType: formData.bloodType || patient.bloodType || null,
+        color: formData.color || patient.color || null,
+        microchipId: formData.microchipId || patient.microchipId || null,
+        medicalHistory: formData.medicalHistory || patient.medicalHistory || null,
+        imageUrl: imageUrl || null,
+        // Alerts & Warnings
+        allergies: formData.allergies || patient.allergies || null,
+        chronicConditions: formData.chronicConditions || patient.chronicConditions || null,
+        aggressionWarning: formData.aggressionWarning ?? patient.aggressionWarning ?? null,
+        aggressionNotes: formData.aggressionNotes || patient.aggressionNotes || null,
+        specialHandlingNotes: formData.specialHandlingNotes || patient.specialHandlingNotes || null,
+        medicationReactions: formData.medicationReactions || patient.medicationReactions || null,
+        contagiousDiseaseFlag: formData.contagiousDiseaseFlag ?? patient.contagiousDiseaseFlag ?? null,
+        contagiousDiseaseNotes: formData.contagiousDiseaseNotes || patient.contagiousDiseaseNotes || null,
         auditTrail: [
           ...(patient.auditTrail || []),
           {
@@ -470,8 +485,7 @@ export default function PatientProfilePage() {
       <PageHeader 
         title="Patient Profile" 
         subtitle={`Managing administrative and contact details for ${patient.name}`}
-        backTo={location.state?.from || '/crm/patients'}
-        backText="Back to Patients"
+        backText="Back"
         actions={
           <div className="flex gap-3">
             <Button 
@@ -507,7 +521,7 @@ export default function PatientProfilePage() {
               </div>
             ) : (
               <Button 
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200 shadow-lg"
                 onClick={handleQuickStartVisit}
                 disabled={startingVisit}
               >
@@ -528,396 +542,386 @@ export default function PatientProfilePage() {
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Core Info Card */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 flex flex-col items-center text-center">
-            <div className="relative mb-6 group">
-              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-xl relative cursor-pointer group">
-                {patient.photo || patient.imageUrl ? (
-                  <img 
-                    src={patient.photo || patient.imageUrl} 
-                    alt={patient.name} 
-                    className="w-full h-full object-cover transition-transform group-hover:scale-110" 
-                    onClick={() => setIsLightboxOpen(true)}
-                  />
-                ) : (
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Left Column: Patient Details */}
+        <div className="space-y-6">
+          {/* Patient Info Card */}
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="flex items-start gap-6">
+              {/* Photo */}
+              <div className="relative shrink-0 group">
+                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-xl cursor-pointer">
+                  {patient.photo || patient.imageUrl ? (
+                    <img 
+                      src={patient.photo || patient.imageUrl} 
+                      alt={patient.name} 
+                      className="w-full h-full object-cover"
+                      onClick={() => setIsLightboxOpen(true)}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-blue-100 text-blue-600 flex items-center justify-center text-3xl font-bold">
+                      {patient.name[0]}
+                    </div>
+                  )}
                   <div 
-                    className="w-full h-full bg-blue-100 text-blue-600 flex items-center justify-center text-4xl font-bold"
-                    onClick={() => setIsLightboxOpen(true)}
+                    className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempPhoto(patient.photo || patient.imageUrl || null);
+                      setIsPhotoActionModalOpen(true);
+                    }}
                   >
-                    {patient.name[0]}
+                    <Camera className="w-5 h-5 text-white" />
                   </div>
-                )}
-                <div 
-                  className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setTempPhoto(patient.photo || patient.imageUrl || null);
-                    setIsPhotoActionModalOpen(true);
-                  }}
-                >
-                  <Camera className="w-6 h-6 text-white" />
-                  <span className="sr-only">Change Photo</span>
+                </div>
+                <div className="absolute bottom-0 right-0 w-6 h-6 bg-green-500 border-2 border-white rounded-full"></div>
+              </div>
+              
+              {/* Basic Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">{patient.name}</h2>
+                    <p className="text-sm text-gray-500">{patient.species} • {patient.breed}</p>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="text-blue-600 hover:text-blue-800"
+                    onClick={() => setIsEditModalOpen(true)}
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="flex gap-2 mb-3">
+                  <Badge className="bg-blue-50 text-blue-700 border-blue-100 text-xs">
+                    {patient.patientId}
+                  </Badge>
+                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 text-xs">
+                    {patient.status}
+                  </Badge>
+                </div>
+                
+                {/* Quick Stats Row */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-2 text-center">
+                    <p className="text-xs text-gray-400">Weight</p>
+                    <p className="text-sm font-bold text-gray-900">{patient.weight ? `${patient.weight} kg` : 'N/A'}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-2 text-center">
+                    <p className="text-xs text-gray-400">Blood Type</p>
+                    <p className="text-sm font-bold text-gray-900">{patient.bloodType || '—'}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-2 text-center">
+                    <p className="text-xs text-gray-400">Gender</p>
+                    <p className="text-sm font-bold text-gray-900">{patient.gender || '—'}</p>
+                  </div>
                 </div>
               </div>
-              <div className="absolute bottom-1 right-2 w-8 h-8 bg-green-500 border-4 border-white rounded-full"></div>
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-1">{patient.name}</h2>
-            <p className="text-gray-500 font-medium mb-4">{patient.species} • {patient.breed}</p>
-            <div className="flex gap-2 mb-6">
-              <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-100">
-                {patient.patientId}
-              </Badge>
-              <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-100">
-                {patient.status}
-              </Badge>
             </div>
             
-            <div className="w-full pt-6 border-t border-gray-50 space-y-4">
-              <div className="flex items-center gap-3 text-left">
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                  <Calendar className="w-5 h-5 text-gray-400" />
-                </div>
+            {/* Additional Details Grid */}
+            <div className="mt-6 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-3">
+                <Calendar className="w-4 h-4 text-gray-400" />
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Date of Birth</p>
-                  <p className="text-sm font-semibold text-gray-700">{patient.dateOfBirth}</p>
+                  <p className="text-xs text-gray-400">Date of Birth</p>
+                  <p className="text-sm font-medium text-gray-700">{patient.dateOfBirth || 'Not recorded'}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-left">
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                  <Activity className="w-5 h-5 text-gray-400" />
-                </div>
+              <div className="flex items-center gap-3">
+                <Heart className="w-4 h-4 text-red-400" />
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Gender</p>
-                  <p className="text-sm font-semibold text-gray-700">{patient.gender}</p>
+                  <p className="text-xs text-gray-400">Coat Color</p>
+                  <p className="text-sm font-medium text-gray-700">{patient.color || 'Not specified'}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-left">
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                  <Heart className="w-5 h-5 text-red-400" />
-                </div>
+              <div className="flex items-center gap-3">
+                <CreditCard className="w-4 h-4 text-blue-400" />
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Blood Type</p>
-                  <p className="text-sm font-semibold text-gray-700">{patient.bloodType}</p>
+                  <p className="text-xs text-gray-400">Microchip ID</p>
+                  <p className="text-sm font-medium text-gray-700">{patient.microchipId || 'Not registered'}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-left">
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                  <Activity className="w-5 h-5 text-blue-400" />
-                </div>
+              <div className="flex items-center gap-3">
+                <Activity className="w-4 h-4 text-purple-400" />
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Coat Color</p>
-                  <p className="text-sm font-semibold text-gray-700">{patient.color || 'Not specified'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-left">
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                  <Activity className="w-5 h-5 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Size Category</p>
-                  <p className="text-sm font-semibold text-gray-700">{patient.size || 'Not specified'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-left">
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                  <CreditCard className="w-5 h-5 text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Microchip ID</p>
-                  <p className="text-sm font-semibold text-gray-700">{patient.microchipId || 'Not registered'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-left">
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                  <Activity className="w-5 h-5 text-green-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Current Weight</p>
-                  <p className="text-sm font-semibold text-gray-700">{patient.weight ? `${patient.weight} kg` : 'Not recorded'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-left">
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                  <Activity className="w-5 h-5 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Size Category</p>
-                  <p className="text-sm font-semibold text-gray-700">{patient.size || 'Not specified'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-left">
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                  <CreditCard className="w-5 h-5 text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Microchip ID</p>
-                  <p className="text-sm font-semibold text-gray-700">{patient.microchipId || 'Not registered'}</p>
+                  <p className="text-xs text-gray-400">Size Category</p>
+                  <p className="text-sm font-medium text-gray-700">{patient.size || 'Not specified'}</p>
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Alerts Card */}
+          
+          {/* Medical History */}
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-500" />
+              Medical History
+            </h3>
+            {patient.medicalHistory ? (
+              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{patient.medicalHistory}</p>
+            ) : (
+              <p className="text-sm text-gray-400 italic">No medical history recorded</p>
+            )}
+          </div>
+          
+          {/* Allergies & Alerts */}
           <div className="bg-red-50 rounded-xl p-6 border border-red-100">
-            <h4 className="flex items-center gap-2 text-red-800 font-bold mb-3">
+            <h3 className="text-lg font-bold text-red-800 mb-4 flex items-center gap-2">
               <ShieldAlert className="w-5 h-5" />
-              Critical Alerts
-            </h4>
-            <ul className="space-y-2">
-              <li className="text-sm text-red-700 flex items-start gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 shrink-0"></span>
-                Severe Penicillin Allergy
-              </li>
-              <li className="text-sm text-red-700 flex items-start gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 shrink-0"></span>
-                History of Hip Dysplasia
-              </li>
-            </ul>
+              Allergies & Alerts
+            </h3>
+            <div className="space-y-3">
+              {/* Allergies */}
+              {patient.allergies && patient.allergies.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-400 mt-1.5 shrink-0"></span>
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">Allergies</p>
+                    <p className="text-sm text-red-700">{patient.allergies.join(', ')}</p>
+                  </div>
+                </div>
+              )}
+              {/* Chronic Conditions */}
+              {patient.chronicConditions && patient.chronicConditions.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-400 mt-1.5 shrink-0"></span>
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">Chronic Conditions</p>
+                    <p className="text-sm text-red-700">{patient.chronicConditions.join(', ')}</p>
+                  </div>
+                </div>
+              )}
+              {/* Aggression Warning */}
+              {patient.aggressionWarning && (
+                <div className="flex items-start gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-600 mt-1.5 shrink-0"></span>
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">Aggression Warning</p>
+                    <p className="text-sm text-red-700">{patient.aggressionNotes || 'Handle with caution'}</p>
+                  </div>
+                </div>
+              )}
+              {/* Medication Reactions */}
+              {patient.medicationReactions && patient.medicationReactions.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="w-2 h-2 rounded-full bg-yellow-500 mt-1.5 shrink-0"></span>
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">Medication Reactions</p>
+                    <p className="text-sm text-red-700">{patient.medicationReactions.join(', ')}</p>
+                  </div>
+                </div>
+              )}
+              {/* Special Handling Notes */}
+              {patient.specialHandlingNotes && (
+                <div className="flex items-start gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-400 mt-1.5 shrink-0"></span>
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">Special Handling</p>
+                    <p className="text-sm text-red-700">{patient.specialHandlingNotes}</p>
+                  </div>
+                </div>
+              )}
+              {/* Contagious Disease Flag */}
+              {patient.contagiousDiseaseFlag && (
+                <div className="flex items-start gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-500 mt-1.5 shrink-0 animate-pulse"></span>
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">Contagious Disease</p>
+                    <p className="text-sm text-red-700">{patient.contagiousDiseaseNotes || 'Exercise caution - potential contagion'}</p>
+                  </div>
+                </div>
+              )}
+              {/* No Alerts Message */}
+              {!patient.allergies?.length && !patient.chronicConditions?.length && 
+               !patient.aggressionWarning && !patient.medicationReactions?.length && 
+               !patient.specialHandlingNotes && !patient.contagiousDiseaseFlag && (
+                <div className="flex items-center gap-2 text-sm text-red-700">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>No allergies or critical alerts recorded</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Middle & Right Column: Details & Timeline */}
-        <div className="lg:col-span-2 space-y-8">
+        {/* Right Column: Owner & Activity */}
+        <div className="space-y-6">
           {/* Owner & Contact Details */}
-          <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <User className="w-6 h-6 text-blue-500" />
-              Contact & Ownership
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <User className="w-5 h-5 text-blue-500" />
+              Pet Owner
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
-                    <User className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-400 uppercase">Primary Owner</p>
-                    <p className="text-lg font-bold text-gray-900">{patient.ownerName}</p>
-                    <Button 
-                      variant="link" 
-                      className="p-0 h-auto text-blue-600 text-xs hover:text-blue-800 transition-colors"
-                      onClick={() => navigate(`/profile/${(patient as any).ownerId || 'unknown'}`)}
-                    >
-                      View Owner Profile
-                    </Button>
-                  </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                  <User className="w-5 h-5 text-blue-600" />
                 </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
-                    <Phone className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-400 uppercase">Phone Number</p>
-                    <p className="text-lg font-bold text-gray-900">{patient.contact}</p>
-                  </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900">{patient.ownerName}</p>
+                  <Button 
+                    variant="link" 
+                    className={`p-0 h-auto text-xs ${patient.ownerUid ? 'text-blue-600 hover:text-blue-800' : 'text-gray-400 cursor-not-allowed'}`}
+                    disabled={!patient.ownerUid}
+onClick={() => patient.ownerUid && navigate(`/crm/owners/${patient.ownerUid}`, { 
+                        state: { 
+                          from: `/crm/patients/${patient.id}`,
+                          fromEntity: patient.name
+                        } 
+                      })}
+                  >
+                    View Owner Profile
+                  </Button>
                 </div>
               </div>
-              <div className="space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
-                    <Mail className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-400 uppercase">Email Address</p>
-                    <p className="text-lg font-bold text-gray-900">{patient.email}</p>
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                  <Phone className="w-5 h-5 text-blue-600" />
                 </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
-                    <MapPin className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-400 uppercase">Home Address</p>
-                    <p className="text-gray-700 leading-relaxed">{patient.address}</p>
-                  </div>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-400">Phone</p>
+                  <p className="text-sm font-medium text-gray-900">{patient.contact || 'Not provided'}</p>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Recent Activity Timeline */}
-          <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Clock className="w-6 h-6 text-blue-500" />
-                Recent Activity
-              </h3>
-              <Button variant="ghost" className="text-blue-600">See All</Button>
-            </div>
-            <div className="space-y-8 relative before:absolute before:left-[23px] before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-50">
-              <div className="relative flex gap-6 group">
-                <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white z-10 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
-                  <FileText className="w-5 h-5" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                  <Mail className="w-5 h-5 text-blue-600" />
                 </div>
-                <div className="flex-1 pt-1">
-                  <div className="flex justify-between mb-1">
-                    <h4 className="font-bold text-gray-900">EMR Record Updated</h4>
-                    <span className="text-xs text-gray-400 font-bold">TODAY, 10:45 AM</span>
-                  </div>
-                  <p className="text-sm text-gray-500">Annual checkup results added by Dr. Sarah Johnson</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-400">Email</p>
+                  <p className="text-sm font-medium text-gray-900 truncate">{patient.email}</p>
                 </div>
               </div>
-              <div className="relative flex gap-6 group">
-                <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white z-10 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
-                  <Calendar className="w-5 h-5" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                  <MapPin className="w-5 h-5 text-blue-600" />
                 </div>
-                <div className="flex-1 pt-1">
-                  <div className="flex justify-between mb-1">
-                    <h4 className="font-bold text-gray-900">Appointment Scheduled</h4>
-                    <span className="text-xs text-gray-400 font-bold">2 DAYS AGO</span>
-                  </div>
-                  <p className="text-sm text-gray-500">Upcoming vaccination set for May 15, 2026</p>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-400">Address</p>
+                  <p className="text-sm font-medium text-gray-700">{patient.address || 'Not provided'}</p>
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Weight History */}
-          <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Activity className="w-6 h-6 text-green-500" />
-                Weight History
-              </h3>
+          
+          {/* Visit Summary */}
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-blue-500" />
+              Recent Visits
+            </h3>
+            <div className="space-y-3">
+              {appointments.length > 0 ? (
+                appointments.slice(0, 5).map((apt: any) => (
+                  <div key={apt.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{apt.date}</p>
+                      <p className="text-xs text-gray-500">{apt.doctorName || 'No doctor assigned'}</p>
+                    </div>
+                    <Badge className={apt.status === 'confirmed' ? 'bg-green-50 text-green-700 border-green-100' : apt.status === 'completed' ? 'bg-gray-50 text-gray-700 border-gray-100' : 'bg-yellow-50 text-yellow-700 border-yellow-100'}>
+                      {apt.status}
+                    </Badge>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-400 italic">No visits recorded</p>
+              )}
+            </div>
+          </div>
+          
+          {/* Quick Actions */}
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Activity className="w-5 h-5 text-blue-500" />
+              Quick Actions
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
               <Button 
                 variant="outline" 
-                size="sm"
-                className="text-green-600 border-green-200 hover:bg-green-50"
-                onClick={() => {
-                  const weight = prompt("Enter new weight (kg):");
-                  if (weight && !isNaN(parseFloat(weight))) {
-                    const newWeight = parseFloat(weight);
-                    const updatedPatient = {
-                      ...patient,
-                      weight: newWeight,
-                      weightHistory: [
-                        ...(patient.weightHistory || []),
-                        { date: new Date().toISOString().split('T')[0], weight: newWeight, notes: 'Triage update' }
-                      ],
-                      auditTrail: [
-                        ...(patient.auditTrail || []),
-                        {
-                          id: Date.now().toString(),
-                          event: `Weight Updated: ${newWeight}kg`,
-                          staff: 'Admin User',
-                          timestamp: new Date().toLocaleString('en-US', { 
-                            year: 'numeric', month: 'short', day: 'numeric', 
-                            hour: '2-digit', minute: '2-digit', hour12: true 
-                          })
-                        }
-                      ]
-                    };
-                    setPatient(updatedPatient);
-                  }
-                }}
+                className="justify-start h-auto py-3"
+                onClick={() => navigate(`/crm/emr/${patient.id}`, { 
+                  state: { from: `/crm/patients/${patient.id}`, backText: 'Back to Patient Profile' }
+                })}
               >
-                <Activity className="w-4 h-4 mr-2" />
-                Record Weight
+                <FileText className="w-4 h-4 mr-2" />
+                Open EMR
               </Button>
+              <Button 
+                variant="outline" 
+                className="justify-start h-auto py-3"
+                onClick={() => navigate(`/crm/appointments?petId=${patient.id}`)}
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Schedule
+              </Button>
+              {scheduledAppointment ? (
+                <Button 
+                  variant="outline" 
+                  className="justify-start h-auto py-3 col-span-2 text-yellow-700 border-yellow-200 bg-yellow-50"
+                  onClick={() => navigate(`/crm/appointments/${scheduledAppointment.id}`)}
+                >
+                  <Clock className="w-4 h-4 mr-2" />
+                  View Scheduled: {scheduledAppointment.date} at {scheduledAppointment.time}
+                </Button>
+              ) : (
+                <Button 
+                  className="justify-start h-auto py-3 col-span-2 bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={handleQuickStartVisit}
+                  disabled={startingVisit}
+                >
+                  {startingVisit ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Starting Visit...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Quick Start Visit
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
-            
-            {/* Weight Chart */}
-            {sortedWeightHistory.length > 0 ? (
-              <div className="mb-6">
-                <div className="h-[200px] w-full">
-                  <div width="100%" height="100%" minWidth={0} minHeight={0}>
-                    <div data={sortedWeightHistory} barSize={32}>
-                      <div strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <div 
-                        dataKey="date" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fill: '#64748b' }}
-                      />
-                      <div 
-                        axisLine={false} 
-                        tickLine={false}
-                        tick={{ fontSize: 10, fill: '#64748b' }}
-                        domain={['dataMin - 1', 'dataMax + 1']}
-                      />
-                      <div 
-                        cursor={{ fill: 'rgba(16, 185, 129, 0.1)' }}
-                        contentStyle={{ 
-                          borderRadius: '12px', 
-                          border: 'none', 
-                          boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', 
-                          padding: '8px 12px' 
-                        }}
-                        itemStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#10b981' }}
-                        formatter={(value: any) => [`${value} kg`, 'Weight']}
-                      />
-                      <div 
-                        dataKey="weight" 
-                        fill="#10b981" 
-                        radius={[4, 4, 0, 0]}
-                      >
-                        {sortedWeightHistory.map((entry: any, index: number) => (
-                          <div key={`cell-${index}`} fill="#10b981" />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-400">
-                <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">No weight history recorded yet.</p>
-              </div>
-            )}
-            
-            {/* Weight History Table */}
-            {sortedWeightHistory.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="text-left py-3 px-4 font-bold text-gray-400 uppercase tracking-wider text-xs">Date</th>
-                      <th className="text-left py-3 px-4 font-bold text-gray-400 uppercase tracking-wider text-xs">Weight (kg)</th>
-                      <th className="text-left py-3 px-4 font-bold text-gray-400 uppercase tracking-wider text-xs">Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedWeightHistory.map((entry: any, idx: number) => (
-                      <tr key={idx} className="border-b border-gray-50 hover:bg-green-50/30 transition-colors">
-                        <td className="py-3 px-4 font-medium">{entry.date}</td>
-                        <td className="py-3 px-4 font-bold text-green-700">{entry.weight} kg</td>
-                        <td className="py-3 px-4 text-gray-600">{entry.notes || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
-
+          
           {/* Audit Trail */}
-          <Card className="mt-6">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-semibold">Audit Trail</CardTitle>
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Activity Log
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {(patient.auditTrail || [])
-                  .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                  .map((log: any, idx: number) => (
-                  <div key={log.id || idx} className="text-sm border-b border-gray-100 pb-2 last:border-0">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="font-medium capitalize">{log.action || log.event}</span>
-                        {log.reason && <span className="text-gray-600 ml-2">{log.reason}</span>}
-                        <span className="text-gray-500 ml-2">by {log.userId || log.staff}</span>
+              {patient.auditTrail && patient.auditTrail.length > 0 ? (
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {patient.auditTrail
+                    .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                    .slice(0, 10)
+                    .map((log: any, idx: number) => (
+                    <div key={log.id || idx} className="text-sm border-b border-gray-50 pb-2 last:border-0">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="font-medium text-gray-700">{log.action || log.event}</span>
+                          {log.reason && <span className="text-gray-500 ml-1">{log.reason}</span>}
+                        </div>
+                        <span className="text-xs text-gray-400 whitespace-nowrap ml-2">
+                          {new Date(log.timestamp).toLocaleDateString()}
+                        </span>
                       </div>
-                      <span className="text-xs text-gray-400">{new Date(log.timestamp).toLocaleString()}</span>
+                      <span className="text-xs text-gray-400">by {log.userId || log.staff}</span>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 italic">No activity recorded</p>
+              )}
             </CardContent>
           </Card>
-        </div>
+</div>
       </div>
 
       {/* Reusable Pet Dialog for Edit */}

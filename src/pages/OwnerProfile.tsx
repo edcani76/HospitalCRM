@@ -289,7 +289,7 @@ export default function OwnerProfile() {
                       appointments.slice(0, 10).map(app => (
                         <tr key={app.id} className="hover:bg-stone-50/50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap font-medium text-stone-700">
-                            {format(new Date(app.date), 'MMM dd, yyyy')}
+                            {app.date ? format(new Date(app.date), 'MMM dd, yyyy') : 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-stone-600">
                             <Link to={`/pet/${app.petId}`} className="hover:text-emerald-600 font-medium">
@@ -333,7 +333,7 @@ export default function OwnerProfile() {
                           <div className="flex justify-between items-start mb-2">
                             <div className="min-w-0">
                               <p className="font-bold text-stone-900 truncate text-sm">{invoice.description}</p>
-                              <p className="text-[10px] text-stone-400">{format(new Date(invoice.date), 'MMM dd, yyyy')}</p>
+                              <p className="text-[10px] text-stone-400">{invoice.date ? format(new Date(invoice.date), 'MMM dd, yyyy') : 'N/A'}</p>
                             </div>
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${invoice.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}`}>
                               {invoice.status.toUpperCase()}

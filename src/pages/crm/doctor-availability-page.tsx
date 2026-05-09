@@ -191,11 +191,10 @@ export default function DoctorAvailabilityPage() {
   if (doctorNotFound) {
     return (
       <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 px-2 sm:px-0">
-        <PageHeader
-          title="My Availability"
-          backTo="/crm/doctor-dashboard"
-          backText="Back to Dashboard"
-        />
+<PageHeader 
+              title="Set Availability"
+              backText="Back"
+            />
         <Card>
           <CardContent className="p-8 text-center">
             <div className="text-red-600 mb-4">
@@ -222,11 +221,10 @@ export default function DoctorAvailabilityPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 px-2 sm:px-0">
-      <PageHeader
-        title={isAdmin ? `Edit Availability: ${doctor?.name || 'Doctor'}` : 'My Availability'}
-        backTo={isAdmin ? "/crm/staff" : "/crm/doctor-dashboard"}
-        backText={isAdmin ? "Back to Staff" : "Back to Dashboard"}
-      />
+<PageHeader 
+              title="Doctor Availability"
+              backText="Back"
+            />
 
       {/* Weekly Schedule */}
       <Card>
