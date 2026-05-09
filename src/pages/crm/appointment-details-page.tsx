@@ -733,7 +733,7 @@ export default function AppointmentDetailsPage() {
                       <Pencil className="w-4 h-4 mr-2" />
                       Edit
                     </Button>
-                    {appointment.status === 'unconfirmed' && (
+                    {appointment.status === 'unconfirmed' && (user?.role === 'admin' || user?.role === 'staff' || isOwnAppointment) && (
                       <Button
                         className="bg-emerald-600 hover:bg-emerald-700 text-white"
                         onClick={confirmAppointment}
@@ -752,7 +752,7 @@ export default function AppointmentDetailsPage() {
                         )}
                       </Button>
                     )}
-                    {appointment.status === 'confirmed' && (() => {
+                    {appointment.status === 'confirmed' && (user?.role === 'admin' || user?.role === 'staff' || isOwnAppointment) && (() => {
                       const today = new Date().toISOString().split('T')[0];
                       const isToday = appointment.date === today;
                       return isToday ? (
