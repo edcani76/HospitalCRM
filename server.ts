@@ -138,17 +138,38 @@ async function startServer() {
   });
 
   app.get("/api/auth/google-drive/connect", (req: express.Request, res: express.Response) => {
-    const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/google-drive/callback`;
+    // Handle proxy/load balancer scenarios for redirect URI
+    const forwardedHost = req.get('x-forwarded-host');
+    const forwardedProto = req.get('x-forwarded-proto');
+    const redirectHost = forwardedHost || req.get('host');
+    const redirectProto = forwardedProto || req.protocol;
+    const redirectUri = `${redirectProto}://${redirectHost}/api/auth/google-drive/callback`;
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=https://www.googleapis.com/auth/drive.file&response_type=code&access_type=offline&prompt=consent`;
+    console.log("[GDrive] Connect: Redirect URI will be:", redirectUri);
     res.redirect(authUrl);
   });
 
   app.get("/api/auth/google-drive/callback", async (req: express.Request, res: express.Response) => {
     const code = req.query.code as string;
     const error = req.query.error as string;
-    // Use FRONTEND_URL if set, otherwise detect from request headers for production flexibility
+    
+    // Handle proxy/load balancer scenarios
+    const forwardedHost = req.get('x-forwarded-host');
+    const forwardedProto = req.get('x-forwarded-proto');
     const frontendUrl = process.env.FRONTEND_URL || 
-      `${req.protocol}://${req.get('host')}`;
+      (forwardedHost 
+        ? `${forwardedProto || 'https'}://${forwardedHost}`
+        : `${req.protocol}://${req.get('host')}`);
+    
+    // Use the same host detection for callback URI
+    const redirectHost = forwardedHost || req.get('host');
+    const redirectProto = forwardedProto || req.protocol;
+    const redirectUri = `${redirectProto}://${redirectHost}/api/auth/google-drive/callback`;
+    
+    console.log("[GDrive] Callback - Frontend URL:", frontendUrl);
+    console.log("[GDrive] Callback - Redirect URI:", redirectUri);
+    console.log("[GDrive] Callback - Error param:", error);
+    console.log("[GDrive] Callback - Has code:", !!code);
 
     if (error) {
       return res.redirect(`${frontendUrl}/crm/settings?drive_error=${error}`);
