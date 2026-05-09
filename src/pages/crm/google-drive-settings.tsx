@@ -54,7 +54,8 @@ export default function GoogleDriveSettingsPage() {
 
   async function fetchStatus() {
     try {
-      const res = await fetch('/api/drive/status');
+      // Use Netlify function for server-side API call
+      const res = await fetch('/.netlify/functions/drive-status');
       if (!res.ok) {
         console.error('Failed to fetch Drive status: HTTP', res.status);
         setStatus({ connected: false, hasFolder: false, folderId: null });
@@ -72,7 +73,8 @@ export default function GoogleDriveSettingsPage() {
 
   function handleConnect() {
     setConnecting(true);
-    window.location.href = '/api/auth/google-drive/connect';
+    // Redirect to Netlify function for OAuth initiation
+    window.location.href = '/.netlify/functions/google-drive-connect';
   }
 
   function copyToken() {
