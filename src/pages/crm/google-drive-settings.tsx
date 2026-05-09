@@ -233,7 +233,7 @@ export default function GoogleDriveSettingsPage() {
             <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold shrink-0">1</span>
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-white">Google Cloud Console OAuth 2.0 Client ID</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Must be configured with <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">http://localhost:3000</code> as an Authorized JavaScript origin</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Must be configured with your application's domain as an Authorized JavaScript origin (e.g., <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">{typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}</code> for development or your production URL)</p>
             </div>
           </li>
           <li className="flex items-start gap-3">

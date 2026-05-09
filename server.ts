@@ -135,7 +135,9 @@ async function startServer() {
   app.get("/api/auth/google-drive/callback", async (req: express.Request, res: express.Response) => {
     const code = req.query.code as string;
     const error = req.query.error as string;
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    // Use FRONTEND_URL if set, otherwise detect from request headers for production flexibility
+    const frontendUrl = process.env.FRONTEND_URL || 
+      `${req.protocol}://${req.get('host')}`;
 
     if (error) {
       return res.redirect(`${frontendUrl}/crm/settings?drive_error=${error}`);
