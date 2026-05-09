@@ -156,18 +156,18 @@ async function startServer() {
     // Handle proxy/load balancer scenarios
     const forwardedHost = req.get('x-forwarded-host');
     const forwardedProto = req.get('x-forwarded-proto');
-    const frontendUrl = process.env.FRONTEND_URL || 
-      (forwardedHost 
-        ? `${forwardedProto || 'https'}://${forwardedHost}`
-        : `${req.protocol}://${req.get('host')}`);
+    const frontendHost = forwardedHost || req.get('host');
+    const frontendProtocol = forwardedProto || req.protocol;
     
-    // Use the same host detection for callback URI
-    const redirectHost = forwardedHost || req.get('host');
-    const redirectProto = forwardedProto || req.protocol;
-    const redirectUri = `${redirectProto}://${redirectHost}/api/auth/google-drive/callback`;
+    // Frontend URL for redirects after OAuth
+    const frontendUrl = process.env.FRONTEND_URL || 
+      `${frontendProtocol}://${frontendHost}`;
+    
+    // The callback redirect URI that Google will use (must match Google Cloud Console)
+    const callbackRedirectUri = `${frontendProtocol}://${frontendHost}/api/auth/google-drive/callback`;
     
     console.log("[GDrive] Callback - Frontend URL:", frontendUrl);
-    console.log("[GDrive] Callback - Redirect URI:", redirectUri);
+    console.log("[GDrive] Callback - Callback Redirect URI:", callbackRedirectUri);
     console.log("[GDrive] Callback - Error param:", error);
     console.log("[GDrive] Callback - Has code:", !!code);
 
@@ -179,8 +179,6 @@ async function startServer() {
       return res.redirect(`${frontendUrl}/crm/settings?drive_error=no_code`);
     }
 
-    const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/google-drive/callback`;
-
     try {
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
@@ -189,7 +187,7 @@ async function startServer() {
           client_id: GOOGLE_CLIENT_ID,
           client_secret: GOOGLE_CLIENT_SECRET,
           code,
-          redirect_uri: redirectUri,
+          redirect_uri: callbackRedirectUri,
           grant_type: "authorization_code",
         }),
       });
