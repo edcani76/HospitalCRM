@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { PageHeader } from '../../components/ui/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
 import { Pill, AlertTriangle, Package, TrendingUp, Loader2 } from 'lucide-react'
+import { SearchBar } from '../../components/ui/search-bar'
 import { fetchMedications } from '../../lib/firestore-helpers'
 
 export default function PharmacyPage() {
   const [medications, setMedications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     async function loadMedications() {
@@ -34,9 +36,29 @@ export default function PharmacyPage() {
   const lowStockCount = medications.filter(m => m.stock <= m.minStock).length
   const totalStock = medications.reduce((sum, m) => sum + m.stock, 0)
 
+  const filteredMedications = useMemo(() => {
+    if (!searchQuery) return medications;
+    const term = searchQuery.toLowerCase();
+    return medications.filter(m => 
+      m.name?.toLowerCase().includes(term) ||
+      m.category?.toLowerCase().includes(term) ||
+      m.description?.toLowerCase().includes(term)
+    );
+  }, [medications, searchQuery]);
+
   return (
     <>
       <PageHeader title="Pharmacy" subtitle="Manage medications and prescriptions" />
+
+      {/* Search Bar */}
+      <div className="mb-6">
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search medications..."
+          color="blue"
+        />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <Card>
@@ -47,7 +69,7 @@ export default function PharmacyPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{medications.length}</p>
+            <p className="text-3xl font-bold">{filteredMedications.length}</p>
           </CardContent>
         </Card>
         <Card>
@@ -89,7 +111,7 @@ export default function PharmacyPage() {
         <CardContent className="p-6">
           <h3 className="font-semibold mb-4">Inventory Status</h3>
           <div className="space-y-3">
-            {medications.map((med) => (
+            {filteredMedications.map((med) => (
               <div key={med.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div>
                   <p className="font-medium">{med.name}</p>

@@ -404,6 +404,20 @@ export default function AppointmentsPage() {
         }
       />
 
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400 group-focus-within:text-emerald-500 transition-colors" />
+          <input
+            type="text"
+            className="block w-full pl-12 pr-4 py-4 bg-white border border-stone-200 shadow-sm rounded-xl text-base focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all placeholder:text-stone-400"
+            placeholder="Search by doctor, pet, or owner name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
         <div className="lg:col-span-4 space-y-4 lg:space-y-6">
           <Calendar
@@ -591,18 +605,6 @@ export default function AppointmentsPage() {
                 </div>
               ) : (
                 <>
-                  <div className="mb-4">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                      <Input
-                        placeholder="Search by doctor, pet, or owner..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-
                   {loading ? (
                     <div className="flex justify-center py-12">
                       <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />

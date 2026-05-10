@@ -68,7 +68,9 @@ export interface Appointment {
   doctorName: string;
   date: string;
   time: string;
-  status: 'unconfirmed' | 'confirmed' | 'cancelled' | 'completed' | 'no-show' | 'in-progress';
+  status: 'unconfirmed' | 'confirmed' | 'cancelled' | 'in-progress' | 'medical-completed' | 'completed' | 'no-show';
+  medicalCompletedAt?: any; // When doctor marked medical services as done
+  medicalCompletedBy?: string; // User who completed medical
   workflowStatus?: PatientStatus; // Link to active workflow status
   notes?: string;
   createdAt: any;
@@ -139,3 +141,77 @@ export interface Resource {
   createdAt?: any;
   updatedAt?: any;
 }
+
+export interface Admission {
+  id?: string;
+  petId: string;
+  petName: string;
+  ownerId: string;
+  ownerName?: string;
+  checkInDate: any;
+  expectedDischarge?: any;
+  actualDischarge?: any;
+  reason: string;
+  status: 'admitted' | 'discharged' | 'transferred';
+  assignedDoctorId?: string;
+  assignedDoctorName?: string;
+  cageWard?: string;
+  initialDiagnosis?: string;
+  specialInstructions?: string;
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface AdmissionRound {
+  id?: string;
+  admissionId: string;
+  date: any;
+  attendingStaffId: string;
+  attendingStaffName?: string;
+  vitals?: {
+    temperatureC?: number;
+    heartRateBpm?: number;
+    respiratoryRateRpm?: number;
+    weightKg?: number;
+    mmColor?: string;
+    notes?: string;
+  };
+  treatmentGiven?: string;
+  notes?: string;
+  nextInstructions?: string;
+  createdAt: any;
+}
+
+export interface AdmissionService {
+  id?: string;
+  admissionId: string;
+  date: any;
+  serviceName: string;
+  serviceCode?: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  createdAt: any;
+}
+
+export interface DischargeSummary {
+  id?: string;
+  admissionId: string;
+  petId: string;
+  petName: string;
+  dischargeDate: any;
+  summary: string;
+  finalDiagnosis?: string;
+  medications?: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    instructions?: string;
+  }>;
+  followUpInstructions?: string;
+  signedBy?: string;
+  createdAt: any;
+}
+
+export type PatientStatus = 'active' | 'inactive' | 'critical' | 'stable' | 'recovered';

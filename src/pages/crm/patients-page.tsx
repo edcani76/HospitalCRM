@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search, Plus, Filter, Grid, List, MoreHorizontal, Trash2, Activity, Pencil, ChevronRight, User, Phone
+  Search, Plus, Filter, Grid, List, MoreHorizontal, Trash2, Activity, Pencil, ChevronRight, User, Phone, CircleDot
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
@@ -12,7 +12,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
-import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from '../../firebase';
+import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from '../../firebase';
 import { uploadToGoogleDrive } from '../../lib/google-drive';
 import PetDialog from '../../components/crm/pet-dialog';
 
@@ -55,6 +55,7 @@ export default function PatientsPage() {
   const [deletingPatient, setDeletingPatient] = useState<Patient | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeEncounters, setActiveEncounters] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
     try {
@@ -101,6 +102,19 @@ export default function PatientsPage() {
       }));
 
       setPatients(patientsWithOwners);
+
+      // Fetch active encounters (status = 'in-progress')
+      const encountersSnapshot = await getDocs(
+        query(collection(db, 'encounters'), where('status', '==', 'in-progress'))
+      );
+      const activePetIds = new Set<string>();
+      encountersSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.petId) {
+          activePetIds.add(data.petId);
+        }
+      });
+      setActiveEncounters(activePetIds);
     } catch (error) {
       console.error('Error fetching patients:', error);
     } finally {
@@ -325,6 +339,12 @@ export default function PatientsPage() {
                           {patient.name[0]}
                         </div>
                       )}
+                      {activeEncounters.has(patient.id) && (
+                        <div className="absolute -top-1 -right-1 flex items-center gap-1 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg animate-pulse">
+                          <CircleDot className="w-3 h-3" />
+                          IN PROGRESS
+                        </div>
+                      )}
                     </div>
                     {/* Card Actions */}
                     <div className="absolute top-6 right-6">
@@ -391,6 +411,9 @@ export default function PatientsPage() {
                           <div className="w-full h-full flex items-center justify-center text-blue-600 font-bold">
                             {patient.name[0]}
                           </div>
+                        )}
+                        {activeEncounters.has(patient.id) && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow animate-pulse" />
                         )}
                       </div>
                       <div>

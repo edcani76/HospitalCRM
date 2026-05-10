@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, User, Clock, ArrowRight, Filter, ChevronRight, Loader2, Activity, Grid, List } from 'lucide-react';
+import { Search, User, Clock, ArrowRight, Filter, ChevronRight, Loader2, Activity, Grid, List, CircleDot } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { PageHeader } from '../../components/ui/page-header';
 import { fetchPets, fetchUsers } from '../../lib/firestore-helpers';
+import { db, collection, getDocs, query, where } from '../../firebase';
 
 export default function EMRDirectory() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function EMRDirectory() {
   const [users, setUsers] = useState<{ [uid: string]: any }>({});
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [activeEncounters, setActiveEncounters] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function loadData() {
@@ -28,6 +30,19 @@ export default function EMRDirectory() {
         const usersMap: { [uid: string]: any } = {};
         usersData.forEach((u: any) => { usersMap[u.id] = u; });
         setUsers(usersMap);
+
+        // Fetch active encounters
+        const encountersSnapshot = await getDocs(
+          query(collection(db, 'encounters'), where('status', '==', 'in-progress'))
+        );
+        const activePetIds = new Set<string>();
+        encountersSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.petId) {
+            activePetIds.add(data.petId);
+          }
+        });
+        setActiveEncounters(activePetIds);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -163,6 +178,12 @@ export default function EMRDirectory() {
                           {patient.name[0]}
                         </div>
                       )}
+                      {activeEncounters.has(patient.id) && (
+                        <div className="absolute -top-1 -right-1 flex items-center gap-1 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg animate-pulse">
+                          <CircleDot className="w-3 h-3" />
+                          IN PROGRESS
+                        </div>
+                      )}
                     </div>
                     <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{patient.name}</h3>
                   </div>
@@ -202,6 +223,9 @@ export default function EMRDirectory() {
                           <div className="w-full h-full flex items-center justify-center text-blue-600 font-bold">
                             {patient.name[0]}
                           </div>
+                        )}
+                        {activeEncounters.has(patient.id) && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow animate-pulse" />
                         )}
                       </div>
                       <div>

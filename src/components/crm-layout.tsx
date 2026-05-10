@@ -26,7 +26,8 @@ import {
   Wifi,
   WifiOff,
   RefreshCw,
-  Bell
+  Bell,
+  Bed
 } from 'lucide-react'
 import { signOut, auth } from '../firebase'
 import { useState, useEffect } from 'react'
@@ -219,6 +220,12 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
         path: '/crm/lab-reports',
         icon: FlaskConical,
         roles: ['admin', 'doctor', 'lab'],
+      },
+      {
+        name: 'Admissions',
+        path: '/crm/admissions',
+        icon: Bed,
+        roles: ['admin', 'doctor', 'staff'],
       },
       {
         name: 'Analytics',

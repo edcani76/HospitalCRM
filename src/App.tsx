@@ -40,6 +40,7 @@ import SeedDoctorAvailabilityPage from './pages/crm/seed-doctor-availability-pag
 import LinkDoctorUidPage from './pages/crm/link-doctor-uid-page';
 import GoogleDriveSettingsPage from './pages/crm/google-drive-settings';
 import AdminServicesPage from './pages/crm/admin-services';
+import AdmissionsPage from './pages/crm/admissions-page';
 
 // Contexts
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -79,6 +80,8 @@ export default function App() {
                     <Route path="audit" element={<AuditLogPage />} />
                     <Route path="doctor-availability" element={<DoctorAvailabilityPage />} />
                     <Route path="services" element={<AdminServicesPage />} />
+                    <Route path="admissions" element={<AdmissionsPage />} />
+                    <Route path="admissions/:admissionId" element={<AdmissionsPage />} />
                     <Route path="seed-doctor-availability" element={<SeedDoctorAvailabilityPage />} />
                     <Route path="link-doctor-uid" element={<LinkDoctorUidPage />} />
                     <Route path="settings" element={<GoogleDriveSettingsPage />} />

@@ -12,7 +12,7 @@ import { db, auth } from '../../firebase';
 import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion, addDoc, serverTimestamp, query, where } from '../../firebase';
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
 import { format } from 'date-fns';
-import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft, Play, Plus } from 'lucide-react';
+import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft, Play, Plus, Activity } from 'lucide-react';
 import { Appointment, Doctor } from '../../types';
 
 type AppointmentType = 'consultation' | 'grooming' | 'vaccination' | 'procedure' | 'others';
@@ -58,6 +58,10 @@ export default function AppointmentDetailsPage() {
   
   // Services management (matching Create Appointment)
   const [appointmentServices, setAppointmentServices] = useState<Array<{ type: string; notes: string; labCenter?: string }>>([]);
+
+  // Completion check states
+  const [invoiceStatus, setInvoiceStatus] = useState<string>('active');
+  const [allServicesComplete, setAllServicesComplete] = useState(false);
   const [showServiceSelector, setShowServiceSelector] = useState(false);
   const [serviceDepartment, setServiceDepartment] = useState<'doctor' | 'grooming' | 'laboratory'>('doctor');
   
@@ -100,6 +104,7 @@ export default function AppointmentDetailsPage() {
     const fetchServices = async () => {
       if (!emrId) {
         setEncounterServices([]);
+        setAllServicesComplete(false);
         return;
       }
       try {
@@ -107,6 +112,9 @@ export default function AppointmentDetailsPage() {
         const snapshot = await getDocs(q);
         const services = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setEncounterServices(services);
+        // Check if all services are completed
+        const allComplete = services.length > 0 && services.every((s: any) => s.status === 'completed');
+        setAllServicesComplete(allComplete);
       } catch (error) {
         console.error('Error fetching encounter services:', error);
       }
@@ -211,6 +219,15 @@ export default function AppointmentDetailsPage() {
           }
           // General notes (excluding Services: and Type: lines)
           setNotes(data.notes?.replace(/Services:\s*[^\n]+/i, '').replace(/Type:\s*\w+/gi, '').replace(/Mode:\s*\w+/i, '').trim() || '');
+
+          // Fetch invoice status for this appointment
+          if (emrId) {
+            const invoiceQ = query(collection(db, 'invoices'), where('encounterId', '==', emrId));
+            const invoiceSnap = await getDocs(invoiceQ);
+            if (!invoiceSnap.empty) {
+              setInvoiceStatus(invoiceSnap.docs[0].data().status || 'active');
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -277,10 +294,10 @@ export default function AppointmentDetailsPage() {
     checkNoShow();
   }, [appointment?.id]);
 
-  // Fetch encounter ID when appointment is in-progress
+  // Fetch encounter ID when appointment is in-progress or medical-completed
   useEffect(() => {
     const fetchEncounter = async () => {
-      if (!appointment || appointment.status !== 'in-progress') {
+      if (!appointment || (appointment.status !== 'in-progress' && appointment.status !== 'medical-completed')) {
         setEmrId(null);
         setEmrData(null);
         return;
@@ -304,6 +321,23 @@ export default function AppointmentDetailsPage() {
 
   const handleSave = async () => {
     if (!appointment) return;
+    
+    // Validate completion requirements
+    if (selectedStatus === 'completed') {
+      if (user?.role !== 'admin' && user?.role !== 'staff') {
+        alert('Only Admin or Staff can mark appointments as completed.');
+        return;
+      }
+      if (!allServicesComplete && encounterServices.length > 0) {
+        alert('All medical services must be completed before marking appointment as completed.');
+        return;
+      }
+      if (invoiceStatus !== 'paid') {
+        alert('Invoice must be fully paid before marking appointment as completed.');
+        return;
+      }
+    }
+    
     setSaving(true);
     try {
       const userUid = auth.currentUser?.uid || 'unknown';
@@ -633,10 +667,12 @@ export default function AppointmentDetailsPage() {
         return <Badge variant="success">Confirmed</Badge>;
       case 'in-progress':
         return <Badge className="bg-blue-600 hover:bg-blue-700 text-white">In Progress</Badge>;
+      case 'medical-completed':
+        return <Badge className="bg-purple-600 hover:bg-purple-700 text-white">Medical Complete - Billing Active</Badge>;
       case 'cancelled':
         return <Badge variant="destructive">Cancelled</Badge>;
       case 'completed':
-        return <Badge>Completed</Badge>;
+        return <Badge className="bg-green-600 text-white">Completed & Closed</Badge>;
       case 'no-show':
         return <Badge variant="outline" className="border-yellow-500 text-yellow-600">No-Show</Badge>;
       default:
@@ -782,8 +818,65 @@ export default function AppointmentDetailsPage() {
                           <Play className="w-4 h-4 mr-2" />
                           Start Appointment
                         </Button>
-                      );
-                    })()}
+);
+                    })}
+                    {/* Medical Complete Button - Available to Doctor, Staff, Admin */}
+                    {appointment.status === 'in-progress' && (allServicesComplete || encounterServices.length === 0) && (
+                      <Button
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg"
+                        onClick={async () => {
+                          if (window.confirm('Mark medical services as complete? This will trigger billing.')) {
+                            try {
+                              await updateDoc(doc(db, 'appointments', appointment.id), {
+                                status: 'medical-completed',
+                                medicalCompletedAt: serverTimestamp(),
+                                medicalCompletedBy: user?.uid || 'unknown'
+                              });
+                              const snap = await getDoc(doc(db, 'appointments', appointment.id));
+                              if (snap.exists()) setAppointment({ id: snap.id, ...snap.data() } as Appointment);
+                              alert('Medical services marked as complete. Billing is now active.');
+                            } catch (err) { console.error(err); alert('Failed to complete medical.'); }
+                          }
+                        }}
+                      >
+                        <Stethoscope className="w-4 h-4 mr-2" />
+                        Mark Medical Complete
+                      </Button>
+                    )}
+                    {/* If medical not complete, show progress indicator */}
+                    {appointment.status === 'in-progress' && !allServicesComplete && encounterServices.length > 0 && (
+                      <div className="flex items-center gap-2 text-sm text-amber-600 font-medium">
+                        <Activity className="w-4 h-4" />
+                        Medical in Progress ({encounterServices.filter((s: any) => s.status === 'completed').length}/{encounterServices.length} services)
+                      </div>
+                    )}
+                    {/* Billing Complete Button - Only Admin/Staff, after medical is done */}
+                    {appointment.status === 'medical-completed' && (user?.role === 'admin' || user?.role === 'staff') && (
+                      <Button
+                        className={cn(
+                          "text-white font-bold shadow-lg",
+                          invoiceStatus === 'paid'
+                            ? "bg-emerald-600 hover:bg-emerald-700"
+                            : "bg-amber-500 hover:bg-amber-600"
+                        )}
+                        onClick={() => {
+                          if (invoiceStatus !== 'paid') {
+                            alert('Invoice must be paid before closing the appointment.');
+                            return;
+                          }
+                          setSelectedStatus('completed');
+                        }}
+                        title={invoiceStatus === 'paid' ? 'Payment complete - Click to close' : 'Waiting for payment'}
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Complete & Close
+                      </Button>
+                    )}
+                    {appointment.status === 'medical-completed' && (
+                      <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                        Medical Complete - Billing Active
+                      </Badge>
+                    )}
                     {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
                     <Button
                       className="bg-red-600 hover:bg-red-700 text-white"
@@ -1067,12 +1160,53 @@ export default function AppointmentDetailsPage() {
                     <SelectContent>
                       <SelectItem value="unconfirmed">Unconfirmed</SelectItem>
                       <SelectItem value="confirmed">Confirmed</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
+                      {appointment.status === 'in-progress' && <SelectItem value="medical-completed">Medical Complete</SelectItem>}
+                      {appointment.status === 'medical-completed' && <SelectItem value="completed">Completed</SelectItem>}
                       <SelectItem value="cancelled">Cancelled</SelectItem>
                       <SelectItem value="no-show">No-Show</SelectItem>
                     </SelectContent>
-                  </Select>
-                </div>
+                    </Select>
+                  </div>
+
+                  {/* Two-Stage Completion Status Panel */}
+                  {(appointment.status === 'in-progress' || appointment.status === 'medical-completed') && (
+                    <div className="p-4 bg-stone-50 rounded-xl border border-stone-200">
+                      <h4 className="text-sm font-bold text-stone-700 mb-3">
+                        {appointment.status === 'in-progress' ? 'Medical Completion' : 'Billing Completion'}
+                      </h4>
+                      <div className="space-y-2">
+                        {/* Stage 1: Medical */}
+                        <div className="flex items-center gap-2">
+                          {allServicesComplete ? (
+                            <CheckCircle className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-amber-500" />
+                          )}
+                          <span className={`text-sm ${allServicesComplete ? 'text-emerald-700' : 'text-amber-600'}`}>
+                            Medical Services {allServicesComplete ? 'Complete' : `In Progress (${encounterServices.filter((s: any) => s.status === 'completed').length}/${encounterServices.length})`}
+                          </span>
+                        </div>
+                        {/* Stage 2: Billing (only after medical) */}
+                        {appointment.status === 'medical-completed' && (
+                          <div className="flex items-center gap-2">
+                            {invoiceStatus === 'paid' ? (
+                              <CheckCircle className="w-4 h-4 text-emerald-600" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-amber-500" />
+                            )}
+                            <span className={`text-sm ${invoiceStatus === 'paid' ? 'text-emerald-700' : 'text-amber-600'}`}>
+                              Payment {invoiceStatus === 'paid' ? 'Settled' : invoiceStatus === 'partially_paid' ? 'Partially Paid' : 'Pending'}
+                            </span>
+                          </div>
+                        )}
+                        {appointment.status === 'medical-completed' && (
+                          <p className="text-xs text-blue-600 italic mt-1">
+                            Medical completed by: {appointment.medicalCompletedBy || 'Staff'} on {appointment.medicalCompletedAt?.toDate?.()?.toLocaleDateString() || 'N/A'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                 <div>
                   <label className="text-sm font-medium">Notes</label>

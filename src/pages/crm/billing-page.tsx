@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -8,6 +8,7 @@ import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Plus, Eye, FileText, X, Loader2 } from 'lucide-react';
+import { SearchBar } from '../../components/ui/search-bar';
 import { fetchInvoices, fetchPets, fetchUsers } from '../../lib/firestore-helpers';
 import { collection, addDoc, serverTimestamp, db } from '../../firebase';
 
@@ -18,6 +19,7 @@ export default function BillingPage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
   const [pets, setPets] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     petId: '',
     clientUid: '',
@@ -74,20 +76,37 @@ export default function BillingPage() {
     setIsViewDialogOpen(true);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
+  const filteredBills = useMemo(() => {
+    if (!searchQuery) return bills;
+    const term = searchQuery.toLowerCase();
+    return bills.filter(b =>
+      b.petName?.toLowerCase().includes(term) ||
+      b.description?.toLowerCase().includes(term)
     );
-  }
+  }, [bills, searchQuery]);
 
-  const paidCount = bills.filter(b => b.status === 'paid').length;
-  const pendingCount = bills.filter(b => b.status === 'active').length;
-  const totalRevenue = bills.reduce((sum, b) => sum + (b.amount || 0), 0);
+  const paidCount = filteredBills.filter(b => b.status === 'paid').length;
+  const pendingCount = filteredBills.filter(b => b.status === 'active').length;
+  const totalRevenue = filteredBills.reduce((sum, b) => sum + (b.amount || 0), 0);
 
   return (
     <>
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : (
+    <>
+      {/* Search Bar */}
+      <div className="mb-6">
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search invoices..."
+          color="emerald"
+        />
+      </div>
+
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Billing</h1>
@@ -174,7 +193,7 @@ export default function BillingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{bills.length}</p>
+            <p className="text-3xl font-bold">{totalRevenue.toFixed(2)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -204,7 +223,7 @@ export default function BillingPage() {
       <Card>
         <CardContent className="p-6">
           <div className="space-y-3">
-            {bills.map((bill) => (
+            {filteredBills.map((bill) => (
               <div key={bill.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-4">
                   <FileText className="w-5 h-5 text-muted-foreground" />
@@ -272,6 +291,8 @@ export default function BillingPage() {
           )}
         </DialogContent>
       </Dialog>
+      </>
+      )}
     </>
-  )
+  );
 }
