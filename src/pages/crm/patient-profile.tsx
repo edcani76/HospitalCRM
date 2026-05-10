@@ -405,6 +405,7 @@ export default function PatientProfilePage() {
         date: dateStr,
         time: timeStr,
         status: 'unconfirmed',
+        mode: 'walk-in',
         notes: `Services: consultation\nMode: Walk-in`,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()

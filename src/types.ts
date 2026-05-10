@@ -77,6 +77,7 @@ export interface Appointment {
   cancelReason?: string;
   services?: string[];
   audit?: any[];
+  mode?: 'scheduled' | 'walk-in';
 }
 
 export interface Report {

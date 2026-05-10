@@ -9,7 +9,7 @@ import { Badge } from '../../components/ui/badge';
 import { Calendar } from '../../components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Input } from '../../components/ui/input';
-import { Plus, CalendarClock, Filter, Clock, User, Stethoscope, Search, CheckCircle, XCircle, LayoutGrid, List } from 'lucide-react';
+import { Plus, CalendarClock, Filter, Clock, User, Stethoscope, Search, CheckCircle, XCircle, LayoutGrid, List, Footprints } from 'lucide-react';
 import { format, startOfToday } from 'date-fns';
 import { db, collection, getDocs, doc, getDoc } from '../../firebase';
 import { updateDocument } from '../../lib/firestore-helpers';
@@ -560,7 +560,10 @@ export default function AppointmentsPage() {
                                         >
                                           <p className="text-xs font-bold text-stone-800 truncate">{apt.petName}</p>
                                           {ownerName && <p className="text-[10px] text-stone-500 truncate">({ownerName})</p>}
-                                          <div className="flex items-center gap-1 mt-1">
+                                          <div className="flex flex-wrap items-center gap-1 mt-1">
+                                            {apt.mode === 'walk-in' && (
+                                              <span className="text-[8px] px-1.5 py-0 bg-amber-100 text-amber-700 rounded">Walk-in</span>
+                                            )}
                                             <Badge variant="outline" className={`text-[8px] px-1.5 py-0 ${
                                               apt.status === 'confirmed' ? 'border-emerald-300 text-emerald-600' :
                                               apt.status === 'unconfirmed' ? 'border-amber-300 text-amber-600' :
@@ -659,6 +662,12 @@ export default function AppointmentsPage() {
                                     {appointment.petName}
                                   </span>
                                   {ownerName && <span className="text-stone-500 text-xs">({ownerName})</span>}
+                                  {appointment.mode === 'walk-in' && (
+                                    <Badge variant="outline" className="border-amber-400 text-amber-600 bg-amber-50 text-[10px]">
+                                      <Footprints className="w-3 h-3 mr-0.5" />
+                                      Walk-in
+                                    </Badge>
+                                  )}
                                 </div>
                               </TableCell>
                               <TableCell>
