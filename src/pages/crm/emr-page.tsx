@@ -1514,6 +1514,15 @@ Mode: Walk-in`,
     return typeMap[ext || ''] || 'other';
   }
 
+  // Disable edit modes when encounter is medical-completed
+  useEffect(() => {
+    if (mode === 'medical-completed') {
+      setVitalsEditMode(false);
+      setNotesEditMode(false);
+      setShowAddForm(false);
+    }
+  }, [mode]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1554,15 +1563,6 @@ Mode: Walk-in`,
     return id;
   };
   const isReadOnly = mode !== 'active';
-
-  // Disable edit modes when encounter is medical-completed
-  useEffect(() => {
-    if (mode === 'medical-completed') {
-      setVitalsEditMode(false);
-      setNotesEditMode(false);
-      setShowAddForm(false);
-    }
-  }, [mode]);
 
   return (
     <div>
