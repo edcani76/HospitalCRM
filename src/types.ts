@@ -1,5 +1,3 @@
-export type PatientStatus = 'registered' | 'triage' | 'consultation' | 'lab' | 'pharmacy' | 'billing' | 'discharged';
-
 export interface UserProfile {
   uid: string;
   email: string;

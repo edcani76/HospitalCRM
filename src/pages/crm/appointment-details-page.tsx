@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { db, auth } from '../../firebase';
 import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion, addDoc, serverTimestamp, query, where } from '../../firebase';
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
+import { generateInvoiceFromEncounter } from '../../lib/firestore-helpers';
 import { format } from 'date-fns';
 import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft, Play, Plus, Activity } from 'lucide-react';
 import { Appointment, Doctor } from '../../types';
@@ -27,16 +28,29 @@ export default function AppointmentDetailsPage() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   
-  const currentDoctor = user?.role === 'doctor'
+  const currentDoctor = user?.role?.toLowerCase() === 'doctor'
     ? doctors.find(d => d.uid === user.uid)
     : null;
   const isOwnAppointment = currentDoctor && appointment && appointment.doctorId === currentDoctor.id;
+  const isInProgress = (apt: Appointment | null): boolean => !!apt && apt.status === 'in-progress';
+
   const canEdit = user?.role !== 'doctor' || isOwnAppointment;
+  const canCancel = (): boolean => {
+    if (!appointment) return false;
+    const allowedStatuses: string[] = ['unconfirmed', 'confirmed'];
+    if (!allowedStatuses.includes(appointment.status?.toLowerCase() ?? '')) return false;
+    if (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'staff') return true;
+    if (user?.role?.toLowerCase() === 'doctor' && isOwnAppointment) return true;
+    return false;
+  };
+
   const [loading, setLoading] = useState(true);
+
   const [saving, setSaving] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
+
   
-  // Edit mode fields
+  const [isEditMode, setIsEditMode] = useState(false);
+
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');
@@ -525,6 +539,12 @@ export default function AppointmentDetailsPage() {
         updatedAt: startTime
       });
 
+      // Refresh local appointment state so audit trail reflects the "started" entry
+      const updatedSnap = await getDoc(aptRef);
+      if (updatedSnap.exists()) {
+        setAppointment({ id: updatedSnap.id, ...updatedSnap.data() } as Appointment);
+      }
+
       // Create ENCOUNTER record
       const encounterData = {
         appointmentId: appointment.id,
@@ -730,22 +750,13 @@ export default function AppointmentDetailsPage() {
   return (
     <div className="max-w-4xl mx-auto pb-12">
       <PageHeader 
-        title={
-          <div className="flex items-center gap-3">
-            Appointment Details
-            {appointment.status === 'in-progress' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-blue-500 to-blue-700 text-white animate-pulse">
-                ● Ongoing
-              </span>
-            )}
-          </div>
-        }
-        subtitle={`${appointment.petName} - ${format(new Date(appointment.date), 'MMM dd, yyyy')} at ${appointment.time}`}
+        title="Appointment Details"
+        subtitle={`${appointment.petName} - ${format(new Date(appointment.date), 'MMM dd, yyyy')} at ${appointment.time}${isInProgress(appointment) && emrData?.startedAt?.toDate?.() ? ` - Started at ${format(emrData.startedAt.toDate(), 'hh:mm a')}` : ''}`}
         backText="Back"
         actions={
           <div className="flex gap-2 items-center">
             {/* View Medical Record button (when in-progress) */}
-            {appointment.status === 'in-progress' && emrId && (
+            {isInProgress(appointment) && emrId && (
               <Button
                 className="bg-gradient-to-r from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white animate-pulse"
                 size="sm"
@@ -758,7 +769,7 @@ export default function AppointmentDetailsPage() {
               </Button>
             )}
             
-            {canEdit && appointment.status !== 'in-progress' && (
+            {canEdit && (
               <>
                 {!isEditMode ? (
                   <>
@@ -769,7 +780,7 @@ export default function AppointmentDetailsPage() {
                       <Pencil className="w-4 h-4 mr-2" />
                       Edit
                     </Button>
-                    {appointment.status === 'unconfirmed' && (user?.role === 'admin' || user?.role === 'staff' || isOwnAppointment) && (
+                    {appointment.status?.toLowerCase() === 'unconfirmed' && (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'staff' || isOwnAppointment) && (
                       <Button
                         className="bg-emerald-600 hover:bg-emerald-700 text-white"
                         onClick={confirmAppointment}
@@ -788,7 +799,7 @@ export default function AppointmentDetailsPage() {
                         )}
                       </Button>
                     )}
-                    {appointment.status === 'confirmed' && (user?.role === 'admin' || user?.role === 'staff' || isOwnAppointment) && (() => {
+                    {appointment.status?.toLowerCase() === 'confirmed' && (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'staff' || isOwnAppointment) && (() => {
                       const today = new Date().toISOString().split('T')[0];
                       const isToday = appointment.date === today;
                       return isToday ? (
@@ -819,9 +830,9 @@ export default function AppointmentDetailsPage() {
                           Start Appointment
                         </Button>
 );
-                    })}
+                    })()}
                     {/* Medical Complete Button - Available to Doctor, Staff, Admin */}
-                    {appointment.status === 'in-progress' && (allServicesComplete || encounterServices.length === 0) && (
+                    {isInProgress(appointment) && (allServicesComplete || encounterServices.length === 0) && (
                       <Button
                         className="bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg"
                         onClick={async () => {
@@ -834,6 +845,17 @@ export default function AppointmentDetailsPage() {
                               });
                               const snap = await getDoc(doc(db, 'appointments', appointment.id));
                               if (snap.exists()) setAppointment({ id: snap.id, ...snap.data() } as Appointment);
+
+                              // Generate invoice from encounter services
+                              if (emrId && encounterServices.length > 0) {
+                                await generateInvoiceFromEncounter(emrId, encounterServices, appointment.petId, appointment.clientUid);
+                                const invoiceQ = query(collection(db, 'invoices'), where('encounterId', '==', emrId));
+                                const invoiceSnap = await getDocs(invoiceQ);
+                                if (!invoiceSnap.empty) {
+                                  setInvoiceStatus(invoiceSnap.docs[0].data().status || 'active');
+                                }
+                              }
+
                               alert('Medical services marked as complete. Billing is now active.');
                             } catch (err) { console.error(err); alert('Failed to complete medical.'); }
                           }
@@ -844,21 +866,16 @@ export default function AppointmentDetailsPage() {
                       </Button>
                     )}
                     {/* If medical not complete, show progress indicator */}
-                    {appointment.status === 'in-progress' && !allServicesComplete && encounterServices.length > 0 && (
-                      <div className="flex items-center gap-2 text-sm text-amber-600 font-medium">
+                    {isInProgress(appointment) && !allServicesComplete && encounterServices.length > 0 && (
+                      <div className="flex items-center gap-2 text-sm text-amber-600 font-medium animate-pulse">
                         <Activity className="w-4 h-4" />
                         Medical in Progress ({encounterServices.filter((s: any) => s.status === 'completed').length}/{encounterServices.length} services)
                       </div>
                     )}
                     {/* Billing Complete Button - Only Admin/Staff, after medical is done */}
-                    {appointment.status === 'medical-completed' && (user?.role === 'admin' || user?.role === 'staff') && (
+                    {appointment.status?.toLowerCase() === 'medical-completed' && (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'staff') && (
                       <Button
-                        className={cn(
-                          "text-white font-bold shadow-lg",
-                          invoiceStatus === 'paid'
-                            ? "bg-emerald-600 hover:bg-emerald-700"
-                            : "bg-amber-500 hover:bg-amber-600"
-                        )}
+className={`text-white font-bold shadow-lg ${invoiceStatus === 'paid' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}
                         onClick={() => {
                           if (invoiceStatus !== 'paid') {
                             alert('Invoice must be paid before closing the appointment.');
@@ -877,7 +894,7 @@ export default function AppointmentDetailsPage() {
                         Medical Complete - Billing Active
                       </Badge>
                     )}
-                    {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+{canCancel() && (
                     <Button
                       className="bg-red-600 hover:bg-red-700 text-white"
                       onClick={() => setShowCancelDialog(true)}
@@ -885,7 +902,7 @@ export default function AppointmentDetailsPage() {
                       <XCircle className="w-4 h-4 mr-2" />
                       Cancel Appointment
                     </Button>
-                    )}
+                  )}
                   </>
                 ) : (
                   <>
@@ -1056,7 +1073,7 @@ export default function AppointmentDetailsPage() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium">Doctor</label>
-                  {user?.role === 'doctor' ? (
+                  {user?.role?.toLowerCase() === 'doctor' ? (
                     <p className="mt-1 p-2 bg-muted rounded-md">{appointment.doctorName}</p>
                   ) : (
                     <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
@@ -1160,7 +1177,7 @@ export default function AppointmentDetailsPage() {
                     <SelectContent>
                       <SelectItem value="unconfirmed">Unconfirmed</SelectItem>
                       <SelectItem value="confirmed">Confirmed</SelectItem>
-                      {appointment.status === 'in-progress' && <SelectItem value="medical-completed">Medical Complete</SelectItem>}
+                      {isInProgress(appointment) && <SelectItem value="medical-completed">Medical Complete</SelectItem>}
                       {appointment.status === 'medical-completed' && <SelectItem value="completed">Completed</SelectItem>}
                       <SelectItem value="cancelled">Cancelled</SelectItem>
                       <SelectItem value="no-show">No-Show</SelectItem>
@@ -1169,10 +1186,10 @@ export default function AppointmentDetailsPage() {
                   </div>
 
                   {/* Two-Stage Completion Status Panel */}
-                  {(appointment.status === 'in-progress' || appointment.status === 'medical-completed') && (
+                  {(isInProgress(appointment) || appointment.status === 'medical-completed') && (
                     <div className="p-4 bg-stone-50 rounded-xl border border-stone-200">
                       <h4 className="text-sm font-bold text-stone-700 mb-3">
-                        {appointment.status === 'in-progress' ? 'Medical Completion' : 'Billing Completion'}
+                        {isInProgress(appointment) ? 'Medical Completion' : 'Billing Completion'}
                       </h4>
                       <div className="space-y-2">
                         {/* Stage 1: Medical */}
@@ -1234,7 +1251,7 @@ export default function AppointmentDetailsPage() {
         </Card>
 
         {/* Services Table (visible when in-progress) */}
-        {appointment.status === 'in-progress' && (
+        {isInProgress(appointment) && (
           <Card>
             <CardHeader>
               <CardTitle>Services</CardTitle>

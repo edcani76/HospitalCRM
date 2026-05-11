@@ -487,6 +487,8 @@ export default function EMRPage() {
   const [formData, setFormData] = useState<any>({});
   const [showAddForm, setShowAddForm] = useState(false);
   const [savingVitals, setSavingVitals] = useState(false);
+  const [vitalsForm, setVitalsForm] = useState<any>({});
+  const [vitalsEditMode, setVitalsEditMode] = useState<boolean>(true);
   const [savingNotes, setSavingNotes] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -780,6 +782,18 @@ Mode: Walk-in`,
     loadEncounterData();
   }, [selectedEncounter?.id]);
 
+  // Populate vitals form when triage vitals are loaded
+  useEffect(() => {
+    if (triageVitals.length > 0) {
+      const latest = triageVitals[triageVitals.length - 1];
+      setVitalsForm(latest);
+      setVitalsEditMode(false);
+    } else {
+      setVitalsForm({});
+      setVitalsEditMode(true);
+    }
+  }, [triageVitals]);
+
   const handleLegendClick = (dataKey: string) => {
     setHiddenLines(prev => {
       const next = new Set(prev);
@@ -866,6 +880,11 @@ Mode: Walk-in`,
     setFormData((prev: any) => ({ ...prev, [name]: value }));
   };
 
+  const handleVitalsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setVitalsForm((prev: any) => ({ ...prev, [name]: value }));
+  };
+
   const saveVitals = async () => {
     if (!selectedEncounter?.id) return;
     setSavingVitals(true);
@@ -874,13 +893,13 @@ Mode: Walk-in`,
         encounterId: selectedEncounter.id,
         patientId: patientId,
         appointmentId: selectedEncounter.appointmentId || '',
-        weightKg: parseFloat(formData.weightKg) || 0,
-        temperatureC: parseFloat(formData.temperatureC) || 0,
-        heartRateBpm: parseInt(formData.heartRateBpm) || 0,
-        respiratoryRateRpm: parseInt(formData.respiratoryRateRpm) || 0,
-        mmColor: formData.mmColor || '',
-        crtSeconds: parseFloat(formData.crtSeconds) || 0,
-        notes: formData.notes || '',
+        weightKg: parseFloat(vitalsForm.weightKg) || 0,
+        temperatureC: parseFloat(vitalsForm.temperatureC) || 0,
+        heartRateBpm: parseInt(vitalsForm.heartRateBpm) || 0,
+        respiratoryRateRpm: parseInt(vitalsForm.respiratoryRateRpm) || 0,
+        mmColor: vitalsForm.mmColor || '',
+        crtSeconds: parseFloat(vitalsForm.crtSeconds) || 0,
+        notes: vitalsForm.notes || '',
         createdBy: 'current-user', // Replace with actual user ID
         createdAt: serverTimestamp()
       };
@@ -911,7 +930,7 @@ Mode: Walk-in`,
       const updatedAllVitals = await fetchAllPatientVitals(patientId || '');
       setAllPatientVitals(updatedAllVitals);
 
-      setFormData({});
+      setVitalsEditMode(false);
       alert('Vitals saved successfully!');
     } catch (error) {
       console.error('Error saving vitals:', error);
@@ -1389,7 +1408,7 @@ Mode: Walk-in`,
         title="Electronic Medical Records (EMR)"
         subtitle={
           mode === 'active'
-            ? `🟢 Active Visit in Progress - ${patient.name}`
+            ? `🟢 Active Visit in Progress - ${patient.name}${selectedEncounter?.startedAt?.toDate?.() ? ` (Started at ${format(selectedEncounter.startedAt.toDate(), 'hh:mm a')})` : ''}`
             : `⚪ No Active Visit - ${patient.name}`
         }
         backText={location.state?.backText || 'Back'}
@@ -1580,7 +1599,11 @@ Mode: Walk-in`,
               <h4 className="font-semibold mb-3">Current Vitals</h4>
               <form onSubmit={(e: React.FormEvent) => {
                 e.preventDefault();
-                saveVitals();
+                if (vitalsEditMode) {
+                  saveVitals();
+                } else {
+                  setVitalsEditMode(true);
+                }
               }} className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   <div>
@@ -1591,8 +1614,9 @@ Mode: Walk-in`,
                       type="number"
                       step="0.1"
                       min="0"
-                      value={formData.weightKg || ''}
-                      onChange={handleInputChange}
+                      value={vitalsForm.weightKg || ''}
+                      onChange={handleVitalsChange}
+                      disabled={!vitalsEditMode}
                       className="mt-1"
                       placeholder="0.0"
                     />
@@ -1606,8 +1630,9 @@ Mode: Walk-in`,
                       step="0.1"
                       min="35"
                       max="45"
-                      value={formData.temperatureC || ''}
-                      onChange={handleInputChange}
+                      value={vitalsForm.temperatureC || ''}
+                      onChange={handleVitalsChange}
+                      disabled={!vitalsEditMode}
                       className="mt-1"
                       placeholder="38.5"
                     />
@@ -1618,8 +1643,9 @@ Mode: Walk-in`,
                       id="heartRateBpm"
                       name="heartRateBpm"
                       type="number"
-                      value={formData.heartRateBpm || ''}
-                      onChange={handleInputChange}
+                      value={vitalsForm.heartRateBpm || ''}
+                      onChange={handleVitalsChange}
+                      disabled={!vitalsEditMode}
                       className="mt-1"
                       placeholder="120"
                     />
@@ -1630,8 +1656,9 @@ Mode: Walk-in`,
                       id="respiratoryRateRpm"
                       name="respiratoryRateRpm"
                       type="number"
-                      value={formData.respiratoryRateRpm || ''}
-                      onChange={handleInputChange}
+                      value={vitalsForm.respiratoryRateRpm || ''}
+                      onChange={handleVitalsChange}
+                      disabled={!vitalsEditMode}
                       className="mt-1"
                       placeholder="20"
                     />
@@ -1641,8 +1668,9 @@ Mode: Walk-in`,
                     <Input
                       id="mmColor"
                       name="mmColor"
-                      value={formData.mmColor || ''}
-                      onChange={handleInputChange}
+                      value={vitalsForm.mmColor || ''}
+                      onChange={handleVitalsChange}
+                      disabled={!vitalsEditMode}
                       className="mt-1"
                       placeholder="Pink"
                     />
@@ -1654,8 +1682,9 @@ Mode: Walk-in`,
                       name="crtSeconds"
                       type="number"
                       step="0.1"
-                      value={formData.crtSeconds || ''}
-                      onChange={handleInputChange}
+                      value={vitalsForm.crtSeconds || ''}
+                      onChange={handleVitalsChange}
+                      disabled={!vitalsEditMode}
                       className="mt-1"
                       placeholder="2"
                     />
@@ -1671,8 +1700,10 @@ Mode: Walk-in`,
                       <Loader2 className="w-4 h-4 animate-spin" />
                       Saving...
                     </span>
-                  ) : (
+                  ) : vitalsEditMode ? (
                     'Save Vitals'
+                  ) : (
+                    'Edit Vitals'
                   )}
                 </Button>
               </form>

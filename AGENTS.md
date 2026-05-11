@@ -192,6 +192,7 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 
 | Commit | Description |
 |--------|-------------|
+| `pending` | Remove Ongoing badge, make Medical in Progress flash, add start time to headers, generate invoice on Medical Complete, fix Vitals toggle |
 | `pending` | Add profile photo editing, pet dialog population, TypeScript fixes, data privacy & T&Cs consent with timestamps |
 | `cf1289f` | Fix customer portal bugs, rebuild BookAppointment with doctor carousel and dynamic availability |
 | `f412029` | Fix breadcrumb navigation - use onClick handlers with tab state for Dashboard pages |
@@ -232,10 +233,11 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 1. Test PDF invoice generation with real data
 2. Test Visit Summary tab with seeded data
 3. Verify Google Drive uploads work end-to-end
-4. Run full lint/build before next commit
+4. Test full appointment lifecycle (confirm → start → medical-complete → bill → pay → close)
+5. If "ThemeContext invalid hook call" error appears in console: disable MetaMask extension for localhost (SES lockdown removes `Proxy`), or use `npm run build && npx serve dist`
 
 ### 🗂️ Key Files Modified
-- `src/pages/crm/emr-page.tsx` - EMR page with VisitSummaryTab, mode detection, Quick Start Visit, PDF download
+- `src/pages/crm/emr-page.tsx` - EMR page with VisitSummaryTab, mode detection, Quick Start Visit, PDF download, vitals form toggle, start time in header
 - `src/pages/crm/patient-profile.tsx` - Quick Start Visit, doctor selector
 - `src/pages/crm/appointment-details-page.tsx` - Service management, notes display
 - `src/pages/crm/admin-services.tsx` - Admin UI for service catalog, provider/resource management
@@ -278,3 +280,4 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `pet-dialog.tsx` photo preview: if `pet.imageUrl` exists and doesn't start with `data:`, sets preview directly
 - Calendar component disables days by checking `day < startOfToday()` or custom `disabledDays` set
 - Bell notification dropdown renders `Notification` objects from `getNotifications` and calls `markAsRead` on click
+- "ThemeContext invalid hook call" error in console is caused by MetaMask SES lockdown removing `Proxy` – disable MetaMask for localhost or use production build
