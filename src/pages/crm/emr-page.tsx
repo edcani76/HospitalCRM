@@ -691,22 +691,35 @@ Mode: Walk-in`,
         const allVitals = await fetchAllPatientVitals(patientId || '');
         setAllPatientVitals(allVitals);
 
+        // Fetch service catalog
+        const catalogData = await fetchServiceCatalog();
+        setServiceCatalog(catalogData);
+
+        // Fetch appointments for mode cross-reference and scheduled check
+        const { fetchAppointments } = await import('../../lib/firestore-helpers');
+        const appointmentsData = await fetchAppointments({ petId: patientId });
+
         // Check for active encounter (in-progress with startedAt)
         const activeEncounter = encounterData.find((e: any) => 
           e.status === 'in-progress' && e.startedAt
         );
-        const hasActiveEncounter = !!activeEncounter;
 
         // Check for medical-completed encounter
         const medCompleteEncounter = encounterData.find((e: any) =>
           e.status === 'medical-completed'
         );
 
-        // Set mode based on encounter status
-        if (hasActiveEncounter) {
-          setMode('active');
-        } else if (medCompleteEncounter) {
+        // Cross-reference: if active encounter's appointment is medical-completed,
+        // treat as medical-completed (handles legacy encounters not updated)
+        const isActiveReallyMedComplete = activeEncounter && !medCompleteEncounter
+          ? appointmentsData.some((a: any) => a.id === activeEncounter.appointmentId && a.status === 'medical-completed')
+          : false;
+
+        // Set mode based on encounter + appointment status
+        if (medCompleteEncounter || isActiveReallyMedComplete) {
           setMode('medical-completed');
+        } else if (activeEncounter) {
+          setMode('active');
         } else {
           setMode('view');
         }
@@ -728,13 +741,7 @@ Mode: Walk-in`,
           setSelectedEncounter(encounterData[0]);
         }
 
-        // Fetch service catalog
-        const catalogData = await fetchServiceCatalog();
-        setServiceCatalog(catalogData);
-
         // Check for scheduled appointments (unconfirmed/confirmed) that haven't started
-        const { fetchAppointments } = await import('../../lib/firestore-helpers');
-        const appointmentsData = await fetchAppointments({ petId: patientId });
         const scheduled = appointmentsData.find((apt: any) =>
           (apt.status === 'unconfirmed' || apt.status === 'confirmed') &&
           !encounterData.some((enc: any) => enc.appointmentId === apt.id)
