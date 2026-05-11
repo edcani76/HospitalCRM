@@ -79,6 +79,8 @@ function getStatusBadge(status: string) {
   switch (status) {
     case 'in-progress':
       return <Badge className="bg-blue-600 text-white">In Progress</Badge>;
+    case 'medical-completed':
+      return <Badge className="bg-purple-600 text-white">Medical Complete</Badge>;
     case 'completed':
       return <Badge variant="success">Completed</Badge>;
     case 'confirmed':
@@ -422,6 +424,7 @@ function VisitSummaryTab({ patient, owner, encounter, encounters, vitals, servic
                     <div className={cn(
                       "w-2 h-2 rounded-full mt-1 shrink-0",
                       enc.status === 'in-progress' ? "bg-blue-500 animate-pulse" :
+                      enc.status === 'medical-completed' ? "bg-purple-500" :
                       enc.status === 'completed' ? "bg-green-500" : "bg-gray-400"
                     )} />
                     <div className="min-w-0">
@@ -433,9 +436,12 @@ function VisitSummaryTab({ patient, owner, encounter, encounters, vitals, servic
                     <span className={cn(
                       "text-[10px] px-1 py-0.5 rounded shrink-0 ml-auto",
                       enc.status === 'in-progress' ? "bg-blue-100 text-blue-700" :
+                      enc.status === 'medical-completed' ? "bg-purple-100 text-purple-700" :
                       enc.status === 'completed' ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                     )}>
-                      {enc.status}
+                      {enc.status === 'in-progress' ? 'In Progress' :
+                       enc.status === 'medical-completed' ? 'Medical Complete' :
+                       enc.status === 'completed' ? 'Completed' : enc.status}
                     </span>
                   </div>
                 );
