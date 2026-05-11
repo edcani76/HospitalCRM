@@ -26,7 +26,7 @@ import {
   fetchAttachments, fetchAuditLogs,
   generateInvoiceFromEncounter, recordPayment
 } from '../../lib/firestore-helpers';
-import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp, db, auth } from '../../firebase';
+import { collection, getDocs, getDoc, addDoc, updateDoc, doc, serverTimestamp, query, where, db, auth } from '../../firebase';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -1104,6 +1104,51 @@ Mode: Walk-in`,
     }
   };
 
+  const completeService = async (service: any) => {
+    if (!service?.id) return;
+    try {
+      await updateDoc(doc(db, 'appointment_services', service.id), {
+        status: 'completed',
+        completedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      const updatedServices = await fetchAppointmentServices(selectedEncounter.id);
+      setAppointmentServices(updatedServices);
+
+      const allComplete = updatedServices.every((s: any) => s.status === 'completed');
+      if (allComplete && updatedServices.length > 0 && !invoice) {
+        const billableServices = updatedServices.filter((s: any) => s.billable !== false);
+        if (billableServices.length > 0) {
+          await generateInvoiceFromEncounter(
+            selectedEncounter.id,
+            billableServices,
+            patientId || '',
+            selectedEncounter.ownerId || patient?.ownerUid || ''
+          );
+          const [inv, items, pays] = await Promise.all([
+            fetchInvoicesByEncounter(selectedEncounter.id),
+            fetchInvoiceItems(''),
+            fetchPayments('')
+          ]);
+          if (inv.length > 0) {
+            setInvoice(inv[0]);
+            const [invItems, invPays] = await Promise.all([
+              fetchInvoiceItems(inv[0].id),
+              fetchPayments(inv[0].id)
+            ]);
+            setInvoiceItems(invItems);
+            setPayments(invPays);
+          }
+          alert('All services completed. Draft invoice has been generated.');
+        }
+      }
+    } catch (error) {
+      console.error('Error completing service:', error);
+      alert('Error completing service. Please try again.');
+    }
+  };
+
   const prescribeMedication = async () => {
     if (!selectedEncounter?.id || !formData.serviceCatalogId) return;
 
@@ -2027,9 +2072,18 @@ Mode: Walk-in`,
                         {srv.serviceType} • {srv.source} • Qty: {srv.quantity}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex items-center gap-2">
                       <p className="font-bold">₱{srv.unitPrice * srv.quantity}</p>
                       {getStatusBadge(srv.status)}
+                      {srv.status === 'in-progress' && (
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                          onClick={() => completeService(srv)}
+                        >
+                          Complete
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
