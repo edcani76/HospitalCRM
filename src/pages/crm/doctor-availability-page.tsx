@@ -9,6 +9,7 @@ import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { CalendarPlus, Trash2, Save, RotateCcw } from 'lucide-react';
 import { db, auth, collection, getDocs, doc, getDoc, updateDoc } from '../../firebase';
+import { addAuditLog } from '../../lib/firestore-helpers';
 import { Doctor } from '../../types';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -166,6 +167,7 @@ export default function DoctorAvailabilityPage() {
         blockedDates,
         updatedAt: new Date()
       });
+      await addAuditLog({ action: 'doctor_schedule_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', details: `Updated schedule for ${doctor?.name}` });
       alert('✓ Availability saved successfully!');
     } catch (error) {
       console.error('Error saving availability:', error);

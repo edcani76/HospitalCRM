@@ -6,8 +6,8 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table';
 import { Badge } from '../../components/ui/badge';
 import { Plus, Users, Loader2, Calendar, Trash2 } from 'lucide-react';
-import { fetchDoctors } from '../../lib/firestore-helpers';
-import { db, doc, updateDoc, collection, getDocs } from '../../firebase';
+import { fetchDoctors, addAuditLog } from '../../lib/firestore-helpers';
+import { db, auth, doc, updateDoc, collection, getDocs } from '../../firebase';
 
 const DEFAULT_TIME_SLOTS = [
   '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM',
@@ -57,6 +57,7 @@ export default function StaffManagementPage() {
       let count = 0;
       for (const document of snapshot.docs) {
         await updateDoc(doc(db, 'doctors', document.id), { availability });
+        await addAuditLog({ action: 'doctor_availability_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', details: 'Bulk seeded availability for all doctors' });
         count++;
       }
       alert(`✓ Seeded availability for ${count} doctor(s)!`);
@@ -73,6 +74,7 @@ export default function StaffManagementPage() {
     try {
       const availability = generateWeeklyAvailability();
       await updateDoc(doc(db, 'doctors', doctorId), { availability });
+      await addAuditLog({ action: 'doctor_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', details: `Seeded availability for doctor ${doctorId}` });
       alert('✓ Availability seeded!');
       loadDoctors();
     } catch (error) {

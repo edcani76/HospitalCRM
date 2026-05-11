@@ -24,7 +24,7 @@ import {
   fetchLabOrders, fetchPrescriptions, fetchDispensingRecords,
   fetchInvoicesByEncounter, fetchInvoiceItems, fetchPayments,
   fetchAttachments, fetchAuditLogs, fetchUsers,
-  generateInvoiceFromEncounter, recordPayment
+  generateInvoiceFromEncounter, recordPayment, addAuditLog
 } from '../../lib/firestore-helpers';
 import { collection, getDocs, getDoc, addDoc, updateDoc, doc, serverTimestamp, query, where, db, auth } from '../../firebase';
 import {
@@ -414,18 +414,7 @@ function VisitSummaryTab({ patient, owner, encounter, encounters, vitals, servic
               {timeline.map((enc: any, idx: number) => {
                 const encTime = enc.startedAt?.toDate?.() || enc.createdAt?.toDate?.();
                 const isCurrent = enc.id === encounter.id;
-  const isReadOnly = mode !== 'active';
-
-  // Disable edit modes when encounter is medical-completed
-  useEffect(() => {
-    if (mode === 'medical-completed') {
-      setVitalsEditMode(false);
-      setNotesEditMode(false);
-      setShowAddForm(false);
-    }
-  }, [mode]);
-
-  return (
+                return (
                   <div key={enc.id} className={cn(
                     "flex items-start gap-2 text-xs p-2 rounded-md",
                     isCurrent ? "bg-blue-100 border border-blue-200" : ""
@@ -586,6 +575,7 @@ Mode: Walk-in`,
         updatedAt: serverTimestamp()
       };
       const aptRef = await addDoc(collection(db, 'appointments'), aptData);
+      await addAuditLog({ action: 'appointment_created', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: 'Quick Start Visit' });
       const aptId = aptRef.id;
       
       // 2. Auto-confirm appointment
@@ -593,6 +583,7 @@ Mode: Walk-in`,
         status: 'confirmed',
         updatedAt: serverTimestamp()
       });
+      await addAuditLog({ action: 'appointment_confirmed', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: 'Quick Start Visit' });
       
       // 3. Create encounter (Quick Start)
       const encounterData = {
@@ -611,6 +602,7 @@ Mode: Walk-in`,
         updatedAt: serverTimestamp()
       };
       const encRef = await addDoc(collection(db, 'encounters'), encounterData);
+      await addAuditLog({ action: 'encounter_created', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: encRef.id, patientId: patientId, details: 'Quick Start Visit started' });
       const encounterId = encRef.id;
       
       // 4. Create service records for ALL services
@@ -640,7 +632,8 @@ Mode: Walk-in`,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         };
-        await addDoc(collection(db, 'appointment_services'), serviceData);
+        const svcRef2 = await addDoc(collection(db, 'appointment_services'), serviceData);
+        await addAuditLog({ action: 'service_created', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: encounterId, patientId: patientId, details: 'Quick Start service' });
       }
       
       // 5. Navigate directly to EMR with encounterId
@@ -938,7 +931,8 @@ Mode: Walk-in`,
       };
 
       // Save to triage_vitals collection
-      await addDoc(collection(db, 'triage_vitals'), vitalsData);
+      const vitalsRef = await addDoc(collection(db, 'triage_vitals'), vitalsData);
+      await addAuditLog({ action: 'vitals_saved', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
 
       // Update encounter's vitals field
       const encounterRef = doc(db, 'encounters', selectedEncounter.id);
@@ -954,6 +948,7 @@ Mode: Walk-in`,
         },
         updatedAt: serverTimestamp()
       });
+      await addAuditLog({ action: 'encounter_vitals_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
 
       // Refresh vitals list
       const updatedVitals = await fetchTriageVitals(selectedEncounter.id);
@@ -998,9 +993,11 @@ Mode: Walk-in`,
         // Update the latest notes document
         const latest = existingNotes[existingNotes.length - 1];
         await updateDoc(doc(db, 'clinical_notes', latest.id), notesData);
+        await addAuditLog({ action: 'clinical_notes_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
       } else {
         // Create new notes document
         await addDoc(collection(db, 'clinical_notes'), { ...notesData, createdAt: serverTimestamp() });
+        await addAuditLog({ action: 'clinical_notes_created', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
       }
 
       // Update encounter's clinicalNotes field
@@ -1017,6 +1014,7 @@ Mode: Walk-in`,
         },
         updatedAt: serverTimestamp()
       });
+      await addAuditLog({ action: 'encounter_notes_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
 
       // Refresh clinical notes
       const updatedNotes = await fetchClinicalNotes(selectedEncounter.id);
@@ -1070,6 +1068,7 @@ Mode: Walk-in`,
       };
 
       const serviceRef = await addDoc(collection(db, 'appointment_services'), serviceData);
+      await addAuditLog({ action: 'service_added', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: catalogItem.name });
 
       // If lab test, create lab_order
       if (catalogItem.category === 'lab') {
@@ -1083,6 +1082,7 @@ Mode: Walk-in`,
           orderedBy: 'current-user', // Replace with actual user ID
           orderedAt: now
         });
+        await addAuditLog({ action: 'lab_ordered', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: catalogItem.name });
       }
 
       // If medication, create prescription
@@ -1102,6 +1102,7 @@ Mode: Walk-in`,
           prescribedBy: 'current-user', // Replace with actual user ID
           prescribedAt: now
         });
+        await addAuditLog({ action: 'medication_prescribed', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
       }
 
       // Refresh services list
@@ -1135,6 +1136,7 @@ Mode: Walk-in`,
         completedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
+      await addAuditLog({ action: 'service_completed', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
 
       const updatedServices = await fetchAppointmentServices(selectedEncounter.id);
       setAppointmentServices(updatedServices);
@@ -1184,6 +1186,7 @@ Mode: Walk-in`,
           createdAt: serverTimestamp()
         };
         await addDoc(collection(db, 'invoice_items'), newItem);
+        await addAuditLog({ action: 'invoice_item_added', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
 
         // Recalculate invoice totals
         const allItems = await fetchInvoiceItems(invoice.id);
@@ -1195,6 +1198,7 @@ Mode: Walk-in`,
           balanceDue: newSubTotal - (invoice.amountPaid || 0),
           updatedAt: serverTimestamp()
         });
+        await addAuditLog({ action: 'invoice_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
 
         // Refresh invoice data
         const [inv, invItems, invPays] = await Promise.all([
@@ -1244,6 +1248,7 @@ Mode: Walk-in`,
       };
 
       await addDoc(collection(db, 'prescriptions'), rxData);
+      await addAuditLog({ action: 'medication_prescribed', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
 
       // Refresh prescriptions
       const updatedRx = await fetchPrescriptions(selectedEncounter.id);
@@ -1295,6 +1300,7 @@ Mode: Walk-in`,
       };
 
       const serviceRef = await addDoc(collection(db, 'appointment_services'), serviceData);
+      await addAuditLog({ action: 'medication_dispensed', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
 
       // Create dispensing record
       const dispenseData = {
@@ -1312,6 +1318,7 @@ Mode: Walk-in`,
       };
 
       await addDoc(collection(db, 'dispensing_records'), dispenseData);
+      await addAuditLog({ action: 'dispensing_recorded', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
 
       // Update prescription status
       const rxRef = doc(db, 'prescriptions', prescriptionId);
@@ -1319,6 +1326,7 @@ Mode: Walk-in`,
         status: 'dispensed',
         updatedAt: now
       });
+      await addAuditLog({ action: 'prescription_dispensed', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
 
       // Update inventory (reduce stock)
       if (catalogItem?.inventoryItemId) {
@@ -1373,6 +1381,7 @@ Mode: Walk-in`,
       };
 
       await addDoc(collection(db, 'attachments'), attachmentData);
+      await addAuditLog({ action: 'file_uploaded', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: file.name });
 
       // Refresh attachments list
       const updatedAttachments = await fetchAttachments(selectedEncounter.id);
@@ -1544,6 +1553,16 @@ Mode: Walk-in`,
     if (id.includes(' ') || id.length > 28) return id;
     return id;
   };
+  const isReadOnly = mode !== 'active';
+
+  // Disable edit modes when encounter is medical-completed
+  useEffect(() => {
+    if (mode === 'medical-completed') {
+      setVitalsEditMode(false);
+      setNotesEditMode(false);
+      setShowAddForm(false);
+    }
+  }, [mode]);
 
   return (
     <div>

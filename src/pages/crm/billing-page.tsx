@@ -11,8 +11,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/table';
 import { SearchBar } from '../../components/ui/search-bar';
 import { Plus, Eye, FileText, X, Loader2, Search, Printer, MoreHorizontal, DollarSign, Download, Send, Ban, RotateCcw } from 'lucide-react';
-import { fetchInvoices, fetchPets, fetchUsers, fetchInvoiceItems, fetchPayments, recordPayment } from '../../lib/firestore-helpers';
-import { collection, addDoc, serverTimestamp, updateDoc, doc, db } from '../../firebase';
+import { fetchInvoices, fetchPets, fetchUsers, fetchInvoiceItems, fetchPayments, recordPayment, addAuditLog } from '../../lib/firestore-helpers';
+import { collection, addDoc, serverTimestamp, updateDoc, doc, db, auth } from '../../firebase';
 import { format, isPast, parseISO } from 'date-fns';
 
 type TabType = 'all' | 'unpaid' | 'partial' | 'paid' | 'overdue' | 'pending';
@@ -213,6 +213,12 @@ export default function BillingPage() {
       await recordPayment(selectedBill.id, payAmount, payMethod, payRef);
       const updated = await fetchInvoices();
       setBills(updated);
+      addAuditLog({
+        action: 'payment_recorded',
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || undefined,
+        details: `₱${payAmount} via ${payMethod}${payRef ? ' ref:' + payRef : ''}`,
+      });
       setIsPayDialogOpen(false);
       setSelectedBill(null);
     } catch (err) {
@@ -240,6 +246,12 @@ export default function BillingPage() {
       };
       const docRef = await addDoc(collection(db, 'invoices'), newInvoice);
       setBills(prev => [...prev, { ...newInvoice, id: docRef.id }]);
+      addAuditLog({
+        action: 'invoice_created',
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || undefined,
+        details: `Invoice created for ${formData.petId}`,
+      });
       setIsAddDialogOpen(false);
       setFormData({ petId: '', clientUid: '', description: '', amount: 0, status: 'active', dueDate: '' });
     } catch (error) {

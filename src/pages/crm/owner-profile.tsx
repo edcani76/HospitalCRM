@@ -24,7 +24,8 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { PageHeader } from '../../components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { db, doc, getDoc, collection, getDocs, query, where } from '../../firebase';
+import { db, auth, doc, getDoc, collection, getDocs, query, where } from '../../firebase';
+import { addAuditLog } from '../../lib/firestore-helpers';
 import PetDialog from '../../components/crm/pet-dialog';
 
 interface OwnerProfile {
@@ -150,6 +151,7 @@ export default function OwnerProfilePage() {
       };
 
       const docRef = await addDoc(coll(db, 'pets'), newPet);
+      await addAuditLog({ action: 'pet_created', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', details: `Created pet ${formData.name}` });
       
       // Add to local state
       setOwnerPets(prev => [...prev, { id: docRef.id, ...newPet }]);

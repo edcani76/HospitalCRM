@@ -621,3 +621,24 @@ export async function fetchUsers(role?: string) {
   };
   return fetchWithCache('users', queryFn);
 }
+
+export async function addAuditLog(data: {
+  action: string;
+  userId: string;
+  userName?: string;
+  encounterId?: string;
+  patientId?: string;
+  appointmentId?: string;
+  details?: string;
+}) {
+  const now = serverTimestamp();
+  const logEntry = {
+    ...data,
+    timestamp: now,
+    createdAt: now
+  };
+  await addDoc(collection(db, 'auditLogs'), logEntry);
+  // Also invalidate cache
+  const { removeCached } = await import('./offline-cache');
+  removeCached('auditLogs');
+}

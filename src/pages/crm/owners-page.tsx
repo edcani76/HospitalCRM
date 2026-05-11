@@ -39,7 +39,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
-import { db, collection, getDocs, query, where, addDoc, updateDoc, deleteDoc, doc } from '../../firebase';
+import { db, auth, collection, getDocs, query, where, addDoc, updateDoc, deleteDoc, doc } from '../../firebase';
+import { addAuditLog } from '../../lib/firestore-helpers';
 
 interface Owner {
   id: string;
@@ -198,6 +199,7 @@ export default function OwnersPage() {
       };
       
       await updateDoc(doc(db, 'users', editingOwner.id), updatedData);
+      await addAuditLog({ action: 'owner_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', details: `Updated owner ${editingOwner.displayName || editingOwner.name}` });
       setIsEditModalOpen(false);
       setEditingOwner(null);
       fetchData(); // Refresh the list

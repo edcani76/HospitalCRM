@@ -10,6 +10,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { db, auth, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from '../../firebase';
+import { addAuditLog } from '../../lib/firestore-helpers';
 import { format, differenceInDays } from 'date-fns';
 import { 
   Plus, Search, Calendar, Clock, User, Stethoscope, Heart, 
@@ -154,6 +155,7 @@ export default function AdmissionsPage() {
       };
       
       await addDoc(collection(db, 'admissions'), newAdmission);
+      await addAuditLog({ action: 'admission_created', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', details: `Admitted ${admitForm.petName}` });
       await fetchAdmissions();
       setIsAdmitDialogOpen(false);
       resetAdmitForm();
@@ -179,6 +181,7 @@ export default function AdmissionsPage() {
         actualDischarge: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
+      await addAuditLog({ action: 'admission_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', details: `Discharged ${selectedAdmission.petName}` });
       
       // Create discharge summary
       await addDoc(collection(db, 'discharge_summaries'), {
@@ -193,6 +196,7 @@ export default function AdmissionsPage() {
         signedBy: auth.currentUser?.uid || '',
         createdAt: serverTimestamp()
       });
+      await addAuditLog({ action: 'discharge_summary_created', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', details: `Discharge summary for ${selectedAdmission.petName}` });
       
       await fetchAdmissions();
       setIsDischargeDialogOpen(false);

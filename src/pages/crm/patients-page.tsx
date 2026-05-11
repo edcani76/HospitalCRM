@@ -12,8 +12,9 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
-import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from '../../firebase';
+import { db, auth, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from '../../firebase';
 import { uploadToGoogleDrive } from '../../lib/google-drive';
+import { addAuditLog } from '../../lib/firestore-helpers';
 import PetDialog from '../../components/crm/pet-dialog';
 
 interface Patient {
@@ -183,6 +184,12 @@ export default function PatientsPage() {
         createdAt: new Date().toISOString()
       };
       await addDoc(collection(db, 'pets'), newPet);
+      await addAuditLog({
+        action: 'pet_created',
+        details: formData.name,
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || undefined,
+      });
       setIsAddModalOpen(false);
       fetchData();
     } catch (error) {
@@ -212,6 +219,12 @@ export default function PatientsPage() {
         bloodType: formData.bloodType,
       };
       await updateDoc(doc(db, 'pets', editingPatient.id), updatedData);
+      await addAuditLog({
+        action: 'pet_updated',
+        details: editingPatient.name,
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || undefined,
+      });
       setIsEditModalOpen(false);
       setEditingPatient(null);
       fetchData();
@@ -232,6 +245,12 @@ export default function PatientsPage() {
     if (!deletingPatient) return;
     try {
       await deleteDoc(doc(db, 'pets', deletingPatient.id));
+      await addAuditLog({
+        action: 'pet_deleted',
+        details: deletingPatient.name,
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || undefined,
+      });
       setIsDeleteModalOpen(false);
       setDeletingPatient(null);
       fetchData();

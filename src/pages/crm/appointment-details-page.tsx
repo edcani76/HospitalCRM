@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { db, auth } from '../../firebase';
 import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion, addDoc, serverTimestamp, query, where } from '../../firebase';
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
-import { generateInvoiceFromEncounter } from '../../lib/firestore-helpers';
+import { generateInvoiceFromEncounter, addAuditLog } from '../../lib/firestore-helpers';
 import { format } from 'date-fns';
 import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft, Play, Plus, Activity } from 'lucide-react';
 import { Appointment, Doctor } from '../../types';
@@ -285,6 +285,15 @@ export default function AppointmentDetailsPage() {
             updatedAt: new Date().toISOString()
           });
 
+          await addAuditLog({
+            action: 'status_changed',
+            userId: auth.currentUser?.uid || 'unknown',
+            userName: auth.currentUser?.displayName || undefined,
+            appointmentId: appointment.id,
+            patientId: appointment?.petId || '',
+            details: 'Status changed to no-show'
+          });
+
           // Send notifications
           await notifyDoctor(appointment.doctorId, 'appointment_no_show', 'Appointment No-Show',
             `Appointment for ${appointment.petName} on ${appointment.date} was automatically marked as No-Show.`);
@@ -388,6 +397,15 @@ export default function AppointmentDetailsPage() {
       updateData.audit = arrayUnion(auditEntry);
       await updateDoc(aptRef, updateData);
 
+      await addAuditLog({
+        action: 'appointment_updated',
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || undefined,
+        appointmentId: appointment.id,
+        patientId: appointment?.petId || '',
+        details: `Selected services/changes: ${changes.join(', ')}`
+      });
+
       // Send notification to doctor
       const changeText = changes.length > 0 ? `Changes: ${changes.join(', ')}` : 'Appointment updated';
       await notifyDoctor(selectedDoctorId, 'appointment_updated', 'Appointment Updated',
@@ -439,6 +457,15 @@ export default function AppointmentDetailsPage() {
         cancelReason: cancelReason || 'Not specified',
         audit: arrayUnion(auditEntry),
         updatedAt: new Date().toISOString()
+      });
+
+      await addAuditLog({
+        action: 'cancelled',
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || undefined,
+        appointmentId: appointment.id,
+        patientId: appointment?.petId || '',
+        details: `Cancelled: ${cancelReason || 'Not specified'}`
       });
 
       // Send notifications
@@ -493,6 +520,14 @@ export default function AppointmentDetailsPage() {
         updatedAt: new Date().toISOString()
       });
 
+      await addAuditLog({
+        action: 'confirmed',
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || undefined,
+        appointmentId: appointment.id,
+        patientId: appointment?.petId || ''
+      });
+
       // Send notifications
       await notifyDoctor(appointment.doctorId, 'appointment_confirmed', 'Appointment Confirmed',
         `Appointment for ${appointment.petName} on ${appointment.date} at ${appointment.time} has been confirmed.`);
@@ -539,6 +574,15 @@ export default function AppointmentDetailsPage() {
         updatedAt: startTime
       });
 
+      await addAuditLog({
+        action: 'in-progress',
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || undefined,
+        appointmentId: appointment.id,
+        patientId: appointment?.petId || '',
+        details: 'Appointment started'
+      });
+
       // Refresh local appointment state so audit trail reflects the "started" entry
       const updatedSnap = await getDoc(aptRef);
       if (updatedSnap.exists()) {
@@ -580,6 +624,16 @@ export default function AppointmentDetailsPage() {
       const encounterRef = await addDoc(collection(db, 'encounters'), encounterData);
       const encounterId = encounterRef.id;
 
+      await addAuditLog({
+        action: 'encounter_created',
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || undefined,
+        appointmentId: appointment.id,
+        patientId: appointment?.petId || '',
+        encounterId: encounterId,
+        details: 'Encounter started'
+      });
+
       // Create appointment_service records for ALL services
       // First try new format: "Services: consultation, vaccination"
       let serviceTypes = appointment.notes?.match(/Services:\s*([^\n]+)/i)?.[1]?.split(',').map((s: string) => s.trim()).filter(Boolean) || [];
@@ -619,6 +673,16 @@ export default function AppointmentDetailsPage() {
         };
         
         const serviceRef = await addDoc(collection(db, 'appointment_services'), serviceData);
+
+        await addAuditLog({
+          action: 'service_created',
+          userId: auth.currentUser?.uid || 'unknown',
+          userName: auth.currentUser?.displayName || undefined,
+          encounterId: encounterId,
+          patientId: appointment?.petId || '',
+          details: `Service: ${svcType}`
+        });
+
         createdServices.push({ serviceCode: svcType.toUpperCase().slice(0, 3), serviceName, serviceFee });
       }
       
@@ -844,11 +908,29 @@ export default function AppointmentDetailsPage() {
                                 medicalCompletedBy: user?.uid || 'unknown'
                               });
 
+                              await addAuditLog({
+                                action: 'medical_completed',
+                                userId: auth.currentUser?.uid || 'unknown',
+                                userName: auth.currentUser?.displayName || undefined,
+                                appointmentId: appointment.id,
+                                patientId: appointment?.petId || '',
+                                encounterId: emrId || '',
+                                details: 'Medical services completed'
+                              });
+
                               // Also update the encounter status
                               if (emrId) {
                                 await updateDoc(doc(db, 'encounters', emrId), {
                                   status: 'medical-completed',
                                   updatedAt: serverTimestamp()
+                                });
+
+                                await addAuditLog({
+                                  action: 'encounter_medical_completed',
+                                  userId: auth.currentUser?.uid || 'unknown',
+                                  userName: auth.currentUser?.displayName || undefined,
+                                  encounterId: emrId,
+                                  details: 'Encounter marked medical-completed'
                                 });
                               }
 

@@ -8,8 +8,8 @@ import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Badge } from '../../components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
-import { fetchServiceCatalog, fetchAllResources, addServiceToCatalog, updateServiceCatalog, updateServiceProviders, addResource, updateResourceStatus } from '../../lib/firestore-helpers';
-import { db, collection, getDocs, doc, updateDoc } from '../../firebase';
+import { fetchServiceCatalog, fetchAllResources, addServiceToCatalog, updateServiceCatalog, updateServiceProviders, addResource, updateResourceStatus, addAuditLog } from '../../lib/firestore-helpers';
+import { db, auth, collection, getDocs, doc, updateDoc } from '../../firebase';
 import { Plus, Search, Edit2, Trash2, Eye, EyeOff, Filter, Package, Settings, Save, X } from 'lucide-react';
 
 type TabType = 'services' | 'resources';
@@ -148,6 +148,7 @@ export default function AdminServicesPage() {
           ...resourceForm,
           updatedAt: new Date(),
         });
+        await addAuditLog({ action: 'resource_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', details: `Updated resource ${resourceForm.name}` });
       } else {
         await addResource(resourceForm);
       }

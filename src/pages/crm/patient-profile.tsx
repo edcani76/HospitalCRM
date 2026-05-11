@@ -39,6 +39,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { db, auth, collection, getDocs, getDoc, addDoc, updateDoc, doc, query, where, serverTimestamp } from '../../firebase';
 import PetDialog from '../../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../../lib/google-drive';
+import { addAuditLog } from '../../lib/firestore-helpers';
 
 interface PatientProfile {
   id: string;
@@ -285,6 +286,14 @@ export default function PatientProfilePage() {
           ]
         });
 
+        addAuditLog({
+          action: 'pet_updated',
+          userId: auth.currentUser?.uid || 'unknown',
+          userName: auth.currentUser?.displayName || 'Unknown',
+          patientId: patient.id,
+          details: 'Profile photo updated'
+        });
+
         setPatient({ ...patient, imageUrl: finalImageUrl });
         setIsPhotoActionModalOpen(false);
         setTempPhoto(null);
@@ -352,6 +361,14 @@ export default function PatientProfilePage() {
 
       await updateDoc(doc(db, 'pets', patient.id), updatedData);
 
+      addAuditLog({
+        action: 'pet_updated',
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || 'Unknown',
+        patientId: patient.id,
+        details: `Patient record updated: ${formData.name || patient.name}`
+      });
+
       setPatient({ ...patient, ...updatedData });
       setIsEditModalOpen(false);
     } catch (error) {
@@ -411,12 +428,27 @@ export default function PatientProfilePage() {
         updatedAt: serverTimestamp()
       };
       const aptRef = await addDoc(collection(db, 'appointments'), aptData);
+      addAuditLog({
+        action: 'appointment_created',
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || 'Unknown',
+        patientId: patient.id,
+        details: `Walk-in appointment created for ${patient.name}`
+      });
       const aptId = aptRef.id;
-      
+
       // 2. Auto-confirm appointment
       await updateDoc(doc(db, 'appointments', aptId), {
         status: 'confirmed',
         updatedAt: serverTimestamp()
+      });
+      addAuditLog({
+        action: 'appointment_confirmed',
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || 'Unknown',
+        patientId: patient.id,
+        appointmentId: aptId,
+        details: `Appointment auto-confirmed for walk-in visit`
       });
       
       // 3. Create encounter (Quick Start)
@@ -436,6 +468,14 @@ export default function PatientProfilePage() {
         updatedAt: serverTimestamp()
       };
       const encRef = await addDoc(collection(db, 'encounters'), encounterData);
+      addAuditLog({
+        action: 'encounter_created',
+        userId: auth.currentUser?.uid || 'unknown',
+        userName: auth.currentUser?.displayName || 'Unknown',
+        patientId: patient.id,
+        encounterId: encRef.id,
+        details: `Walk-in encounter created for ${patient.name} with Dr. ${selectedDoctorName}`
+      });
       const encounterId = encRef.id;
       
       // 4. Create initial services
@@ -467,7 +507,15 @@ export default function PatientProfilePage() {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         };
-        await addDoc(collection(db, 'appointment_services'), serviceData);
+        const svcRef = await addDoc(collection(db, 'appointment_services'), serviceData);
+        addAuditLog({
+          action: 'service_created',
+          userId: auth.currentUser?.uid || 'unknown',
+          userName: auth.currentUser?.displayName || 'Unknown',
+          patientId: patient.id,
+          encounterId: encounterId,
+          details: `Service "${svcType}" created for walk-in visit`
+        });
       }
       
       // 5. Navigate directly to EMR with encounterId
