@@ -42,6 +42,22 @@ export default function EMRDirectory() {
             activePetIds.set(data.petId, data.status);
           }
         });
+
+        // Also check medical-completed appointments to catch encounters not yet updated
+        try {
+          const medCompleteAppts = await getDocs(
+            query(collection(db, 'appointments'), where('status', '==', 'medical-completed'))
+          );
+          medCompleteAppts.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.petId && activePetIds.has(data.petId)) {
+              activePetIds.set(data.petId, 'medical-completed');
+            }
+          });
+        } catch (e) {
+          // Appointments collection may not have composite index, non-critical
+        }
+
         setActiveEncounters(activePetIds);
       } catch (error) {
         console.error('Error loading data:', error);
