@@ -530,7 +530,7 @@ export default function AppointmentsPage() {
                             const isAvailable = availableSlots === null || availableSlots.has(slot);
                             const appts = appointmentsByDoctorAndSlot[doc.id]?.[slot] || [];
 
-                            if (!isAvailable) {
+                            if (!isAvailable && appts.length === 0) {
                               return (
                                 <td key={doc.id} className="p-2">
                                   <div className="bg-stone-100 rounded-lg p-2 text-center border border-stone-200 border-dashed">
