@@ -611,7 +611,7 @@ export default function AppointmentDetailsPage() {
           unitPrice: serviceFee,
           discountAmount: 0,
           taxRate: 0,
-          performedBy: appointment.doctorId,
+          performedBy: appointment.doctorName || appointment.doctorId,
           completedAt: null,
           createdBy: userUid,
           createdAt: serverTimestamp(),

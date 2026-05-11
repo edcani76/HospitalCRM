@@ -490,6 +490,7 @@ export default function EMRPage() {
   const [vitalsForm, setVitalsForm] = useState<any>({});
   const [vitalsEditMode, setVitalsEditMode] = useState<boolean>(true);
   const [savingNotes, setSavingNotes] = useState(false);
+  const [notesEditMode, setNotesEditMode] = useState<boolean>(true);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -621,7 +622,7 @@ Mode: Walk-in`,
           unitPrice: serviceFee,
           discountAmount: 0,
           taxRate: 0,
-          performedBy: selectedDoctorId || userUid,
+          performedBy: selectedDoctorName || auth.currentUser?.displayName || userUid,
           completedAt: null,
           createdBy: userUid,
           createdAt: serverTimestamp(),
@@ -765,7 +766,7 @@ Mode: Walk-in`,
 
         setAppointmentServices(services);
         setTriageVitals(vitals);
-        setClinicalNotes(notes);
+        setClinicalNotes(notes.length > 0 ? notes[notes.length - 1] : null);
         setLabOrders(labs);
         setPrescriptions(rxs);
         setDispensingRecords(dispensing);
@@ -793,6 +794,15 @@ Mode: Walk-in`,
       setVitalsEditMode(true);
     }
   }, [triageVitals]);
+
+  // Populate notes edit mode based on existing clinical notes
+  useEffect(() => {
+    if (clinicalNotes && (clinicalNotes.subjective || clinicalNotes.objective || clinicalNotes.assessment || clinicalNotes.plan)) {
+      setNotesEditMode(false);
+    } else {
+      setNotesEditMode(true);
+    }
+  }, [clinicalNotes]);
 
   const handleLegendClick = (dataKey: string) => {
     setHiddenLines(prev => {
@@ -944,6 +954,7 @@ Mode: Walk-in`,
     if (!selectedEncounter?.id) return;
     setSavingNotes(true);
     try {
+      const userName = auth.currentUser?.displayName || auth.currentUser?.email || 'Unknown';
       const notesData = {
         encounterId: selectedEncounter.id,
         patientId: patientId,
@@ -954,13 +965,20 @@ Mode: Walk-in`,
         diagnosis: formData.diagnosis || '',
         doctorNotes: formData.doctorNotes || '',
         followUpInstructions: formData.followUpInstructions || '',
-        createdBy: 'current-user', // Replace with actual user ID
-        createdAt: serverTimestamp(),
+        createdBy: userName,
         updatedAt: serverTimestamp()
       };
 
-      // Save to clinical_notes collection
-      await addDoc(collection(db, 'clinical_notes'), notesData);
+      // Check if a notes document already exists for this encounter
+      const existingNotes = await fetchClinicalNotes(selectedEncounter.id);
+      if (existingNotes.length > 0) {
+        // Update the latest notes document
+        const latest = existingNotes[existingNotes.length - 1];
+        await updateDoc(doc(db, 'clinical_notes', latest.id), notesData);
+      } else {
+        // Create new notes document
+        await addDoc(collection(db, 'clinical_notes'), { ...notesData, createdAt: serverTimestamp() });
+      }
 
       // Update encounter's clinicalNotes field
       const encounterRef = doc(db, 'encounters', selectedEncounter.id);
@@ -979,7 +997,8 @@ Mode: Walk-in`,
 
       // Refresh clinical notes
       const updatedNotes = await fetchClinicalNotes(selectedEncounter.id);
-      setClinicalNotes(updatedNotes);
+      setClinicalNotes(updatedNotes.length > 0 ? updatedNotes[updatedNotes.length - 1] : null);
+      setNotesEditMode(false);
       alert('Clinical notes saved successfully!');
     } catch (error) {
       console.error('Error saving clinical notes:', error);
@@ -1020,9 +1039,9 @@ Mode: Walk-in`,
         unitPrice: catalogItem.defaultPrice,
         discountAmount: 0,
         taxRate: catalogItem.taxable ? 0.12 : 0,
-        performedBy: 'current-user', // Replace with actual user ID
+        performedBy: auth.currentUser?.displayName || auth.currentUser?.email || 'Unknown',
         completedAt: null,
-        createdBy: 'current-user', // Replace with actual user ID
+        createdBy: auth.currentUser?.displayName || auth.currentUser?.email || 'Unknown',
         createdAt: now,
         updatedAt: now
       };
@@ -1156,9 +1175,9 @@ Mode: Walk-in`,
         unitPrice: catalogItem?.defaultPrice || 0,
         discountAmount: 0,
         taxRate: catalogItem?.taxable ? 0.12 : 0,
-        performedBy: 'current-user', // Replace with actual user ID
+        performedBy: auth.currentUser?.displayName || auth.currentUser?.email || 'Unknown',
         completedAt: now,
-        createdBy: 'current-user',
+        createdBy: auth.currentUser?.displayName || auth.currentUser?.email || 'Unknown',
         createdAt: now,
         updatedAt: now
       };
@@ -1690,22 +1709,37 @@ Mode: Walk-in`,
                     />
                   </div>
                 </div>
-                <Button
-                  type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                  disabled={savingVitals}
-                >
-                  {savingVitals ? (
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Saving...
-                    </span>
-                  ) : vitalsEditMode ? (
-                    'Save Vitals'
-                  ) : (
-                    'Edit Vitals'
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={savingVitals}
+                  >
+                    {savingVitals ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </span>
+                    ) : vitalsEditMode ? (
+                      'Save Vitals'
+                    ) : (
+                      'Edit Vitals'
+                    )}
+                  </Button>
+                  {vitalsEditMode && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const latest = triageVitals[triageVitals.length - 1];
+                        setVitalsForm(latest || {});
+                        setVitalsEditMode(false);
+                      }}
+                    >
+                      Cancel
+                    </Button>
                   )}
-                </Button>
+                </div>
               </form>
             </div>
 
@@ -1794,7 +1828,16 @@ Mode: Walk-in`,
                 {(() => {
                   const analysis = generateVitalsAnalysis();
                   if (!analysis || analysis.length === 0) return null;
-                  return (
+  const resolveName = (id: string) => {
+    if (!id) return 'Unknown';
+    const enc = encounters.find((e: any) => e.doctorId === id);
+    if (enc?.doctorName) return enc.doctorName;
+    if (owner && (owner.uid === id || owner.name === id)) return owner.name;
+    if (id.includes(' ') || id.length > 28) return id;
+    return id;
+  };
+
+  return (
                     <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl">
                       <div className="flex items-start gap-2 mb-2">
                         <Activity className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -1825,66 +1868,92 @@ Mode: Walk-in`,
             }} className="space-y-4">
               <div>
                 <Label htmlFor="subjective">Subjective</Label>
-                <Textarea
-                  id="subjective"
-                  name="subjective"
-                  value={formData.subjective || clinicalNotes?.subjective || ''}
-                  onChange={handleInputChange}
-                  className="mt-1"
-                  rows={3}
-                  placeholder="Patient history, owner's complaints..."
-                />
+                  <Textarea
+                    id="subjective"
+                    name="subjective"
+                    value={formData.subjective || clinicalNotes?.subjective || ''}
+                    onChange={handleInputChange}
+                    className="mt-1"
+                    rows={3}
+                    placeholder="Patient history, owner's complaints..."
+                    disabled={!notesEditMode}
+                  />
               </div>
               <div>
                 <Label htmlFor="objective">Objective</Label>
-                <Textarea
-                  id="objective"
-                  name="objective"
-                  value={formData.objective || clinicalNotes?.objective || ''}
-                  onChange={handleInputChange}
-                  className="mt-1"
-                  rows={3}
-                  placeholder="Physical examination findings, vitals..."
-                />
+                  <Textarea
+                    id="objective"
+                    name="objective"
+                    value={formData.objective || clinicalNotes?.objective || ''}
+                    onChange={handleInputChange}
+                    className="mt-1"
+                    rows={3}
+                    placeholder="Physical examination findings, vitals..."
+                    disabled={!notesEditMode}
+                  />
               </div>
               <div>
                 <Label htmlFor="assessment">Assessment</Label>
-                <Textarea
-                  id="assessment"
-                  name="assessment"
-                  value={formData.assessment || clinicalNotes?.assessment || ''}
-                  onChange={handleInputChange}
-                  className="mt-1"
-                  rows={3}
-                  placeholder="Diagnosis, differential diagnosis..."
-                />
+                  <Textarea
+                    id="assessment"
+                    name="assessment"
+                    value={formData.assessment || clinicalNotes?.assessment || ''}
+                    onChange={handleInputChange}
+                    className="mt-1"
+                    rows={3}
+                    placeholder="Diagnosis, differential diagnosis..."
+                    disabled={!notesEditMode}
+                  />
               </div>
               <div>
                 <Label htmlFor="plan">Plan</Label>
-                <Textarea
-                  id="plan"
-                  name="plan"
-                  value={formData.plan || clinicalNotes?.plan || ''}
-                  onChange={handleInputChange}
-                  className="mt-1"
-                  rows={3}
-                  placeholder="Treatment plan, medications..."
-                />
+                  <Textarea
+                    id="plan"
+                    name="plan"
+                    value={formData.plan || clinicalNotes?.plan || ''}
+                    onChange={handleInputChange}
+                    className="mt-1"
+                    rows={3}
+                    placeholder="Treatment plan, medications..."
+                    disabled={!notesEditMode}
+                  />
               </div>
-              <Button
-                type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                disabled={savingNotes}
-              >
-                {savingNotes ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
-                  </span>
-                ) : (
-                  'Save Clinical Notes'
-                )}
-              </Button>
+              {notesEditMode ? (
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={savingNotes}
+                  >
+                    {savingNotes ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </span>
+                    ) : (
+                      'Save Clinical Notes'
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, subjective: '', objective: '', assessment: '', plan: '' }));
+                      setNotesEditMode(false);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setNotesEditMode(true)}
+                >
+                  Edit Notes
+                </Button>
+              )}
             </form>
           </div>
         )}
@@ -2379,7 +2448,7 @@ Mode: Walk-in`,
                       <div>
                         <span className="font-medium capitalize">{log.action || log.event}</span>
                         {log.details && <span className="text-gray-600 ml-2 text-xs">{log.details}</span>}
-                        <span className="text-gray-500 ml-2 text-xs">by {log.userId || log.staff}</span>
+                        <span className="text-gray-500 ml-2 text-xs">by {resolveName(log.userId || log.staff)}</span>
                       </div>
                       <span className="text-xs text-gray-400 whitespace-nowrap">
                         {(() => {

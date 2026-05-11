@@ -461,7 +461,7 @@ export default function PatientProfilePage() {
           unitPrice: serviceFee,
           discountAmount: 0,
           taxRate: 0,
-          performedBy: selectedDoctorId || userUid,
+          performedBy: selectedDoctorName || userUid,
           completedAt: null,
           createdBy: userUid,
           createdAt: serverTimestamp(),
