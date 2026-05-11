@@ -1421,6 +1421,15 @@ Mode: Walk-in`,
     { id: 'history' as TabType, label: 'History', icon: History },
   ];
 
+  const resolveName = (id: string) => {
+    if (!id) return 'Unknown';
+    const enc = encounters.find((e: any) => e.doctorId === id);
+    if (enc?.doctorName) return enc.doctorName;
+    if (owner && (owner.uid === id || owner.name === id)) return owner.name;
+    if (id.includes(' ') || id.length > 28) return id;
+    return id;
+  };
+
   return (
     <div>
       <PageHeader
@@ -1828,14 +1837,6 @@ Mode: Walk-in`,
                 {(() => {
                   const analysis = generateVitalsAnalysis();
                   if (!analysis || analysis.length === 0) return null;
-  const resolveName = (id: string) => {
-    if (!id) return 'Unknown';
-    const enc = encounters.find((e: any) => e.doctorId === id);
-    if (enc?.doctorName) return enc.doctorName;
-    if (owner && (owner.uid === id || owner.name === id)) return owner.name;
-    if (id.includes(' ') || id.length > 28) return id;
-    return id;
-  };
 
   return (
                     <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl">
