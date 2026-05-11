@@ -686,12 +686,7 @@ Mode: Walk-in`,
         }
 
         // Fetch encounters for this patient
-        const encounterData = await fetchEncounters(patientId);
-        setEncounters(encounterData);
-
-        // Fetch all users for name resolution
-        const allUsers = await fetchUsers();
-        setUsers(allUsers);
+        let encounterData = await fetchEncounters(patientId);
 
         // Fetch ALL patient vitals for historical chart
         const allVitals = await fetchAllPatientVitals(patientId || '');
@@ -716,15 +711,30 @@ Mode: Walk-in`,
         );
 
         // Cross-reference: if active encounter's appointment is medical-completed,
-        // treat as medical-completed (handles legacy encounters not updated)
+        // treat as medical-completed and update encounter data (handles legacy encounters)
         const isActiveReallyMedComplete = activeEncounter && !medCompleteEncounter
           ? appointmentsData.some((a: any) => a.id === activeEncounter.appointmentId && a.status === 'medical-completed')
           : false;
 
+        if (isActiveReallyMedComplete && activeEncounter) {
+          encounterData = encounterData.map((e: any) =>
+            e.id === activeEncounter.id ? { ...e, status: 'medical-completed' } : e
+          );
+        }
+        setEncounters(encounterData);
+
+        // Re-find after potential update above
+        const resolvedActiveEncounter = encounterData.find((e: any) => 
+          e.status === 'in-progress' && e.startedAt
+        );
+        const resolvedMedCompleteEncounter = encounterData.find((e: any) =>
+          e.status === 'medical-completed'
+        );
+
         // Set mode based on encounter + appointment status
-        if (medCompleteEncounter || isActiveReallyMedComplete) {
+        if (resolvedMedCompleteEncounter) {
           setMode('medical-completed');
-        } else if (activeEncounter) {
+        } else if (resolvedActiveEncounter) {
           setMode('active');
         } else {
           setMode('view');
@@ -736,13 +746,13 @@ Mode: Walk-in`,
           const enc = encounterData.find((e: any) => e.id === stateEncounterId);
           if (enc) {
             setSelectedEncounter(enc);
-          } else if (activeEncounter) {
-            setSelectedEncounter(activeEncounter);
+          } else if (resolvedActiveEncounter) {
+            setSelectedEncounter(resolvedActiveEncounter);
           } else if (encounterData.length > 0) {
             setSelectedEncounter(encounterData[0]);
           }
-        } else if (activeEncounter) {
-          setSelectedEncounter(activeEncounter);
+        } else if (resolvedActiveEncounter) {
+          setSelectedEncounter(resolvedActiveEncounter);
         } else if (encounterData.length > 0) {
           setSelectedEncounter(encounterData[0]);
         }
