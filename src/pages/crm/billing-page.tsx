@@ -96,6 +96,15 @@ export default function BillingPage() {
   const getSource = (b: any) => b.source || b.encounterId ? 'Consultation' : 'Manual';
   const getInvoiceNo = (b: any) => b.invoiceNo || `INV-${b.id?.slice(0, 8)?.toUpperCase() || 'NEW'}`;
   const getDueDate = (b: any) => b.dueDate || '—';
+  const getInvoiceDate = (b: any) => {
+    if (b.createdAt?.toDate) {
+      try { return format(b.createdAt.toDate(), 'MMM dd, yyyy'); } catch {}
+    }
+    if (b.date) {
+      try { return format(parseISO(b.date), 'MMM dd, yyyy'); } catch {}
+    }
+    return '—';
+  };
 
   // Filtered and computed
   const filteredBills = useMemo(() => {
@@ -143,6 +152,13 @@ export default function BillingPage() {
         return true;
       });
     }
+
+    // Sort newest first
+    list = [...list].sort((a, b) => {
+      const aDate = a.createdAt?.toDate?.()?.getTime() || (a.date ? new Date(a.date).getTime() : 0);
+      const bDate = b.createdAt?.toDate?.()?.getTime() || (b.date ? new Date(b.date).getTime() : 0);
+      return bDate - aDate;
+    });
 
     return list;
   }, [bills, activeTab, searchQuery, statusFilter, sourceFilter, dateFilter]);
@@ -464,7 +480,7 @@ export default function BillingPage() {
                       return (
                         <TableRow key={bill.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleView(bill)}>
                           <TableCell className="font-mono text-xs">{getInvoiceNo(bill)}</TableCell>
-                          <TableCell className="text-xs">{bill.date || '—'}</TableCell>
+                          <TableCell className="text-xs">{getInvoiceDate(bill)}</TableCell>
                           <TableCell className="text-sm">{getOwnerName(bill)}</TableCell>
                           <TableCell className="font-medium">{bill.petName || '—'}</TableCell>
                           <TableCell><Badge variant="outline" className="text-xs">{getSource(bill)}</Badge></TableCell>
@@ -542,7 +558,7 @@ export default function BillingPage() {
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Date</p>
-                      <p>{selectedBill.date || '—'}</p>
+                      <p>{getInvoiceDate(selectedBill)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Status</p>

@@ -291,6 +291,8 @@ export default function AppointmentsPage() {
         return <Badge variant="destructive">Cancelled</Badge>;
       case 'completed':
         return <Badge>Completed</Badge>;
+      case 'medical-completed':
+        return <Badge className="bg-purple-100 text-purple-700 border-purple-300">Medical Complete</Badge>;
       case 'no-show':
         return <Badge variant="outline" className="border-yellow-500 text-yellow-600">No-Show</Badge>;
       default:
@@ -552,6 +554,7 @@ export default function AppointmentsPage() {
                                             apt.status === 'confirmed' ? 'bg-emerald-50 border-emerald-200' :
                                             apt.status === 'unconfirmed' ? 'bg-amber-50 border-amber-200' :
                                             apt.status === 'in-progress' ? 'bg-blue-50 border-blue-200' :
+                                            apt.status === 'medical-completed' ? 'bg-purple-50 border-purple-200' :
                                             apt.status === 'completed' ? 'bg-stone-50 border-stone-200' :
                                             apt.status === 'cancelled' || apt.status === 'no-show' ? 'bg-red-50 border-red-200' :
                                             'bg-white border-stone-200'
@@ -568,6 +571,7 @@ export default function AppointmentsPage() {
                                               apt.status === 'confirmed' ? 'border-emerald-300 text-emerald-600' :
                                               apt.status === 'unconfirmed' ? 'border-amber-300 text-amber-600' :
                                               apt.status === 'in-progress' ? 'border-blue-300 text-blue-600' :
+                                              apt.status === 'medical-completed' ? 'border-purple-300 text-purple-600' :
                                               'border-stone-300 text-stone-500'
                                             }`}>
                                               {apt.status}

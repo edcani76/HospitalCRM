@@ -23,7 +23,7 @@ import {
   fetchClinicalNotes,
   fetchLabOrders, fetchPrescriptions, fetchDispensingRecords,
   fetchInvoicesByEncounter, fetchInvoiceItems, fetchPayments,
-  fetchAttachments, fetchAuditLogs,
+  fetchAttachments, fetchAuditLogs, fetchUsers,
   generateInvoiceFromEncounter, recordPayment
 } from '../../lib/firestore-helpers';
 import { collection, getDocs, getDoc, addDoc, updateDoc, doc, serverTimestamp, query, where, db, auth } from '../../firebase';
@@ -480,6 +480,7 @@ export default function EMRPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [showAllAudit, setShowAllAudit] = useState(false);
   const [showAllEncounters, setShowAllEncounters] = useState(false);
 
@@ -677,6 +678,10 @@ Mode: Walk-in`,
         // Fetch encounters for this patient
         const encounterData = await fetchEncounters(patientId);
         setEncounters(encounterData);
+
+        // Fetch all users for name resolution
+        const allUsers = await fetchUsers();
+        setUsers(allUsers);
 
         // Fetch ALL patient vitals for historical chart
         const allVitals = await fetchAllPatientVitals(patientId || '');
@@ -1117,30 +1122,74 @@ Mode: Walk-in`,
       setAppointmentServices(updatedServices);
 
       const allComplete = updatedServices.every((s: any) => s.status === 'completed');
-      if (allComplete && updatedServices.length > 0 && !invoice) {
-        const billableServices = updatedServices.filter((s: any) => s.billable !== false);
-        if (billableServices.length > 0) {
-          await generateInvoiceFromEncounter(
-            selectedEncounter.id,
-            billableServices,
-            patientId || '',
-            selectedEncounter.ownerId || patient?.ownerUid || ''
-          );
-          const [inv, items, pays] = await Promise.all([
-            fetchInvoicesByEncounter(selectedEncounter.id),
-            fetchInvoiceItems(''),
-            fetchPayments('')
+      const billableServices = updatedServices.filter((s: any) => s.billable !== false);
+      if (billableServices.length === 0) return;
+
+      if (allComplete && !invoice) {
+        // No invoice yet - create one
+        await generateInvoiceFromEncounter(
+          selectedEncounter.id,
+          billableServices,
+          patientId || '',
+          selectedEncounter.ownerId || patient?.ownerUid || ''
+        );
+        const [inv, items, pays] = await Promise.all([
+          fetchInvoicesByEncounter(selectedEncounter.id),
+          fetchInvoiceItems(''),
+          fetchPayments('')
+        ]);
+        if (inv.length > 0) {
+          setInvoice(inv[0]);
+          const [invItems, invPays] = await Promise.all([
+            fetchInvoiceItems(inv[0].id),
+            fetchPayments(inv[0].id)
           ]);
-          if (inv.length > 0) {
-            setInvoice(inv[0]);
-            const [invItems, invPays] = await Promise.all([
-              fetchInvoiceItems(inv[0].id),
-              fetchPayments(inv[0].id)
-            ]);
-            setInvoiceItems(invItems);
-            setPayments(invPays);
-          }
-          alert('All services completed. Draft invoice has been generated.');
+          setInvoiceItems(invItems);
+          setPayments(invPays);
+        }
+        alert('All services completed. Draft invoice has been generated.');
+      } else if (invoice) {
+        // Invoice already exists - add line item for this service
+        const lineTotal = (service.unitPrice || 0) * (service.quantity || 1);
+        const discount = service.discountAmount || 0;
+        const newItem = {
+          invoiceId: invoice.id,
+          encounterId: selectedEncounter.id,
+          appointmentServiceId: service.id,
+          itemType: service.serviceType || 'service',
+          description: service.serviceName,
+          quantity: service.quantity || 1,
+          unitPrice: service.unitPrice || 0,
+          discountAmount: discount,
+          taxRate: service.taxRate || 0,
+          lineTotal: lineTotal - discount,
+          createdAt: serverTimestamp()
+        };
+        await addDoc(collection(db, 'invoice_items'), newItem);
+
+        // Recalculate invoice totals
+        const allItems = await fetchInvoiceItems(invoice.id);
+        const newSubTotal = allItems.reduce((sum: number, i: any) => sum + (i.lineTotal || 0), 0);
+        await updateDoc(doc(db, 'invoices', invoice.id), {
+          subTotal: newSubTotal,
+          discountTotal: allItems.reduce((sum: number, i: any) => sum + (i.discountAmount || 0), 0),
+          grandTotal: newSubTotal,
+          balanceDue: newSubTotal - (invoice.amountPaid || 0),
+          updatedAt: serverTimestamp()
+        });
+
+        // Refresh invoice data
+        const [inv, invItems, invPays] = await Promise.all([
+          fetchInvoicesByEncounter(selectedEncounter.id),
+          fetchInvoiceItems(invoice.id),
+          fetchPayments(invoice.id)
+        ]);
+        if (inv.length > 0) setInvoice(inv[0]);
+        setInvoiceItems(invItems);
+        setPayments(invPays);
+
+        if (allComplete) {
+          alert('Service completed. Invoice has been updated.');
         }
       }
     } catch (error) {
@@ -1468,6 +1517,9 @@ Mode: Walk-in`,
 
   const resolveName = (id: string) => {
     if (!id) return 'Unknown';
+    const user = users.find((u: any) => u.uid === id || u.id === id);
+    if (user?.displayName) return user.displayName;
+    if (user?.name) return user.name;
     const enc = encounters.find((e: any) => e.doctorId === id);
     if (enc?.doctorName) return enc.doctorName;
     if (owner && (owner.uid === id || owner.name === id)) return owner.name;

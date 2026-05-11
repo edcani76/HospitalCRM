@@ -843,6 +843,15 @@ export default function AppointmentDetailsPage() {
                                 medicalCompletedAt: serverTimestamp(),
                                 medicalCompletedBy: user?.uid || 'unknown'
                               });
+
+                              // Also update the encounter status
+                              if (emrId) {
+                                await updateDoc(doc(db, 'encounters', emrId), {
+                                  status: 'medical-completed',
+                                  updatedAt: serverTimestamp()
+                                });
+                              }
+
                               const snap = await getDoc(doc(db, 'appointments', appointment.id));
                               if (snap.exists()) setAppointment({ id: snap.id, ...snap.data() } as Appointment);
 

@@ -3,7 +3,7 @@
 ## Goal
 Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix timestamp display, add full service management to Edit Appointment matching Create Appointment, build Visit Summary tab, modernize portal dashboard UI/UX, integrate Google Drive via server proxy, build unified service catalog with provider-resource mapping, rebuild customer booking with doctor carousel and dynamic availability, and enhance patient records with full clinical details.
 
-## Current Status (2026-05-07)
+## Current Status (2026-05-11)
 
 ### ✅ Completed Features
 
@@ -188,37 +188,49 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
       - Timestamps saved to `pets` collection
     - Consent state persists across sessions (loaded from Firestore on mount)
 
+28. **Appointment Details Enhancements**
+    - Removed flashing Ongoing badge (redundant with Medical in Progress)
+    - Medical in Progress uses `animate-pulse`
+    - Start time displayed in Appointment Details and EMR headers
+    - Medical Complete triggers `generateInvoiceFromEncounter` to create draft invoice
+    - Vitals form: toggle Save/Edit Vitals with Cancel button in edit mode
+    - Clinical Notes: toggle Save/Edit Notes with Cancel button in edit mode
+    - Clinical Notes update existing doc instead of appending duplicates
+    - `performedBy`/`createdBy` uses `auth.currentUser?.displayName` instead of UID placeholders
+    - Audit Trail shows resolved doctor/owner names instead of raw IDs
+
+29. **Service Completion in EMR (Orders & Services Tab)**
+    - "Complete" button for in-progress services
+    - Auto-generates draft invoice when ALL services completed
+    - `clinicalNotes` state stores single note object (extracts latest from array)
+
+30. **Billing & Payments Command Center**
+    - Header with "Billing & Payments" title and "Create Invoice" button
+    - 6 KPI cards: Total Billed (₱ + count), Collected, Outstanding, Overdue, Today's Collections, Pending Billing
+    - Workflow tabs: All Invoices, Unpaid, Partially Paid, Paid, Overdue, Pending Billing with counts
+    - Search bar + filter dropdowns (Status, Source, Date range)
+    - Rich invoice table: Invoice #, Date, Owner, Pet, Source badge, Total, Paid, Balance, Status, Due Date, Actions
+    - Row actions: View (eye), Pay ($), More dropdown (Print, Download PDF, Send to Owner, Void)
+    - Invoice detail side drawer with summary, charges, totals, payment history
+    - Receive Payment dialog with amount, method (Cash/GCash/Bank Transfer/Card), reference
+    - Dynamic status computation (draft/unpaid/partial/paid/overdue) for both old and new invoice formats
+    - Color-coded status badges (Draft, Unpaid, Partial, Paid, Overdue, Void, Refunded)
+    - Friendly empty state with Create Invoice button
+
+
 ### 📝 Recent Commits (branch: `codex/pr-1`)
 
 | Commit | Description |
 |--------|-------------|
-| `pending` | Remove Ongoing badge, make Medical in Progress flash, add start time to headers, generate invoice on Medical Complete, fix Vitals toggle |
-| `pending` | Add profile photo editing, pet dialog population, TypeScript fixes, data privacy & T&Cs consent with timestamps |
-| `cf1289f` | Fix customer portal bugs, rebuild BookAppointment with doctor carousel and dynamic availability |
-| `f412029` | Fix breadcrumb navigation - use onClick handlers with tab state for Dashboard pages |
-| `dc2f3a0` | Add breadcrumb navigation to customer portal pages |
-| `65e1cf5` | Add appointment management dialog with cancel and reschedule functionality |
-| `3a73269` | Make service categories collapsible in BookAppointment ServiceSelector |
-| `217df02` | Update project notes and documentation |
-| `ff11f99` | Add service catalog with provider-resource mapping, ServiceSelector, customer booking service selection, admin services page |
-| `2fc20c1` | Update project notes and documentation |
-| `4224388` | Add PDF invoice generation with @react-pdf/renderer |
-| `a662b29` | Update project notes and documentation |
-| `cdd0aed` | Fix seed script - use correct date field, remove dead code |
-| `a8dfcce` | Add comprehensive EMR seed data script and VisitSummaryTab with attachments support |
-| `bb1a2b0` | Fix Quick Start doctor list - fetch directly in `handleQuickStartVisit` |
-| `5bae19b` | Show ALL doctors (removed availability filter for emergencies) |
-| `78c62be` | Fix doctor availability filtering for Quick Start Visit |
-| `758e00f` | Fix runtime errors (hook order, `require()` → `import()`) |
-| `547182b` | Add doctor selector to Quick Start Visit (on-duty doctors only) |
-| `eb084b7` | Replace "Type(s)" with "Services", fix notes display |
-| `ed19aa6` | Show service notes + general notes in Additional Notes |
-| `d92781b` | Full service management UI in Edit Appointment |
-| `2ca7678` | Add simple Services text input to Edit Appointment |
-| `24aca55` | Add service management state to Edit Appointment |
-| `920d022` | Update project notes and documentation |
-| `46571eb` | Fix missing imports in patient-profile.tsx |
-| `f115b02` | Fix EMR mode detection, add Quick Start Visit |
+| `78b9caf` | Fix DialogContent aria-describedby warning - add sr-only DialogDescription to invoice dialogs |
+| `9b42947` | Redesign Billing page as Billing & Payments Command Center with KPI cards, tabs, rich table, drawer, payment dialog |
+| `42c78ff` | Add Complete button for services in EMR, auto-generate draft invoice when all services completed |
+| `7b2be7c` | Fix resolveName scope - move from VisitSummaryTab into EMRPage component |
+| `341c580` | Fix SOAP notes save/display, replace UID placeholders with display names in audit trail and performedBy |
+| `2d6757f` | Remove Ongoing badge, make Medical in Progress flash, add start time to headers, generate invoice on Medical Complete, fix Vitals toggle |
+| `6d17aeb` | Show Walk-in badge on appointments, auto-flag orphaned multi-day encounters |
+| `c569b6e` | Add admissions module, role-based appointment completion, search bars, and in-progress indicators |
+| `927d655` | Add role-based restrictions for appointment confirmation and start |
 
 ### 🔧 Build Status
 - ✅ Lint: Clean (0 errors)
@@ -237,7 +249,8 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 5. If "ThemeContext invalid hook call" error appears in console: disable MetaMask extension for localhost (SES lockdown removes `Proxy`), or use `npm run build && npx serve dist`
 
 ### 🗂️ Key Files Modified
-- `src/pages/crm/emr-page.tsx` - EMR page with VisitSummaryTab, mode detection, Quick Start Visit, PDF download, vitals form toggle, start time in header
+- `src/pages/crm/billing-page.tsx` - Billing & Payments Command Center with KPI cards, tabs, filters, rich table, side drawer, payment dialog
+- `src/pages/crm/emr-page.tsx` - EMR page with VisitSummaryTab, mode detection, Quick Start Visit, PDF download, vitals form toggle, start time in header, service Complete button, resolveName fix
 - `src/pages/crm/patient-profile.tsx` - Quick Start Visit, doctor selector
 - `src/pages/crm/appointment-details-page.tsx` - Service management, notes display
 - `src/pages/crm/admin-services.tsx` - Admin UI for service catalog, provider/resource management
