@@ -78,7 +78,7 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const today = format(new Date(), 'yyyy-MM-dd')
 
       // Fetch pets
       const petsSnapshot = await getDocs(collection(db, 'pets'))
@@ -117,7 +117,7 @@ export default function AdminDashboard() {
       for (let i = 6; i >= 0; i--) {
         const d = new Date()
         d.setDate(d.getDate() - i)
-        const dateStr = d.toISOString().split('T')[0]
+        const dateStr = format(d, 'yyyy-MM-dd')
         const count = appointments.filter(app => app.date === dateStr).length
         appointmentsTrend.push({ date: dateStr, count })
       }

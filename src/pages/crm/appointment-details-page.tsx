@@ -864,7 +864,7 @@ export default function AppointmentDetailsPage() {
                       </Button>
                     )}
                     {appointment.status?.toLowerCase() === 'confirmed' && (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'staff' || isOwnAppointment) && (() => {
-                      const today = new Date().toISOString().split('T')[0];
+                      const today = format(new Date(), 'yyyy-MM-dd');
                       const isToday = appointment.date === today;
                       return isToday ? (
                         <Button

@@ -73,7 +73,7 @@ export default function StaffDashboard() {
     fetchData();
   }, [fetchData]);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = format(new Date(), 'yyyy-MM-dd');
   const todayAppointments = React.useMemo(() => {
     return appointments
       .filter(app => app.date === today)
