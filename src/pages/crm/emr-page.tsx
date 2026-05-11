@@ -414,7 +414,18 @@ function VisitSummaryTab({ patient, owner, encounter, encounters, vitals, servic
               {timeline.map((enc: any, idx: number) => {
                 const encTime = enc.startedAt?.toDate?.() || enc.createdAt?.toDate?.();
                 const isCurrent = enc.id === encounter.id;
-                return (
+  const isReadOnly = mode !== 'active';
+
+  // Disable edit modes when encounter is medical-completed
+  useEffect(() => {
+    if (mode === 'medical-completed') {
+      setVitalsEditMode(false);
+      setNotesEditMode(false);
+      setShowAddForm(false);
+    }
+  }, [mode]);
+
+  return (
                   <div key={enc.id} className={cn(
                     "flex items-start gap-2 text-xs p-2 rounded-md",
                     isCurrent ? "bg-blue-100 border border-blue-200" : ""
@@ -459,7 +470,7 @@ export default function EMRPage() {
   const [owner, setOwner] = useState<any>(null);
   const [encounters, setEncounters] = useState<any[]>([]);
   const [selectedEncounter, setSelectedEncounter] = useState<any>(null);
-  const [mode, setMode] = useState<'active' | 'view'>('view');
+  const [mode, setMode] = useState<'active' | 'view' | 'medical-completed'>('view');
   const [scheduledAppointment, setScheduledAppointment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -693,9 +704,16 @@ Mode: Walk-in`,
         );
         const hasActiveEncounter = !!activeEncounter;
 
-        // Set mode based on active encounter
+        // Check for medical-completed encounter
+        const medCompleteEncounter = encounterData.find((e: any) =>
+          e.status === 'medical-completed'
+        );
+
+        // Set mode based on encounter status
         if (hasActiveEncounter) {
           setMode('active');
+        } else if (medCompleteEncounter) {
+          setMode('medical-completed');
         } else {
           setMode('view');
         }
@@ -1534,14 +1552,16 @@ Mode: Walk-in`,
         subtitle={
           mode === 'active'
             ? `🟢 Active Visit in Progress - ${patient.name}${selectedEncounter?.startedAt?.toDate?.() ? ` (Started at ${format(selectedEncounter.startedAt.toDate(), 'hh:mm a')})` : ''}`
+            : mode === 'medical-completed'
+            ? `🟣 Medical Complete - ${patient.name}`
             : `⚪ No Active Visit - ${patient.name}`
         }
         backText={location.state?.backText || 'Back'}
       />
 
-      {mode === 'view' && (
+      {(mode === 'view' || mode === 'medical-completed') && (
         <div className="flex gap-2 mb-4">
-          {scheduledAppointment ? (
+          {mode === 'view' && scheduledAppointment ? (
             <Button
               onClick={handleSendReminder}
               className="bg-yellow-600 hover:bg-yellow-700 text-white"
@@ -1549,7 +1569,7 @@ Mode: Walk-in`,
               <Bell className="w-4 h-4 mr-2" />
               Send Reminder
             </Button>
-          ) : (
+          ) : mode === 'view' && !scheduledAppointment ? (
             <Button
               onClick={handleQuickStartVisit}
               disabled={loading}
@@ -1567,7 +1587,7 @@ Mode: Walk-in`,
                 </>
               )}
             </Button>
-          )}
+          ) : null}
           <Button
             variant="outline"
             onClick={() => setActiveTab('history')}
@@ -1724,6 +1744,7 @@ Mode: Walk-in`,
               <h4 className="font-semibold mb-3">Current Vitals</h4>
               <form onSubmit={(e: React.FormEvent) => {
                 e.preventDefault();
+                if (isReadOnly) return;
                 if (vitalsEditMode) {
                   saveVitals();
                 } else {
@@ -1962,6 +1983,7 @@ Mode: Walk-in`,
             <h3 className="text-lg font-bold mb-4">Clinical Notes (SOAP)</h3>
             <form onSubmit={(e: React.FormEvent) => {
               e.preventDefault();
+              if (isReadOnly) return;
               saveClinicalNotes();
             }} className="space-y-4">
               <div>
@@ -2043,7 +2065,7 @@ Mode: Walk-in`,
                     Cancel
                   </Button>
                 </div>
-              ) : (
+              ) : !isReadOnly && (
                 <Button
                   type="button"
                   variant="outline"
@@ -2060,13 +2082,15 @@ Mode: Walk-in`,
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold">Orders & Services</h3>
-              <Button onClick={() => setShowAddForm(true)} size="sm">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Service
-              </Button>
+              {!isReadOnly && (
+                <Button onClick={() => setShowAddForm(true)} size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Service
+                </Button>
+              )}
             </div>
 
-            {showAddForm && (
+            {!isReadOnly && showAddForm && (
               <div className="mb-6 p-4 border rounded-lg bg-gray-50">
                 <h4 className="font-semibold mb-3">Add New Service</h4>
                 <div className="grid grid-cols-2 gap-4">
@@ -2127,7 +2151,7 @@ Mode: Walk-in`,
                     <div className="text-right flex items-center gap-2">
                       <p className="font-bold">₱{srv.unitPrice * srv.quantity}</p>
                       {getStatusBadge(srv.status)}
-                      {srv.status === 'in-progress' && (
+                      {srv.status === 'in-progress' && !isReadOnly && (
                         <Button
                           size="sm"
                           className="bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -2148,13 +2172,15 @@ Mode: Walk-in`,
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold">Medications / Pharmacy</h3>
-              <Button onClick={() => setShowAddForm(true)} size="sm">
-                <Plus className="w-4 h-4 mr-2" />
-                Prescribe
-              </Button>
+              {!isReadOnly && (
+                <Button onClick={() => setShowAddForm(true)} size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Prescribe
+                </Button>
+              )}
             </div>
 
-            {showAddForm && (
+            {!isReadOnly && showAddForm && (
               <div className="mb-6 p-4 border rounded-lg bg-gray-50">
                 <h4 className="font-semibold mb-3">Prescribe Medication</h4>
                 <div className="grid grid-cols-2 gap-4">
@@ -2320,6 +2346,7 @@ Mode: Walk-in`,
             <div>
               <div className="flex justify-between items-center mb-3">
                 <h4 className="font-semibold">Files & Attachments</h4>
+                {!isReadOnly && (
                 <div className="flex items-center gap-2">
                   <input
                     type="file"
@@ -2346,6 +2373,7 @@ Mode: Walk-in`,
                     )}
                   </Button>
                 </div>
+                )}
               </div>
               <div className="space-y-2">
                 {attachments.map((att: any) => (
