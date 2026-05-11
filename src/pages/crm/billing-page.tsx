@@ -266,7 +266,7 @@ export default function BillingPage() {
                   <Plus className="w-4 h-4 mr-2" /> Create Invoice
                 </Button>
                 <DialogContent className="max-w-2xl">
-                  <DialogHeader><DialogTitle>Create New Invoice</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>Create New Invoice</DialogTitle><DialogDescription className="sr-only">Fill in the invoice details</DialogDescription></DialogHeader>
                   <div className="space-y-4 py-4">
                     <div>
                       <Label>Pet</Label>
@@ -522,6 +522,7 @@ export default function BillingPage() {
                 <DialogTitle>
                   Invoice {selectedBill ? getInvoiceNo(selectedBill) : ''}
                 </DialogTitle>
+                <DialogDescription className="sr-only">Invoice details and actions</DialogDescription>
               </DialogHeader>
               {selectedBill && (
                 <div className="space-y-6">
