@@ -183,6 +183,20 @@ export default function PatientsPage() {
         ownerUid: formData.ownerUid,
         createdAt: new Date().toISOString()
       };
+      // Check for duplicate pet name under same owner
+      if (formData.ownerUid) {
+        const dupQuery = query(
+          collection(db, 'pets'),
+          where('ownerUid', '==', formData.ownerUid),
+          where('name', '==', formData.name.trim())
+        );
+        const dupSnap = await getDocs(dupQuery);
+        if (!dupSnap.empty) {
+          alert(`A pet named "${formData.name}" already exists for this owner.`);
+          return;
+        }
+      }
+
       await addDoc(collection(db, 'pets'), newPet);
       await addAuditLog({
         action: 'pet_created',

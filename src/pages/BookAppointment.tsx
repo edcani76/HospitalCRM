@@ -221,6 +221,21 @@ export default function BookAppointment() {
         imageUrl = result.downloadUrl || result.webViewLink;
       }
 
+      // Check for duplicate pet name under same owner
+      if (user) {
+        const dupQuery = query(
+          collection(db, 'pets'),
+          where('ownerUid', '==', user.uid),
+          where('name', '==', formData.name.trim())
+        );
+        const dupSnap = await getDocs(dupQuery);
+        if (!dupSnap.empty) {
+          alert(`A pet named "${formData.name}" already exists under your account.`);
+          setIsSubmittingPet(false);
+          return;
+        }
+      }
+
       const petRef = await addDoc(collection(db, 'pets'), {
         name: formData.name,
         species: formData.species,

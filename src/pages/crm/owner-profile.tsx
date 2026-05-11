@@ -114,7 +114,7 @@ export default function OwnerProfilePage() {
 
   const handleAddPet = async (formData: any) => {
     try {
-      const { addDoc, collection: coll, serverTimestamp } = await import('../../firebase');
+      const { addDoc, collection: coll, serverTimestamp, query, where, getDocs } = await import('../../firebase');
       
       // Convert comma-separated strings to arrays if needed
       const parseCommaList = (value: string | null): string[] | null => {
@@ -149,6 +149,18 @@ export default function OwnerProfilePage() {
         consentPrivacyTimestamp: formData.consentPrivacyTimestamp,
         consentTermsTimestamp: formData.consentTermsTimestamp,
       };
+
+      // Check for duplicate pet name under same owner
+      const dupQuery = query(
+        collection(db, 'pets'),
+        where('ownerUid', '==', ownerId),
+        where('name', '==', formData.name.trim())
+      );
+      const dupSnap = await getDocs(dupQuery);
+      if (!dupSnap.empty) {
+        alert(`A pet named "${formData.name}" already exists for this owner.`);
+        return;
+      }
 
       const docRef = await addDoc(coll(db, 'pets'), newPet);
       await addAuditLog({ action: 'pet_created', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', details: `Created pet ${formData.name}` });

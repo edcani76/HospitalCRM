@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { User, Stethoscope, Scissors, FlaskConical, Plus, Search, X, Trash2, AlertTriangle, ClipboardList, Check } from 'lucide-react';
 import { Badge } from '../../components/ui/badge';
 import { format, startOfToday, isBefore, parse } from 'date-fns';
-import { db, auth, collection, getDocs, serverTimestamp, arrayUnion } from '../../firebase';
+import { db, auth, collection, getDocs, query, where, serverTimestamp, arrayUnion } from '../../firebase';
 import { createDocument, updateDocument } from '../../lib/firestore-helpers';
 import { uploadToGoogleDrive } from '../../lib/google-drive';
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
@@ -276,6 +276,20 @@ export default function CreateAppointmentPage() {
           fileType: 'photos',
         });
         imageUrl = result.downloadUrl || result.webViewLink;
+      }
+
+      // Check for duplicate pet name under same owner
+      if (formData.ownerUid) {
+        const dupQuery = query(
+          collection(db, 'pets'),
+          where('ownerUid', '==', formData.ownerUid),
+          where('name', '==', formData.name.trim())
+        );
+        const dupSnap = await getDocs(dupQuery);
+        if (!dupSnap.empty) {
+          alert(`A pet named "${formData.name}" already exists for this owner.`);
+          return;
+        }
       }
 
       const petId = await createDocument('pets', {

@@ -179,6 +179,19 @@ export default function Signup() {
         createdAt: serverTimestamp()
       });
 
+      // Check for duplicate pet name under same owner
+      const dupQuery = query(
+        collection(db, 'pets'),
+        where('ownerUid', '==', user.uid),
+        where('name', '==', petData.name.trim())
+      );
+      const dupSnap = await getDocs(dupQuery);
+      if (!dupSnap.empty) {
+        alert(`A pet named "${petData.name}" already exists under your account.`);
+        setLoading(false);
+        return;
+      }
+
       await addDoc(collection(db, 'pets'), {
         ownerUid: user.uid,
         name: petData.name,
@@ -216,6 +229,19 @@ export default function Signup() {
       console.log('Guest user created with ID:', guestUserId);
 
       console.log('Step 2: Creating pet record...');
+      // Check for duplicate pet name under same owner
+      const dupQuery = query(
+        collection(db, 'pets'),
+        where('ownerUid', '==', guestUserId),
+        where('name', '==', petData.name.trim())
+      );
+      const dupSnap = await getDocs(dupQuery);
+      if (!dupSnap.empty) {
+        alert(`A pet named "${petData.name}" already exists under your account.`);
+        setLoading(false);
+        return;
+      }
+
       // 2. Create pet record linked to guest user
       const petRef = await addDoc(collection(db, 'pets'), {
         ownerUid: guestUserId,

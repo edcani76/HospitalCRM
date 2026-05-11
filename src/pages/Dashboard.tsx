@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db, collection, query, where, onSnapshot, doc, getDoc, addDoc, serverTimestamp, updateDoc } from '../firebase';
+import { auth, db, collection, query, where, onSnapshot, doc, getDoc, getDocs, addDoc, serverTimestamp, updateDoc } from '../firebase';
 import { Appointment, Report, UserProfile, Invoice, Pet } from '../types';
 import { motion } from 'motion/react';
 import { LayoutDashboard, Calendar, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, User, ArrowRight, Download, Activity, ChevronRight, Edit, Ban, X, PawPrint, Camera } from 'lucide-react';
@@ -351,6 +351,19 @@ export default function Dashboard() {
       }
 
       console.log('[Pet Submit] Saving to Firestore, imageUrl:', imageUrl);
+      // Check for duplicate pet name under same owner
+      if (user) {
+        const dupQuery = query(
+          collection(db, 'pets'),
+          where('ownerUid', '==', user.uid),
+          where('name', '==', formData.name.trim())
+        );
+        const dupSnap = await getDocs(dupQuery);
+        if (!dupSnap.empty) {
+          toast?.error?.(`A pet named "${formData.name}" already exists under your account.`) || alert(`A pet named "${formData.name}" already exists under your account.`);
+          return;
+        }
+      }
       await addDoc(collection(db, 'pets'), {
         name: formData.name,
         species: formData.species,
