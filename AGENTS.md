@@ -217,6 +217,21 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
     - Color-coded status badges (Draft, Unpaid, Partial, Paid, Overdue, Void, Refunded)
     - Friendly empty state with Create Invoice button
 
+31. **Pharmacy Operations Dashboard**
+    - 6 KPI cards: Total Products, Low Stock Items, Expiring Soon, Prescriptions Pending, Today's Dispensed, Inventory Value (at cost)
+    - 5 tabs: All Medications, Prescription Queue, Stock Movements, Purchase Orders (placeholder), Inventory Reports (placeholder)
+    - Rich inventory table with search, category filter, stock status filter (In Stock/Low Stock/Out of Stock/Has Expired)
+    - Color-coded stock status badges (green In Stock, orange Low Stock, red Out of Stock, red Has Expired)
+    - Expiry tracking per batch with nearest expiry date display and "Expiring Soon" (30 days) / "Expired" warnings
+    - Detail side drawer: full product info summary, inventory batches table with expiry status, recent movements timeline, action buttons
+    - Add/Edit Medication dialogs with full fields (name, category, unit, prices, minStock, reorderPoint, description)
+    - Receive Stock dialog: batch number, quantity, expiry/manufacturing dates, cost/selling prices, notes — auto-creates batch record + movement log + updates stock
+    - Adjust Stock dialog: type (adjustment/dispensing/return), quantity with positive/negative handling, required reason notes — creates movement log
+    - Prescription Queue tab: full table with date, pet, doctor, medication, dosage, status badges (Pending/Dispensed/Cancelled), "Dispense" action button
+    - Dispense from Prescription dialog: shows prescription items, current stock levels with low-stock warnings, notes field, proceeds to stock adjustment
+    - Stock Movements tab: full log table with search, type filter, date, type badge, medication, batch, quantity with +/- colors, running balance, reference, user
+    - Purchase Orders and Inventory Reports tabs with placeholder state for future implementation
+
 
 ### 📝 Recent Commits (branch: `codex/pr-1`)
 
@@ -242,13 +257,17 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `scripts/migrate-encounters-startedAt.ts`: Encounters already have `startedAt`
 
 ### 🚀 Next Steps
-1. Test PDF invoice generation with real data
-2. Test Visit Summary tab with seeded data
+1. Test the full pharmacy flow: add medication → receive stock (batch) → view in inventory → adjust stock → view movements → dispense from prescription queue
+2. Test PDF invoice generation with real data
 3. Verify Google Drive uploads work end-to-end
 4. Test full appointment lifecycle (confirm → start → medical-complete → bill → pay → close)
-5. If "ThemeContext invalid hook call" error appears in console: disable MetaMask extension for localhost (SES lockdown removes `Proxy`), or use `npm run build && npx serve dist`
+5. Run `scripts/seed-pharmacy-data.ts` to populate inventory_batches, stock_movements, and prescriptions collections with realistic test data
+6. If "ThemeContext invalid hook call" error appears in console: disable MetaMask extension for localhost (SES lockdown removes `Proxy`), or use `npm run build && npx serve dist`
 
 ### 🗂️ Key Files Modified
+- `src/pages/crm/pharmacy-page.tsx` - Pharmacy Operations Dashboard: KPI cards (Total Products, Low Stock, Expiring Soon, Prescriptions Pending, Today's Dispensed, Inventory Value), 5 tabs (All Medications, Prescription Queue, Stock Movements, Purchase Orders, Inventory Reports), rich table with stock status badges/expiry/filters, detail side drawer (batches table, movement timeline), dialogs (Add/Edit Medication, Receive Stock with batch details, Adjust Stock, Dispense from Prescription)
+- `src/types.ts` - Added `InventoryBatch`, `StockMovement`, `Prescription` interfaces with full pharmacy fields
+- `src/lib/firestore-helpers.ts` - Added `fetchInventoryBatches`, `createInventoryBatch`, `updateInventoryBatch`, `fetchStockMovements`, `createStockMovement`, `createMedication`, `updateMedication`, `deleteMedication`, `fetchAllPrescriptions`, `updatePrescription`
 - `src/pages/crm/billing-page.tsx` - Billing & Payments Command Center with KPI cards, tabs, filters, rich table, side drawer, payment dialog
 - `src/pages/crm/emr-page.tsx` - EMR page with VisitSummaryTab, mode detection, Quick Start Visit, PDF download, vitals form toggle, start time in header, service Complete button, resolveName fix
 - `src/pages/crm/patient-profile.tsx` - Quick Start Visit, doctor selector

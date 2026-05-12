@@ -213,4 +213,58 @@ export interface DischargeSummary {
   createdAt: any;
 }
 
+export interface InventoryBatch {
+  id?: string;
+  medicationId: string;
+  batchNo: string;
+  quantity: number;
+  originalQuantity: number;
+  expiryDate: string;
+  manufacturingDate?: string;
+  costPrice: number;
+  sellingPrice: number;
+  receivedDate: string;
+  status: 'active' | 'expired' | 'depleted';
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export interface StockMovement {
+  id?: string;
+  medicationId: string;
+  medicationName?: string;
+  batchId?: string;
+  batchNo?: string;
+  type: 'receiving' | 'dispensing' | 'adjustment' | 'transfer' | 'expired' | 'return';
+  quantity: number;
+  runningBalance?: number;
+  reference: string;
+  notes?: string;
+  userId?: string;
+  userName?: string;
+  createdAt?: any;
+}
+
+export interface Prescription {
+  id?: string;
+  encounterId: string;
+  petId: string;
+  petName?: string;
+  doctorId?: string;
+  doctorName?: string;
+  date?: string;
+  status: 'pending' | 'dispensed' | 'cancelled';
+  items?: Array<{
+    medicationId: string;
+    medicationName: string;
+    dosage: string;
+    frequency: string;
+    quantity: number;
+    instructions?: string;
+  }>;
+  notes?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
 export type PatientStatus = 'active' | 'inactive' | 'critical' | 'stable' | 'recovered';

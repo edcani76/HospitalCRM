@@ -658,6 +658,92 @@ export async function fetchUsers(role?: string) {
   return fetchWithCache('users', queryFn);
 }
 
+// ==================== Pharmacy: Inventory Batches ====================
+
+export async function fetchInventoryBatches(medicationId?: string) {
+  const queryFn = async () => {
+    let q = query(collection(db, 'inventory_batches'));
+    if (medicationId) q = query(collection(db, 'inventory_batches'), where('medicationId', '==', medicationId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache('inventory_batches', queryFn);
+}
+
+export async function createInventoryBatch(data: any) {
+  const ref = await addDoc(collection(db, 'inventory_batches'), {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  return { id: ref.id, ...data };
+}
+
+export async function updateInventoryBatch(batchId: string, data: any) {
+  const ref = doc(db, 'inventory_batches', batchId);
+  await updateDoc(ref, { ...data, updatedAt: serverTimestamp() });
+}
+
+// ==================== Pharmacy: Stock Movements ====================
+
+export async function fetchStockMovements(medicationId?: string) {
+  const queryFn = async () => {
+    let q = query(collection(db, 'stock_movements'), orderBy('createdAt', 'desc'));
+    if (medicationId) q = query(collection(db, 'stock_movements'), where('medicationId', '==', medicationId), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache('stock_movements', queryFn);
+}
+
+export async function createStockMovement(data: any) {
+  const ref = await addDoc(collection(db, 'stock_movements'), {
+    ...data,
+    createdAt: serverTimestamp()
+  });
+  return { id: ref.id, ...data };
+}
+
+// ==================== Pharmacy: Medications CRUD ====================
+
+export async function createMedication(data: any) {
+  const ref = await addDoc(collection(db, 'medications'), {
+    ...data,
+    stock: 0,
+    active: true,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  return { id: ref.id, ...data, stock: 0, active: true };
+}
+
+export async function updateMedication(medicationId: string, data: any) {
+  const ref = doc(db, 'medications', medicationId);
+  await updateDoc(ref, { ...data, updatedAt: serverTimestamp() });
+}
+
+export async function deleteMedication(medicationId: string) {
+  await deleteDoc(doc(db, 'medications', medicationId));
+}
+
+// ==================== Pharmacy: All Prescriptions ====================
+
+export async function fetchAllPrescriptions() {
+  const queryFn = async () => {
+    const q = query(collection(db, 'prescriptions'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache('prescriptions', queryFn);
+}
+
+// ==================== Pharmacy: Update Prescription ====================
+
+export async function updatePrescription(prescriptionId: string, data: any) {
+  const ref = doc(db, 'prescriptions', prescriptionId);
+  await updateDoc(ref, { ...data, updatedAt: serverTimestamp() });
+}
+
 export async function addAuditLog(data: {
   action: string;
   userId: string;
