@@ -24,6 +24,16 @@ export default function PharmacyPage() {
     }
     loadMedications()
   }, [])
+  
+  const filteredMedications = useMemo(() => {
+    if (!searchQuery) return medications;
+    const term = searchQuery.toLowerCase();
+    return medications.filter(m => 
+      m.name?.toLowerCase().includes(term) ||
+      m.category?.toLowerCase().includes(term) ||
+      m.description?.toLowerCase().includes(term)
+    );
+  }, [medications, searchQuery]);
 
   if (loading) {
     return (
@@ -35,16 +45,6 @@ export default function PharmacyPage() {
 
   const lowStockCount = medications.filter(m => m.stock <= m.minStock).length
   const totalStock = medications.reduce((sum, m) => sum + m.stock, 0)
-
-  const filteredMedications = useMemo(() => {
-    if (!searchQuery) return medications;
-    const term = searchQuery.toLowerCase();
-    return medications.filter(m => 
-      m.name?.toLowerCase().includes(term) ||
-      m.category?.toLowerCase().includes(term) ||
-      m.description?.toLowerCase().includes(term)
-    );
-  }, [medications, searchQuery]);
 
   return (
     <>

@@ -489,18 +489,27 @@ export async function fetchPayments(invoiceId: string) {
 
 // Create Invoice from Encounter
 export async function generateInvoiceFromEncounter(encounterId: string, appointmentServices: any[], patientId: string, ownerId: string) {
+  // Guard: check if an invoice already exists for this encounter
+  const existing = await fetchInvoicesByEncounter(encounterId);
+  if (existing.length > 0) {
+    return existing[0];
+  }
+
   const now = serverTimestamp();
   const invoiceNo = `INV-${Date.now()}`;
 
   // Calculate totals
   let subTotal = 0;
   let discountTotal = 0;
+  let taxTotal = 0;
 
   const invoiceItems = appointmentServices.map(svc => {
     const lineTotal = (svc.unitPrice || 0) * (svc.quantity || 1);
     const discount = svc.discountAmount || 0;
+    const taxRate = svc.taxRate || 0;
     subTotal += lineTotal;
     discountTotal += discount;
+    taxTotal += (lineTotal - discount) * taxRate;
     return {
       invoiceId: '', // Will be set after invoice creation
       encounterId,
@@ -510,13 +519,13 @@ export async function generateInvoiceFromEncounter(encounterId: string, appointm
       quantity: svc.quantity || 1,
       unitPrice: svc.unitPrice || 0,
       discountAmount: discount,
-      taxRate: svc.taxRate || 0,
+      taxRate,
       lineTotal: lineTotal - discount,
       createdAt: now
     };
   });
 
-  const grandTotal = subTotal - discountTotal;
+  const grandTotal = subTotal - discountTotal + taxTotal;
 
   // Look up patient/pet name from the encounter or patient data
   let petName = '';
@@ -546,6 +555,7 @@ export async function generateInvoiceFromEncounter(encounterId: string, appointm
     ownerId,
     subTotal,
     discountTotal,
+    taxAmount: taxTotal,
     grandTotal,
     amountPaid: 0,
     balanceDue: grandTotal,
@@ -662,6 +672,6 @@ export async function addAuditLog(data: {
   };
   await addDoc(collection(db, 'auditLogs'), logEntry);
   // Also invalidate cache
-  const { removeCached } = await import('./offline-cache');
-  removeCached('auditLogs');
+  const { clearCache } = await import('./offline-cache');
+  clearCache('auditLogs');
 }

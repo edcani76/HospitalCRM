@@ -25,6 +25,7 @@ import {
   Plus,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   Syringe,
   Scale
 } from 'lucide-react';
@@ -85,6 +86,7 @@ export default function PatientProfilePage() {
   // Find the selected patient from Firebase
   const [patient, setPatient] = useState<PatientProfile | null>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [encounterVisits, setEncounterVisits] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [scheduledAppointment, setScheduledAppointment] = useState<any>(null);
@@ -142,6 +144,7 @@ export default function PatientProfilePage() {
           // Check for scheduled appointments (unconfirmed/confirmed) that haven't started
           const { fetchEncounters } = await import('../../lib/firestore-helpers');
           const encounters = await fetchEncounters(foundPet.id);
+          setEncounterVisits(encounters);
           const scheduled = appSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).find((apt: any) =>
             (apt.status === 'unconfirmed' || apt.status === 'confirmed') &&
             !encounters.some((enc: any) => enc.appointmentId === apt.id)
@@ -862,18 +865,45 @@ onClick={() => patient.ownerUid && navigate(`/crm/owners/${patient.ownerUid}`, {
               Recent Visits
             </h3>
             <div className="space-y-3">
-              {appointments.length > 0 ? (
-                appointments.slice(0, 5).map((apt: any) => (
-                  <div key={apt.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{apt.date}</p>
-                      <p className="text-xs text-gray-500">{apt.doctorName || 'No doctor assigned'}</p>
+              {encounterVisits.length > 0 ? (
+                encounterVisits.slice(0, 5).map((enc: any) => {
+                  const encDate = enc.startedAt?.toDate?.() || enc.createdAt?.toDate?.();
+                  const dateStr = encDate ? encDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+                  const statusColor = enc.status === 'completed' ? 'bg-green-50 text-green-700 border-green-100' : enc.status === 'in-progress' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-gray-50 text-gray-700 border-gray-100';
+                  const statusLabel = enc.status === 'in-progress' ? 'In Progress' : enc.status === 'completed' ? 'Completed' : enc.status;
+                  const stale = enc.status === 'in-progress' && encDate && (Date.now() - encDate.getTime()) > 86400000;
+                  return (
+                    <div key={enc.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{dateStr}</p>
+                        <p className="text-xs text-gray-500">{enc.doctorName || enc.vitals?.diagnosis || '—'}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {stale && <AlertTriangle className="w-4 h-4 text-red-500" title="Stale — started more than 24h ago" />}
+                        <Badge className={statusColor}>{statusLabel}</Badge>
+                      </div>
                     </div>
-                    <Badge className={apt.status === 'confirmed' ? 'bg-green-50 text-green-700 border-green-100' : apt.status === 'completed' ? 'bg-gray-50 text-gray-700 border-gray-100' : 'bg-yellow-50 text-yellow-700 border-yellow-100'}>
-                      {apt.status}
-                    </Badge>
-                  </div>
-                ))
+                  );
+                })
+              ) : appointments.length > 0 ? (
+                [...appointments]
+                  .sort((a: any, b: any) => {
+                    const aDate = a.date ? new Date(a.date).getTime() : a.createdAt?.toDate?.()?.getTime() || 0;
+                    const bDate = b.date ? new Date(b.date).getTime() : b.createdAt?.toDate?.()?.getTime() || 0;
+                    return bDate - aDate;
+                  })
+                  .slice(0, 5)
+                  .map((apt: any) => (
+                    <div key={apt.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{apt.date}</p>
+                        <p className="text-xs text-gray-500">{apt.doctorName || 'No doctor assigned'}</p>
+                      </div>
+                      <Badge className={apt.status === 'confirmed' ? 'bg-green-50 text-green-700 border-green-100' : apt.status === 'completed' ? 'bg-gray-50 text-gray-700 border-gray-100' : 'bg-yellow-50 text-yellow-700 border-yellow-100'}>
+                        {apt.status}
+                      </Badge>
+                    </div>
+                  ))
               ) : (
                 <p className="text-sm text-gray-400 italic">No visits recorded</p>
               )}

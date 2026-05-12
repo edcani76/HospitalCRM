@@ -12,6 +12,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '.
 import { SearchBar } from '../../components/ui/search-bar';
 import { Plus, Eye, FileText, X, Loader2, Search, Printer, MoreHorizontal, PhilippinePeso, Download, Send, Ban, RotateCcw } from 'lucide-react';
 import { fetchInvoices, fetchPets, fetchUsers, fetchInvoiceItems, fetchPayments, fetchEncounterById, recordPayment, addAuditLog } from '../../lib/firestore-helpers';
+import { clearCache } from '../../lib/offline-cache';
 import { collection, addDoc, serverTimestamp, updateDoc, doc, db, auth } from '../../firebase';
 import { format, isPast, parseISO } from 'date-fns';
 import { InvoicePDF } from '../../components/invoice-pdf';
@@ -65,6 +66,7 @@ export default function BillingPage() {
   useEffect(() => {
     async function loadData() {
       try {
+        await clearCache('invoices').catch(() => {});
         const [invoicesData, petsData, usersData] = await Promise.all([
           fetchInvoices(),
           fetchPets(),
@@ -103,14 +105,14 @@ export default function BillingPage() {
     const bal = getBalance(b);
     if (bal <= 0) return 'paid';
     if (b.amountPaid && b.amountPaid > 0) return 'partial';
-    const due = b.dueDate;
-    if (due && isPast(parseISO(due)) && bal > 0) return 'overdue';
+    const due = b.dueDate?.toDate ? b.dueDate.toDate().toISOString() : b.dueDate;
+    if (due && typeof due === 'string' && isPast(parseISO(due)) && bal > 0) return 'overdue';
     if (bal >= getTotal(b)) return 'unpaid';
     return s;
   };
   const getSource = (b: any) => b.source || b.encounterId ? 'Consultation' : 'Manual';
   const getInvoiceNo = (b: any) => b.invoiceNo || `INV-${b.id?.slice(-6)?.toUpperCase() || '000000'}`;
-  const getDueDate = (b: any) => b.dueDate || '—';
+  const getDueDate = (b: any) => b.dueDate?.toDate ? format(b.dueDate.toDate(), 'MMM dd, yyyy') : b.dueDate || '—';
   const getInvoiceDate = (b: any) => {
     if (b.createdAt?.toDate) {
       try { return format(b.createdAt.toDate(), 'MMM dd, yyyy'); } catch {}
@@ -162,8 +164,21 @@ export default function BillingPage() {
     if (dateFilter !== 'all') {
       const now = new Date();
       const today = now.toISOString().split('T')[0];
+      const getDateStr = (b: any) => {
+        if (typeof b.date === 'string') return b.date;
+        if (b.issueDate?.toDate) {
+          try { return b.issueDate.toDate().toISOString().split('T')[0]; } catch {}
+        }
+        if (typeof b.issueDate === 'string') return b.issueDate.split('T')[0];
+        if (b.createdAt?.toDate) {
+          try { return b.createdAt.toDate().toISOString().split('T')[0]; } catch {}
+        }
+        if (typeof b.createdAt === 'string') return b.createdAt.split('T')[0];
+        return '';
+      };
       list = list.filter(b => {
-        const d = b.date || today;
+        const d = getDateStr(b);
+        if (!d) return false;
         if (dateFilter === 'today') return d === today;
         if (dateFilter === 'week') {
           const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);

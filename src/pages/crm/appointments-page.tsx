@@ -583,8 +583,14 @@ export default function AppointmentsPage() {
                                               apt.status === 'medical-completed' ? 'border-purple-300 text-purple-600' :
                                               'border-stone-300 text-stone-500'
                                             }`}>
-                                              {apt.status}
-                                            </Badge>
+                                            {apt.status}
+                                          </Badge>
+                                          {(() => {
+                                            if (apt.status !== 'in-progress') return null;
+                                            const d = new Date(apt.date + ' ' + (apt.time || '00:00'));
+                                            if (isNaN(d.getTime()) || Date.now() - d.getTime() <= 86400000) return null;
+                                            return <span className="text-[8px] px-1.5 py-0 bg-red-100 text-red-600 rounded font-medium">Stale</span>;
+                                          })()}
                                           </div>
                                         </div>
                                       );
@@ -689,7 +695,17 @@ export default function AppointmentsPage() {
                                   <span className="text-xs lg:text-sm">{appointment.doctorName}</span>
                                 </div>
                               </TableCell>
-                               <TableCell>{getStatusBadge(appointment.status)}</TableCell>
+                               <TableCell>
+                                 <div className="flex items-center gap-1">
+                                   {getStatusBadge(appointment.status)}
+                                   {(() => {
+                                     if (appointment.status !== 'in-progress') return null;
+                                     const d = new Date(appointment.date + ' ' + (appointment.time || '00:00'));
+                                     if (isNaN(d.getTime()) || Date.now() - d.getTime() <= 86400000) return null;
+                                     return <span className="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-medium">Stale</span>;
+                                   })()}
+                                 </div>
+                               </TableCell>
                                  <TableCell className="text-xs lg:text-sm">
                                    <div className="flex flex-wrap gap-1">
                                      {(() => {

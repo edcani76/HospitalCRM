@@ -217,7 +217,7 @@ export default function OwnerProfilePage() {
               <Plus className="w-4 h-4 mr-2" />
               Add Pet
             </Button>
-            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-100 rounded-xl px-6">
+            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-100 rounded-xl px-6" onClick={() => navigate('/crm/billing')}>
               <FileText className="w-4 h-4 mr-2" />
               Create Invoice
             </Button>

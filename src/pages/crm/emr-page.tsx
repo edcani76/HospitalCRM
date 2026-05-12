@@ -26,6 +26,7 @@ import {
   fetchAttachments, fetchAuditLogs, fetchUsers,
   generateInvoiceFromEncounter, recordPayment, addAuditLog
 } from '../../lib/firestore-helpers';
+import { clearCache } from '../../lib/offline-cache';
 import { collection, getDocs, getDoc, addDoc, updateDoc, doc, serverTimestamp, query, where, db, auth } from '../../firebase';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -792,6 +793,9 @@ Mode: Walk-in`,
       try {
         const encounterId = selectedEncounter.id;
 
+        // Clear cached data to ensure fresh reads
+        await clearCache(`invoices_${encounterId}`).catch(() => {});
+
         const [
           services, vitals, notes, labs, rxs, dispensing,
           inv, atts, logs
@@ -809,6 +813,9 @@ Mode: Walk-in`,
 
         // Fetch invoice items and payments based on invoice
         const invoiceId = inv?.[0]?.id || '';
+        if (invoiceId) {
+          await clearCache(`invoice_items_${invoiceId}`).catch(() => {});
+        }
         const [items, pays] = await Promise.all([
           fetchInvoiceItems(invoiceId),
           fetchPayments(invoiceId)
@@ -1180,7 +1187,6 @@ Mode: Walk-in`,
       if (billableServices.length === 0) return;
 
       if (allComplete && !invoice) {
-        // No invoice yet - create one
         await generateInvoiceFromEncounter(
           selectedEncounter.id,
           billableServices,
@@ -1203,36 +1209,55 @@ Mode: Walk-in`,
         }
         alert('All services completed. Draft invoice has been generated.');
       } else if (invoice) {
-        // Invoice already exists - add line item for this service
-        const lineTotal = (service.unitPrice || 0) * (service.quantity || 1);
-        const discount = service.discountAmount || 0;
-        const newItem = {
-          invoiceId: invoice.id,
-          encounterId: selectedEncounter.id,
-          appointmentServiceId: service.id,
-          itemType: service.serviceType || 'service',
-          description: service.serviceName,
-          quantity: service.quantity || 1,
-          unitPrice: service.unitPrice || 0,
-          discountAmount: discount,
-          taxRate: service.taxRate || 0,
-          lineTotal: lineTotal - discount,
-          createdAt: serverTimestamp()
-        };
-        await addDoc(collection(db, 'invoice_items'), newItem);
-        await addAuditLog({ action: 'invoice_item_added', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
+        // Invoice already exists - check if this service already has an invoice item
+        const existingItems = await fetchInvoiceItems(invoice.id);
+        if (existingItems.some((i: any) => i.appointmentServiceId === service.id)) {
+          // Already billed - just recalculate totals
+          const newSubTotal = existingItems.reduce((sum: number, i: any) => sum + (i.lineTotal || 0), 0);
+          const taxAmount = existingItems.reduce((sum: number, i: any) => sum + ((i.lineTotal || 0) * (i.taxRate || 0)), 0);
+          await updateDoc(doc(db, 'invoices', invoice.id), {
+            subTotal: newSubTotal,
+            discountTotal: existingItems.reduce((sum: number, i: any) => sum + (i.discountAmount || 0), 0),
+            taxAmount,
+            grandTotal: newSubTotal + taxAmount,
+            balanceDue: newSubTotal + taxAmount - (invoice.amountPaid || 0),
+            updatedAt: serverTimestamp()
+          });
+          await addAuditLog({ action: 'invoice_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: 'Recalculated totals (item already existed)' });
+        } else {
+          // Add line item for this service
+          const lineTotal = (service.unitPrice || 0) * (service.quantity || 1);
+          const discount = service.discountAmount || 0;
+          const newItem = {
+            invoiceId: invoice.id,
+            encounterId: selectedEncounter.id,
+            appointmentServiceId: service.id,
+            itemType: service.serviceType || 'service',
+            description: service.serviceName,
+            quantity: service.quantity || 1,
+            unitPrice: service.unitPrice || 0,
+            discountAmount: discount,
+            taxRate: service.taxRate || 0,
+            lineTotal: lineTotal - discount,
+            createdAt: serverTimestamp()
+          };
+          await addDoc(collection(db, 'invoice_items'), newItem);
+          await addAuditLog({ action: 'invoice_item_added', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
 
-        // Recalculate invoice totals
-        const allItems = await fetchInvoiceItems(invoice.id);
-        const newSubTotal = allItems.reduce((sum: number, i: any) => sum + (i.lineTotal || 0), 0);
-        await updateDoc(doc(db, 'invoices', invoice.id), {
-          subTotal: newSubTotal,
-          discountTotal: allItems.reduce((sum: number, i: any) => sum + (i.discountAmount || 0), 0),
-          grandTotal: newSubTotal,
-          balanceDue: newSubTotal - (invoice.amountPaid || 0),
-          updatedAt: serverTimestamp()
-        });
-        await addAuditLog({ action: 'invoice_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
+          // Recalculate invoice totals
+          const allItems = await fetchInvoiceItems(invoice.id);
+          const newSubTotal = allItems.reduce((sum: number, i: any) => sum + (i.lineTotal || 0), 0);
+          const taxAmount = allItems.reduce((sum: number, i: any) => sum + ((i.lineTotal || 0) * (i.taxRate || 0)), 0);
+          await updateDoc(doc(db, 'invoices', invoice.id), {
+            subTotal: newSubTotal,
+            discountTotal: allItems.reduce((sum: number, i: any) => sum + (i.discountAmount || 0), 0),
+            taxAmount,
+            grandTotal: newSubTotal + taxAmount,
+            balanceDue: newSubTotal + taxAmount - (invoice.amountPaid || 0),
+            updatedAt: serverTimestamp()
+          });
+          await addAuditLog({ action: 'invoice_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
+        }
 
         // Refresh invoice data
         const [inv, invItems, invPays] = await Promise.all([
@@ -1612,6 +1637,26 @@ Mode: Walk-in`,
         backText={location.state?.backText || 'Back'}
       />
 
+      {mode === 'active' && selectedEncounter?.startedAt?.toDate && (() => {
+        const started = selectedEncounter.startedAt.toDate();
+        const hoursSinceStart = (Date.now() - started.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceStart > 24) {
+          return (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-red-700">Stale Encounter</p>
+                <p className="text-xs text-red-600">
+                  This encounter has been in-progress for {Math.floor(hoursSinceStart)} hours (since {format(started, 'MMM dd, hh:mm a')}). 
+                  Consider closing it if the visit is complete.
+                </p>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
+
       {(mode === 'view' || mode === 'medical-completed') && (
         <div className="flex gap-2 mb-4">
           {mode === 'view' && scheduledAppointment ? (
@@ -1729,6 +1774,9 @@ Mode: Walk-in`,
                     })()}
                     {enc.status === 'in-progress' && (
                       <span className="ml-2 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                    )}
+                    {enc.status === 'in-progress' && enc.startedAt?.toDate && (Date.now() - enc.startedAt.toDate().getTime()) > 86400000 && (
+                      <span className="ml-1 text-red-500" title="Stale — started more than 24h ago">⚠</span>
                     )}
                   </Button>
                 ))}
