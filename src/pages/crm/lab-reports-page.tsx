@@ -11,6 +11,19 @@ export default function LabReportsPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
+  const pendingCount = reports.filter(r => r.status === 'pending' || r.status === 'in_progress').length
+  const completedCount = reports.filter(r => r.status === 'completed').length
+
+  const filteredReports = useMemo(() => {
+    if (!searchQuery) return reports;
+    const term = searchQuery.toLowerCase();
+    return reports.filter(r =>
+      r.title?.toLowerCase().includes(term) ||
+      r.petName?.toLowerCase().includes(term) ||
+      r.type?.toLowerCase().includes(term)
+    );
+  }, [reports, searchQuery]);
+
   useEffect(() => {
     async function loadReports() {
       try {
@@ -32,19 +45,6 @@ export default function LabReportsPage() {
       </div>
     )
   }
-
-  const pendingCount = reports.filter(r => r.status === 'pending' || r.status === 'in_progress').length
-  const completedCount = reports.filter(r => r.status === 'completed').length
-
-  const filteredReports = useMemo(() => {
-    if (!searchQuery) return reports;
-    const term = searchQuery.toLowerCase();
-    return reports.filter(r => 
-      r.title?.toLowerCase().includes(term) ||
-      r.petName?.toLowerCase().includes(term) ||
-      r.type?.toLowerCase().includes(term)
-    );
-  }, [reports, searchQuery]);
 
   return (
     <>
