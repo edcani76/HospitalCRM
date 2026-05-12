@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Textarea } from '../../components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
+import PaymentTermsDialog from '../../components/ui/payment-terms-dialog';
 import { db, auth } from '../../firebase';
 import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion, addDoc, serverTimestamp, query, where } from '../../firebase';
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
@@ -69,6 +70,8 @@ export default function AppointmentDetailsPage() {
   const [emrData, setEmrData] = useState<any | null>(null);
   const [encounterServices, setEncounterServices] = useState<any[]>([]);
   const [addingService, setAddingService] = useState<string | null>(null);
+  const [showPaymentTerms, setShowPaymentTerms] = useState(false);
+  const [pendingMedicalComplete, setPendingMedicalComplete] = useState(false);
   
   // Services management (matching Create Appointment)
   const [appointmentServices, setAppointmentServices] = useState<Array<{ type: string; notes: string; labCenter?: string }>>([]);
@@ -899,63 +902,74 @@ export default function AppointmentDetailsPage() {
                     {isInProgress(appointment) && (allServicesComplete || encounterServices.length === 0) && (
                       <Button
                         className="bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg"
-                        onClick={async () => {
-                          if (window.confirm('Mark medical services as complete? This will trigger billing.')) {
-                            try {
-                              await updateDoc(doc(db, 'appointments', appointment.id), {
-                                status: 'medical-completed',
-                                medicalCompletedAt: serverTimestamp(),
-                                medicalCompletedBy: user?.uid || 'unknown'
-                              });
-
-                              await addAuditLog({
-                                action: 'medical_completed',
-                                userId: auth.currentUser?.uid || 'unknown',
-                                userName: auth.currentUser?.displayName || undefined,
-                                appointmentId: appointment.id,
-                                patientId: appointment?.petId || '',
-                                encounterId: emrId || '',
-                                details: 'Medical services completed'
-                              });
-
-                              // Also update the encounter status
-                              if (emrId) {
-                                await updateDoc(doc(db, 'encounters', emrId), {
-                                  status: 'medical-completed',
-                                  updatedAt: serverTimestamp()
-                                });
-
-                                await addAuditLog({
-                                  action: 'encounter_medical_completed',
-                                  userId: auth.currentUser?.uid || 'unknown',
-                                  userName: auth.currentUser?.displayName || undefined,
-                                  encounterId: emrId,
-                                  details: 'Encounter marked medical-completed'
-                                });
-                              }
-
-                              const snap = await getDoc(doc(db, 'appointments', appointment.id));
-                              if (snap.exists()) setAppointment({ id: snap.id, ...snap.data() } as Appointment);
-
-                              // Generate invoice from encounter services
-                              if (emrId && encounterServices.length > 0) {
-                                await generateInvoiceFromEncounter(emrId, encounterServices, appointment.petId, appointment.clientUid);
-                                const invoiceQ = query(collection(db, 'invoices'), where('encounterId', '==', emrId));
-                                const invoiceSnap = await getDocs(invoiceQ);
-                                if (!invoiceSnap.empty) {
-                                  setInvoiceStatus(invoiceSnap.docs[0].data().status || 'active');
-                                }
-                              }
-
-                              alert('Medical services marked as complete. Billing is now active.');
-                            } catch (err) { console.error(err); alert('Failed to complete medical.'); }
-                          }
-                        }}
+                        onClick={() => setShowPaymentTerms(true)}
                       >
                         <Stethoscope className="w-4 h-4 mr-2" />
                         Mark Medical Complete
                       </Button>
                     )}
+
+                    <PaymentTermsDialog
+                      open={showPaymentTerms}
+                      onClose={() => { setShowPaymentTerms(false); setPendingMedicalComplete(false); }}
+                      onConfirm={async (dueDays) => {
+                        setShowPaymentTerms(false);
+                        try {
+                          await updateDoc(doc(db, 'appointments', appointment.id), {
+                            status: 'medical-completed',
+                            medicalCompletedAt: serverTimestamp(),
+                            medicalCompletedBy: user?.uid || 'unknown'
+                          });
+
+                          await addAuditLog({
+                            action: 'medical_completed',
+                            userId: auth.currentUser?.uid || 'unknown',
+                            userName: auth.currentUser?.displayName || undefined,
+                            appointmentId: appointment.id,
+                            patientId: appointment?.petId || '',
+                            encounterId: emrId || '',
+                            details: 'Medical services completed'
+                          });
+
+                          // Also update the encounter status
+                          if (emrId) {
+                            await updateDoc(doc(db, 'encounters', emrId), {
+                              status: 'medical-completed',
+                              updatedAt: serverTimestamp()
+                            });
+
+                            await addAuditLog({
+                              action: 'encounter_medical_completed',
+                              userId: auth.currentUser?.uid || 'unknown',
+                              userName: auth.currentUser?.displayName || undefined,
+                              encounterId: emrId,
+                              details: 'Encounter marked medical-completed'
+                            });
+                          }
+
+                          const snap = await getDoc(doc(db, 'appointments', appointment.id));
+                          if (snap.exists()) setAppointment({ id: snap.id, ...snap.data() } as Appointment);
+
+                          // Generate invoice from encounter services with payment terms
+                          if (emrId && encounterServices.length > 0) {
+                            await generateInvoiceFromEncounter(emrId, encounterServices, appointment.petId, appointment.clientUid, dueDays);
+                            const invoiceQ = query(collection(db, 'invoices'), where('encounterId', '==', emrId));
+                            const invoiceSnap = await getDocs(invoiceQ);
+                            if (!invoiceSnap.empty) {
+                              const inv = invoiceSnap.docs[0];
+                              // If invoice already existed (from EMR auto-gen), update its dueDate
+                              if (dueDays > 0 && (!inv.data().dueDate)) {
+                                const dueDate = new Date(Date.now() + dueDays * 86400000);
+                                await updateDoc(doc(db, 'invoices', inv.id), { dueDate });
+                              }
+                              setInvoiceStatus(inv.data().status || 'active');
+                            }
+                          }
+
+                          alert('Medical services marked as complete. Billing is now active.');
+                        } catch (err) { console.error(err); alert('Failed to complete medical.'); }
+                      }}
+                    />
                     {/* If medical not complete, show progress indicator */}
                     {isInProgress(appointment) && !allServicesComplete && encounterServices.length > 0 && (
                       <div className="flex items-center gap-2 text-sm text-amber-600 font-medium animate-pulse">

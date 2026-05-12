@@ -488,7 +488,7 @@ export async function fetchPayments(invoiceId: string) {
 }
 
 // Create Invoice from Encounter
-export async function generateInvoiceFromEncounter(encounterId: string, appointmentServices: any[], patientId: string, ownerId: string) {
+export async function generateInvoiceFromEncounter(encounterId: string, appointmentServices: any[], patientId: string, ownerId: string, dueDays: number = 0) {
   // Clear cache to ensure idempotent guard sees latest data
   const { clearCache } = await import('./offline-cache');
   await clearCache(`invoices_${encounterId}`).catch(() => {});
@@ -548,6 +548,7 @@ export async function generateInvoiceFromEncounter(encounterId: string, appointm
   } catch {}
 
   // Create invoice
+  const dueDate = dueDays > 0 ? new Date(Date.now() + dueDays * 86400000) : null;
   const invoiceData = {
     invoiceNo,
     encounterId,
@@ -564,6 +565,7 @@ export async function generateInvoiceFromEncounter(encounterId: string, appointm
     amountPaid: 0,
     balanceDue: grandTotal,
     status: 'draft',
+    dueDate,
     createdAt: now,
     updatedAt: now
   };
