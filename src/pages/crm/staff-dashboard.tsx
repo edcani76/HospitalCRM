@@ -145,12 +145,13 @@ export default function StaffDashboard() {
                </thead>
                <tbody>
                  {todayAppointments.map((appointment) => {
-                   const doctor = doctors.find(d => d.id === appointment.doctorId);
+                    const doctor = doctors.find(d => d.id === appointment.doctorId?.trim()) || 
+                                  doctors.find(d => d.name.toLowerCase().includes(appointment.doctorName?.toLowerCase().replace(/^dr\.\s*/i, '').trim() || ''));
                    return (
                      <tr key={appointment.id} className="border-b hover:bg-muted/50">
                        <td className="p-2">{appointment.time}</td>
                        <td className="p-2">{appointment.petName || 'Unknown Pet'}</td>
-                       <td className="p-2">{doctor?.name || 'Unknown Doctor'}</td>
+                        <td className="p-2">{doctor?.name || appointment.doctorName || 'Unknown Doctor'}</td>
                         <td className="p-2">
                           <div className="flex flex-wrap gap-1">
                             {(() => {

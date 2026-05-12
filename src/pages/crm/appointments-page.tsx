@@ -528,7 +528,16 @@ export default function AppointmentsPage() {
                           {displayDoctors.map(doc => {
                             const availableSlots = getDoctorAvailability(doc, selectedDate);
                             const isAvailable = availableSlots === null || availableSlots.has(slot);
-                            const appts = appointmentsByDoctorAndSlot[doc.id]?.[slot] || [];
+                            let appts = appointmentsByDoctorAndSlot[doc.id]?.[slot] || [];
+                            // Fallback: if no appointments found by doctor ID, try matching by doctor name
+                            if (appts.length === 0) {
+                              const docNameNorm = doc.name.toLowerCase().replace(/^dr\.\s*/i, '').trim();
+                              const allApptsForSlot = Object.values(appointmentsByDoctorAndSlot).flatMap(s => s[slot] || []);
+                              appts = allApptsForSlot.filter(apt => {
+                                const aptNameNorm = (apt.doctorName || '').toLowerCase().replace(/^dr\.\s*/i, '').trim();
+                                return aptNameNorm === docNameNorm;
+                              });
+                            }
 
                             if (!isAvailable && appts.length === 0) {
                               return (
