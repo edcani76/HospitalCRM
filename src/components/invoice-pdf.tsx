@@ -9,7 +9,7 @@ Font.register({
 });
 
 const fmt = (n: number) => {
-  return `PHP ${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
 const styles = StyleSheet.create({
@@ -75,9 +75,16 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
   const encounterDate = encounter?.startedAt?.toDate?.() || encounter?.createdAt?.toDate?.();
   const dateStr = encounterDate
     ? encounterDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    : 'N/A';
+    : invoice?.date || invoice?.createdAt?.toDate?.()?.toLocaleDateString?.('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) || 'N/A';
 
   const lineItems = (invoiceItems || []).filter((i: any) => i.itemType !== 'tax');
+
+  const subTotal = invoice?.subTotal ?? lineItems.reduce((sum: number, i: any) => sum + (i.lineTotal || 0), 0);
+  const grandTotal = invoice?.grandTotal ?? invoice?.amount ?? subTotal;
+  const discountTotal = invoice?.discountTotal || 0;
+  const amountPaid = invoice?.amountPaid || 0;
+  const balanceDue = invoice?.balanceDue ?? (grandTotal - amountPaid);
+  const taxAmount = invoice?.taxAmount || 0;
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -102,13 +109,13 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
         <View style={styles.header}>
           <View style={styles.logoBlock}>
             <Text style={styles.logoName}>EdvirontVet Animal Hospital</Text>
-            <Text style={styles.logoSub}>Unit 7, Sunrise Business Complex, 8th Avenue, BGC</Text>
-            <Text style={styles.logoSub}>Taguig City 1634</Text>
-            <Text style={styles.logoSub}>+63 917 123 4567 | info@edvirontvet.com</Text>
+            <Text style={styles.logoSub}>888 Pawcare St., Project 6, Quezon City</Text>
+            <Text style={styles.logoSub}>Quezon City, Philippines</Text>
+            <Text style={styles.logoSub}>0912-6819499 | info@edvirontvet.com</Text>
           </View>
           <View style={styles.invoiceBlock}>
             <Text style={styles.invoiceLabel}>INVOICE</Text>
-            <Text style={styles.invoiceNo}>{invoice?.invoiceNo || 'N/A'}</Text>
+            <Text style={styles.invoiceNo}>{invoice?.invoiceNo || `INV-${invoice?.id?.slice(-6)?.toUpperCase() || '000000'}`}</Text>
             <Text style={styles.invoiceDate}>{dateStr}</Text>
           </View>
         </View>
@@ -118,11 +125,11 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
           <Text style={styles.sectionTitle}>Bill To</Text>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Client:</Text>
-            <Text style={styles.infoValue}>{owner?.displayName || owner?.name || 'N/A'}</Text>
+            <Text style={styles.infoValue}>{owner?.displayName || owner?.name || invoice?.ownerName || 'N/A'}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Patient:</Text>
-            <Text style={styles.infoValue}>{patient?.name || 'N/A'}</Text>
+            <Text style={styles.infoValue}>{patient?.name || invoice?.petName || 'N/A'}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Species:</Text>
@@ -134,7 +141,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Doctor:</Text>
-            <Text style={styles.infoValue}>{encounter?.doctorName || 'N/A'}</Text>
+            <Text style={styles.infoValue}>{encounter?.doctorName || invoice?.doctorName || 'N/A'}</Text>
           </View>
         </View>
 
@@ -165,25 +172,33 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
         <View style={styles.totalsBlock}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
-            <Text style={styles.totalValue}>{fmt(invoice?.subTotal || 0)}</Text>
+            <Text style={styles.totalValue}>{fmt(subTotal)}</Text>
           </View>
-          {invoice?.discountTotal > 0 && (
+          {discountTotal > 0 && (
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Discount</Text>
-              <Text style={styles.totalValue}>- {fmt(invoice.discountTotal || 0)}</Text>
+              <Text style={styles.totalValue}>- {fmt(discountTotal)}</Text>
+            </View>
+          )}
+          {taxAmount > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>VAT (12%)</Text>
+              <Text style={styles.totalValue}>{fmt(taxAmount)}</Text>
             </View>
           )}
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>VAT (12%)</Text>
-            <Text style={styles.totalValue}>{fmt(invoice?.taxAmount || 0)}</Text>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>{fmt(grandTotal)}</Text>
           </View>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Amount Paid</Text>
-            <Text style={[styles.totalValue, { color: '#166534' }]}>- {fmt(invoice?.amountPaid || 0)}</Text>
-          </View>
+          {amountPaid > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Amount Paid</Text>
+              <Text style={[styles.totalValue, { color: '#166534' }]}>- {fmt(amountPaid)}</Text>
+            </View>
+          )}
           <View style={[styles.totalRow, styles.grandRow]}>
             <Text style={styles.grandLabel}>Balance Due</Text>
-            <Text style={styles.grandValue}>{fmt(invoice?.balanceDue || 0)}</Text>
+            <Text style={styles.grandValue}>{fmt(balanceDue)}</Text>
           </View>
         </View>
 
@@ -225,7 +240,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
         {/* Footer */}
         <View style={styles.footer}>
           <Text>Thank you for choosing EdvirontVet Animal Hospital!</Text>
-          <Text>For inquiries, please contact us at info@edvirontvet.com or call +63 917 123 4567</Text>
+          <Text>For inquiries, please contact us at info@edvirontvet.com or call 0912-6819499</Text>
         </View>
       </Page>
     </Document>

@@ -157,6 +157,7 @@ function VisitSummaryTab({ patient, owner, encounter, encounters, vitals, servic
   const totalDue = invoice?.balanceDue || 0;
   const totalPaid = invoice?.amountPaid || 0;
   const grandTotal = invoice?.grandTotal || 0;
+  const taxAmount = invoice?.taxAmount || 0;
 
   const encounterTime = encounter.startedAt?.toDate?.() || encounter.createdAt?.toDate?.();
   const encounterDateStr = encounterTime ? format(encounterTime, 'MMM dd, yyyy hh:mm a') : 'N/A';
@@ -373,6 +374,16 @@ function VisitSummaryTab({ patient, owner, encounter, encounters, vitals, servic
                   <span className="text-gray-500">Invoice #</span>
                   <span className="font-medium">{invoice.invoiceNo}</span>
                 </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="font-medium">₱{(grandTotal - taxAmount).toFixed(2)}</span>
+                </div>
+                {taxAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">VAT (12%)</span>
+                    <span className="font-medium">₱{taxAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Grand Total</span>
                   <span className="font-bold">₱{grandTotal.toFixed(2)}</span>
@@ -2484,6 +2495,10 @@ Mode: Walk-in`,
                       <p className="font-bold text-lg">₱{invoice.discountTotal?.toFixed(2) || '0.00'}</p>
                     </div>
                     <div>
+                      <p className="text-gray-500">VAT (12%)</p>
+                      <p className="font-bold text-lg">₱{invoice.taxAmount?.toFixed(2) || '0.00'}</p>
+                    </div>
+                    <div>
                       <p className="text-gray-500">Grand Total</p>
                       <p className="font-bold text-lg text-blue-600">₱{invoice.grandTotal?.toFixed(2) || '0.00'}</p>
                     </div>
@@ -2521,6 +2536,15 @@ Mode: Walk-in`,
                           <td className="p-3 text-right font-medium">₱{item.lineTotal?.toFixed(2)}</td>
                         </tr>
                       ))}
+                      {(invoice.taxAmount || 0) > 0 && (
+                        <tr className="border-b bg-gray-50">
+                          <td className="p-3 font-medium">VAT (12%)</td>
+                          <td className="p-3">tax</td>
+                          <td className="p-3">—</td>
+                          <td className="p-3 text-right">—</td>
+                          <td className="p-3 text-right font-medium">₱{(invoice.taxAmount || 0).toFixed(2)}</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

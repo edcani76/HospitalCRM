@@ -10,10 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/table';
 import { SearchBar } from '../../components/ui/search-bar';
-import { Plus, Eye, FileText, X, Loader2, Search, Printer, MoreHorizontal, DollarSign, Download, Send, Ban, RotateCcw } from 'lucide-react';
-import { fetchInvoices, fetchPets, fetchUsers, fetchInvoiceItems, fetchPayments, recordPayment, addAuditLog } from '../../lib/firestore-helpers';
+import { Plus, Eye, FileText, X, Loader2, Search, Printer, MoreHorizontal, PhilippinePeso, Download, Send, Ban, RotateCcw } from 'lucide-react';
+import { fetchInvoices, fetchPets, fetchUsers, fetchInvoiceItems, fetchPayments, fetchEncounterById, recordPayment, addAuditLog } from '../../lib/firestore-helpers';
 import { collection, addDoc, serverTimestamp, updateDoc, doc, db, auth } from '../../firebase';
 import { format, isPast, parseISO } from 'date-fns';
+import { InvoicePDF } from '../../components/invoice-pdf';
+import { pdf } from '@react-pdf/renderer';
 
 type TabType = 'all' | 'unpaid' | 'partial' | 'paid' | 'overdue' | 'pending';
 
@@ -41,11 +43,24 @@ export default function BillingPage() {
   const [payMethod, setPayMethod] = useState('cash');
   const [payRef, setPayRef] = useState('');
   const [paying, setPaying] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   // Add invoice form
   const [formData, setFormData] = useState({
     petId: '', clientUid: '', description: '', amount: 0, status: 'active', dueDate: '',
   });
+  const [formItems, setFormItems] = useState<{ name: string; qty: number; price: number }[]>([
+    { name: '', qty: 1, price: 0 }
+  ]);
+
+  const addFormItem = () => setFormItems([...formItems, { name: '', qty: 1, price: 0 }]);
+  const removeFormItem = (idx: number) => setFormItems(formItems.filter((_, i) => i !== idx));
+  const updateFormItem = (idx: number, field: string, value: any) => {
+    const next = [...formItems];
+    (next[idx] as any)[field] = field === 'name' ? value : parseFloat(value) || 0;
+    setFormItems(next);
+  };
+  const formTotal = formItems.reduce((s, i) => s + i.qty * i.price, 0);
 
   useEffect(() => {
     async function loadData() {
@@ -70,7 +85,7 @@ export default function BillingPage() {
   // Resolve owner name from pet
   const getOwnerName = (bill: any) => {
     if (bill.ownerName) return bill.ownerName;
-    const pet = pets.find(p => p.id === bill.petId);
+    const pet = pets.find(p => p.id === bill.petId || p.id === bill.patientId);
     if (!pet?.ownerUid) return bill.clientUid || '—';
     const user = users.find(u => u.uid === pet.ownerUid || u.id === pet.ownerUid);
     return user?.displayName || user?.name || pet.ownerUid;
@@ -94,11 +109,20 @@ export default function BillingPage() {
     return s;
   };
   const getSource = (b: any) => b.source || b.encounterId ? 'Consultation' : 'Manual';
-  const getInvoiceNo = (b: any) => b.invoiceNo || `INV-${b.id?.slice(0, 8)?.toUpperCase() || 'NEW'}`;
+  const getInvoiceNo = (b: any) => b.invoiceNo || `INV-${b.id?.slice(-6)?.toUpperCase() || '000000'}`;
   const getDueDate = (b: any) => b.dueDate || '—';
   const getInvoiceDate = (b: any) => {
     if (b.createdAt?.toDate) {
       try { return format(b.createdAt.toDate(), 'MMM dd, yyyy'); } catch {}
+    }
+    if (typeof b.createdAt === 'string') {
+      try { return format(parseISO(b.createdAt), 'MMM dd, yyyy'); } catch {}
+    }
+    if (b.issueDate?.toDate) {
+      try { return format(b.issueDate.toDate(), 'MMM dd, yyyy'); } catch {}
+    }
+    if (typeof b.issueDate === 'string') {
+      try { return format(parseISO(b.issueDate), 'MMM dd, yyyy'); } catch {}
     }
     if (b.date) {
       try { return format(parseISO(b.date), 'MMM dd, yyyy'); } catch {}
@@ -155,8 +179,13 @@ export default function BillingPage() {
 
     // Sort newest first
     list = [...list].sort((a, b) => {
-      const aDate = a.createdAt?.toDate?.()?.getTime() || (a.date ? new Date(a.date).getTime() : 0);
-      const bDate = b.createdAt?.toDate?.()?.getTime() || (b.date ? new Date(b.date).getTime() : 0);
+      const parseDate = (x: any) => {
+        if (x?.toDate?.()) return x.toDate().getTime();
+        if (typeof x === 'string') return new Date(x).getTime();
+        return 0;
+      };
+      const aDate = parseDate(a.createdAt) || parseDate(a.issueDate) || (a.date ? new Date(a.date).getTime() : 0);
+      const bDate = parseDate(b.createdAt) || parseDate(b.issueDate) || (b.date ? new Date(b.date).getTime() : 0);
       return bDate - aDate;
     });
 
@@ -181,6 +210,59 @@ export default function BillingPage() {
     { key: 'overdue', label: 'Overdue', count: overdueBills.length },
     { key: 'pending', label: 'Pending Billing', count: pendingBills.length },
   ];
+
+  const renderInvoicePdf = async () => {
+    if (!selectedBill) return null;
+    const pet = pets.find(p => p.id === selectedBill.petId);
+    const owner = pet ? users.find(u => u.uid === pet.ownerUid || u.id === pet.ownerUid) : null;
+    let encounter = null;
+    if (selectedBill.encounterId) {
+      try { encounter = await fetchEncounterById(selectedBill.encounterId); } catch {}
+    }
+    const docPdf = await pdf(<InvoicePDF invoice={selectedBill} invoiceItems={invoiceItems} payments={invoicePayments} patient={pet} owner={owner} encounter={encounter} />).toBlob();
+    return { blob: docPdf, pet, owner, encounter };
+  };
+
+  const handlePrintInvoice = async () => {
+    if (!selectedBill) return;
+    try {
+      const result = await renderInvoicePdf();
+      if (!result) return;
+      const url = URL.createObjectURL(result.blob);
+      const printWindow = window.open(url);
+      if (!printWindow) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.click();
+        return;
+      }
+      printWindow.onload = () => { printWindow.focus(); };
+    } catch (err) {
+      console.error('Print error:', err);
+      alert('Failed to print invoice.');
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!selectedBill) return;
+    setGeneratingPdf(true);
+    try {
+      const result = await renderInvoicePdf();
+      if (!result) { setGeneratingPdf(false); return; }
+      const url = URL.createObjectURL(result.blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Invoice_${selectedBill.invoiceNo || selectedBill.id?.slice(-6) || '000000'}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF error:', err);
+      alert('Failed to generate PDF.');
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
 
   const handleView = async (bill: any) => {
     setSelectedBill(bill);
@@ -231,13 +313,29 @@ export default function BillingPage() {
 
   const handleSubmit = async () => {
     try {
+      const validItems = formItems.filter(i => i.name.trim() && i.price > 0);
+      if (validItems.length === 0) {
+        alert('Please add at least one line item with a name and price.');
+        return;
+      }
       const pet = pets.find(p => p.id === formData.petId);
+      const invoiceNo = `INV-${Date.now().toString(36).toUpperCase().slice(-4)}${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
+      const subTotal = validItems.reduce((s, i) => s + i.qty * i.price, 0);
+      const taxAmount = 0;
+      const grandTotal = subTotal;
       const newInvoice = {
+        invoiceNo,
         petId: formData.petId,
         petName: pet ? pet.name : 'Unknown',
         ownerName: pet?.ownerUid ? getOwnerName({ petId: formData.petId }) : formData.clientUid,
         clientUid: formData.clientUid,
-        amount: parseFloat(formData.amount.toString()) || 0,
+        amount: grandTotal,
+        grandTotal,
+        balanceDue: grandTotal,
+        amountPaid: 0,
+        subTotal,
+        discountTotal: 0,
+        taxAmount,
         status: formData.status,
         date: new Date().toISOString().split('T')[0],
         dueDate: formData.dueDate,
@@ -245,6 +343,16 @@ export default function BillingPage() {
         createdAt: serverTimestamp(),
       };
       const docRef = await addDoc(collection(db, 'invoices'), newInvoice);
+      for (const item of validItems) {
+        await addDoc(collection(db, 'invoice_items'), {
+          invoiceId: docRef.id,
+          description: item.name,
+          quantity: item.qty,
+          unitPrice: item.price,
+          lineTotal: item.qty * item.price,
+          createdAt: serverTimestamp(),
+        });
+      }
       setBills(prev => [...prev, { ...newInvoice, id: docRef.id }]);
       addAuditLog({
         action: 'invoice_created',
@@ -254,6 +362,7 @@ export default function BillingPage() {
       });
       setIsAddDialogOpen(false);
       setFormData({ petId: '', clientUid: '', description: '', amount: 0, status: 'active', dueDate: '' });
+      setFormItems([{ name: '', qty: 1, price: 0 }]);
     } catch (error) {
       console.error('Error creating invoice:', error);
     }
@@ -312,13 +421,54 @@ export default function BillingPage() {
                     </div>
                     <div>
                       <Label>Description</Label>
-                      <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Invoice description" />
+                      <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Invoice description (optional)" />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label>Line Items</Label>
+                        <Button type="button" variant="outline" size="sm" onClick={addFormItem}>
+                          <Plus className="w-3 h-3 mr-1" /> Add Item
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        {formItems.map((item, idx) => (
+                          <div key={idx} className="flex gap-2 items-start">
+                            <Input
+                              placeholder="Service name"
+                              value={item.name}
+                              onChange={(e) => updateFormItem(idx, 'name', e.target.value)}
+                              className="flex-1"
+                            />
+                            <Input
+                              type="number"
+                              placeholder="Qty"
+                              value={item.qty || ''}
+                              onChange={(e) => updateFormItem(idx, 'qty', e.target.value)}
+                              className="w-16"
+                              min="1"
+                            />
+                            <Input
+                              type="number"
+                              placeholder="Price"
+                              value={item.price || ''}
+                              onChange={(e) => updateFormItem(idx, 'price', e.target.value)}
+                              className="w-24"
+                              min="0"
+                            />
+                            <span className="text-sm font-medium pt-2 w-20 text-right">₱{(item.qty * item.price).toLocaleString()}</span>
+                            {formItems.length > 1 && (
+                              <Button type="button" variant="ghost" size="sm" onClick={() => removeFormItem(idx)} className="text-red-500">
+                                <X className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-end mt-2 text-sm font-bold">
+                        Total: ₱{formTotal.toLocaleString()}
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Amount (₱)</Label>
-                        <Input type="number" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })} />
-                      </div>
                       <div>
                         <Label>Due Date</Label>
                         <Input type="date" value={formData.dueDate} onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} />
@@ -494,7 +644,7 @@ export default function BillingPage() {
                           <TableCell className="font-mono text-xs">{getInvoiceNo(bill)}</TableCell>
                           <TableCell className="text-xs">{getInvoiceDate(bill)}</TableCell>
                           <TableCell className="text-sm">{getOwnerName(bill)}</TableCell>
-                          <TableCell className="font-medium">{bill.petName || '—'}</TableCell>
+                          <TableCell className="font-medium">{bill.petName || pets.find(p => p.id === (bill.petId || bill.patientId))?.name || '—'}</TableCell>
                           <TableCell><Badge variant="outline" className="text-xs">{getSource(bill)}</Badge></TableCell>
                           <TableCell className="text-right font-medium">₱{getTotal(bill).toLocaleString()}</TableCell>
                           <TableCell className="text-right text-green-600">₱{getPaid(bill).toLocaleString()}</TableCell>
@@ -509,8 +659,8 @@ export default function BillingPage() {
                                 <Eye className="w-4 h-4" />
                               </Button>
                               {status !== 'paid' && (
-                                <Button variant="ghost" size="sm" className="text-green-600" onClick={() => handlePay(bill)} title="Receive Payment">
-                                  <DollarSign className="w-4 h-4" />
+                                <Button variant="ghost" size="sm" className="text-green-600" onClick={() => handlePay(bill)} title="Record Payment">
+                                  <PhilippinePeso className="w-4 h-4" />
                                 </Button>
                               )}
                               <DropdownMenu>
@@ -518,11 +668,11 @@ export default function BillingPage() {
                                   <Button variant="ghost" size="sm"><MoreHorizontal className="w-4 h-4" /></Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => window.print()}>
+                                  <DropdownMenuItem onClick={handlePrintInvoice}>
                                     <Printer className="w-4 h-4 mr-2" /> Print
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <Download className="w-4 h-4 mr-2" /> Download PDF
+                                  <DropdownMenuItem onClick={handleDownloadPdf}>
+                                    {generatingPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />} {generatingPdf ? 'Generating...' : 'Download PDF'}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem>
                                     <Send className="w-4 h-4 mr-2" /> Send to Owner
@@ -591,9 +741,9 @@ export default function BillingPage() {
                   )}
 
                   {/* Invoice Items */}
-                  {invoiceItems.length > 0 && (
-                    <div>
-                      <p className="text-sm font-semibold mb-2">Charges</p>
+                  <div>
+                    <p className="text-sm font-semibold mb-2">Charges</p>
+                    {invoiceItems.length > 0 ? (
                       <div className="space-y-1">
                         {invoiceItems.map((item: any, i: number) => (
                           <div key={item.id || i} className="flex justify-between text-sm py-1 border-b border-gray-100">
@@ -601,9 +751,22 @@ export default function BillingPage() {
                             <span className="font-medium">₱{item.lineTotal?.toLocaleString() || (item.unitPrice * item.quantity).toLocaleString()}</span>
                           </div>
                         ))}
+                        {(selectedBill.taxAmount || 0) > 0 && (
+                          <div className="flex justify-between text-sm py-1 border-b border-gray-100 text-gray-500">
+                            <span>VAT (12%)</span>
+                            <span className="font-medium">₱{selectedBill.taxAmount.toLocaleString()}</span>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    ) : selectedBill.amount ? (
+                      <div className="flex justify-between text-sm py-1 border-b border-gray-100">
+                        <span>{selectedBill.description || 'Service'} x1</span>
+                        <span className="font-medium">₱{selectedBill.amount.toLocaleString()}</span>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">No charges recorded for this invoice.</p>
+                    )}
+                  </div>
 
                   {/* Totals */}
                   <div className="border-t pt-3 space-y-1">
@@ -655,11 +818,14 @@ export default function BillingPage() {
                   <div className="flex gap-2 pt-2">
                     {getStatus(selectedBill) !== 'paid' && (
                       <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => { setIsViewDrawerOpen(false); handlePay(selectedBill); }}>
-                        <DollarSign className="w-4 h-4 mr-2" /> Receive Payment
+                        <PhilippinePeso className="w-4 h-4 mr-2" /> Record Payment
                       </Button>
                     )}
-                    <Button variant="outline"><Printer className="w-4 h-4 mr-2" /> Print</Button>
-                    <Button variant="outline"><Download className="w-4 h-4 mr-2" /> Download PDF</Button>
+                    <Button variant="outline" onClick={handlePrintInvoice}><Printer className="w-4 h-4 mr-2" /> Print</Button>
+                    <Button variant="outline" onClick={handleDownloadPdf} disabled={generatingPdf}>
+                      {generatingPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                      {generatingPdf ? 'Generating...' : 'Download PDF'}
+                    </Button>
                   </div>
                 </div>
               )}
@@ -670,7 +836,7 @@ export default function BillingPage() {
           <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Receive Payment</DialogTitle>
+                <DialogTitle>Record Payment</DialogTitle>
                 <DialogDescription>
                   {selectedBill && `Invoice ${getInvoiceNo(selectedBill)} — ${selectedBill.petName}`}
                 </DialogDescription>
@@ -710,7 +876,7 @@ export default function BillingPage() {
                     <Input value={payRef} onChange={(e) => setPayRef(e.target.value)} placeholder="OR number, transaction ID..." />
                   </div>
                   <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={submitPayment} disabled={paying || payAmount <= 0}>
-                    {paying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</> : <><DollarSign className="w-4 h-4 mr-2" /> Record Payment</>}
+                    {paying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</> : <><PhilippinePeso className="w-4 h-4 mr-2" /> Record Payment</>}
                   </Button>
                 </div>
               )}

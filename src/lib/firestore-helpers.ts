@@ -518,10 +518,30 @@ export async function generateInvoiceFromEncounter(encounterId: string, appointm
 
   const grandTotal = subTotal - discountTotal;
 
+  // Look up patient/pet name from the encounter or patient data
+  let petName = '';
+  try {
+    const snap = await getDoc(doc(db, 'encounters', encounterId));
+    if (snap.exists()) {
+      const enc = snap.data();
+      petName = enc.petName || '';
+    }
+    if (!petName) {
+      const petSnap = await getDoc(doc(db, 'pets', patientId));
+      if (petSnap.exists()) {
+        petName = petSnap.data().name || '';
+      }
+    }
+  } catch {}
+
   // Create invoice
   const invoiceData = {
     invoiceNo,
     encounterId,
+    petId: patientId,
+    petName,
+    clientUid: ownerId,
+    ownerName: '',
     patientId,
     ownerId,
     subTotal,
@@ -632,8 +652,11 @@ export async function addAuditLog(data: {
   details?: string;
 }) {
   const now = serverTimestamp();
+  const clean = Object.fromEntries(
+    Object.entries(data).filter(([_, v]) => v !== undefined)
+  );
   const logEntry = {
-    ...data,
+    ...clean,
     timestamp: now,
     createdAt: now
   };

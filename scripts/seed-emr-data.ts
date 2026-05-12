@@ -57,6 +57,7 @@ async function seedEndToEndData() {
   await clearCollection('payments');
   await clearCollection('attachments');
   await clearCollection('audit_logs');
+  await clearCollection('appointments');
   console.log('');
 
   // Fetch existing users and pets
@@ -618,6 +619,24 @@ async function seedEndToEndData() {
       const encRef = await addDoc(collection(db, 'encounters'), encounterData);
       const encounterId = encRef.id;
 
+      // 1b. Create corresponding appointment
+      const timeSlots = ['09:00 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
+      const aptStatus = visit.status === 'in-progress' ? 'in-progress' : 'completed';
+      await addDoc(collection(db, 'appointments'), {
+        clientUid: pet.ownerUid,
+        petId: pet.id,
+        petName: pet.name,
+        doctorId: visit.doctorId,
+        doctorName: doctor.name || doctor.doctorName || '',
+        date: dateStr,
+        time: timeSlots[Math.floor(Math.random() * timeSlots.length)],
+        status: aptStatus,
+        notes: visit.chiefComplaint,
+        services: visit.services.map(s => s.name),
+        createdAt: visitDate,
+        mode: 'scheduled',
+      });
+
       // 2. Create triage vitals record
       await addDoc(collection(db, 'triage_vitals'), {
         encounterId,
@@ -806,7 +825,7 @@ async function seedEndToEndData() {
         petId: pet.id,
         petName: pet.name,
         clientUid: pet.ownerUid,
-        invoiceNo: `INV-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+        invoiceNo: `INV-${String(createdEncounters[scenario.petName].length + 1).padStart(3, '0')}-${pet.name.toUpperCase().slice(0, 3)}`,
         status: invoiceStatus,
         subTotal,
         taxAmount,
