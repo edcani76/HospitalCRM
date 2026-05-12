@@ -489,6 +489,10 @@ export async function fetchPayments(invoiceId: string) {
 
 // Create Invoice from Encounter
 export async function generateInvoiceFromEncounter(encounterId: string, appointmentServices: any[], patientId: string, ownerId: string) {
+  // Clear cache to ensure idempotent guard sees latest data
+  const { clearCache } = await import('./offline-cache');
+  await clearCache(`invoices_${encounterId}`).catch(() => {});
+
   // Guard: check if an invoice already exists for this encounter
   const existing = await fetchInvoicesByEncounter(encounterId);
   if (existing.length > 0) {

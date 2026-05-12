@@ -1193,6 +1193,7 @@ Mode: Walk-in`,
           patientId || '',
           selectedEncounter.ownerId || patient?.ownerUid || ''
         );
+        await clearCache(`invoices_${selectedEncounter.id}`).catch(() => {});
         const [inv, items, pays] = await Promise.all([
           fetchInvoicesByEncounter(selectedEncounter.id),
           fetchInvoiceItems(''),
@@ -1200,6 +1201,7 @@ Mode: Walk-in`,
         ]);
         if (inv.length > 0) {
           setInvoice(inv[0]);
+          await clearCache(`invoice_items_${inv[0].id}`).catch(() => {});
           const [invItems, invPays] = await Promise.all([
             fetchInvoiceItems(inv[0].id),
             fetchPayments(inv[0].id)
@@ -1208,6 +1210,24 @@ Mode: Walk-in`,
           setPayments(invPays);
         }
         alert('All services completed. Draft invoice has been generated.');
+      } else if (!invoice && updatedServices.some((s: any) => s.status === 'completed')) {
+        // First service completed - generate draft invoice with completed services so far
+        const completedServices = updatedServices.filter((s: any) => s.status === 'completed' && s.billable !== false);
+        if (completedServices.length > 0) {
+          await generateInvoiceFromEncounter(
+            selectedEncounter.id,
+            completedServices,
+            patientId || '',
+            selectedEncounter.ownerId || patient?.ownerUid || ''
+          );
+          await clearCache(`invoices_${selectedEncounter.id}`).catch(() => {});
+          const [inv] = await Promise.all([
+            fetchInvoicesByEncounter(selectedEncounter.id),
+          ]);
+          if (inv.length > 0) {
+            setInvoice(inv[0]);
+          }
+        }
       } else if (invoice) {
         // Invoice already exists - check if this service already has an invoice item
         const existingItems = await fetchInvoiceItems(invoice.id);

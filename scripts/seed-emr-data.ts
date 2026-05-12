@@ -593,7 +593,8 @@ async function seedEndToEndData() {
       const visitDate = timestamp(dateStr);
 
       // 1. Create encounter
-      const encounterData = {
+      const encounterData: Record<string, any> = {
+        appointmentId: '',
         petId: pet.id,
         petName: pet.name,
         clientUid: pet.ownerUid,
@@ -622,7 +623,7 @@ async function seedEndToEndData() {
       // 1b. Create corresponding appointment
       const timeSlots = ['09:00 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
       const aptStatus = visit.status === 'in-progress' ? 'in-progress' : 'completed';
-      await addDoc(collection(db, 'appointments'), {
+      const aptRef = await addDoc(collection(db, 'appointments'), {
         clientUid: pet.ownerUid,
         petId: pet.id,
         petName: pet.name,
@@ -636,6 +637,9 @@ async function seedEndToEndData() {
         createdAt: visitDate,
         mode: 'scheduled',
       });
+
+      // Link encounter back to the appointment
+      await updateDoc(doc(db, 'encounters', encounterId), { appointmentId: aptRef.id });
 
       // 2. Create triage vitals record
       await addDoc(collection(db, 'triage_vitals'), {
@@ -761,128 +765,123 @@ async function seedEndToEndData() {
         }
       }
 
-      // 7. Create invoice
-      const taxAmount = subTotal * 0.12;
-      const grandTotal = subTotal + taxAmount;
+      // 7. Create invoice (only for completed/visited encounters, not in-progress)
+      let invoiceId = '';
+      let billingStatus: string = 'unbilled';
+      let grandTotal = 0;
 
-      // Billing scenarios: paid, partial, unpaid
-      let billingStatus: 'paid' | 'partial' | 'unpaid' = 'paid';
-      let amountPaid = grandTotal;
-      let balanceDue = 0;
+      if (visit.status !== 'in-progress') {
+        const taxAmount = subTotal * 0.12;
+        grandTotal = subTotal + taxAmount;
 
-      // Assign billing scenarios based on visit position
-      const petVisitIndex = (createdEncounters[scenario.petName] || []).length;
-      const petName = scenario.petName;
+        // Billing scenarios: paid, partial, unpaid
+        let amountPaid = grandTotal;
+        let balanceDue = 0;
 
-      if (petName === 'Buddy' && petVisitIndex === 1) {
-        // Buddy's 2nd visit (day 60) - partially paid
-        billingStatus = 'partial';
-        amountPaid = grandTotal * 0.4;
-        balanceDue = grandTotal - amountPaid;
-      } else if (petName === 'Whiskers' && petVisitIndex === 0) {
-        // Whiskers' 1st visit (day 45) - partially paid
-        billingStatus = 'partial';
-        amountPaid = grandTotal * 0.5;
-        balanceDue = grandTotal - amountPaid;
-      } else if (petName === 'Charlie' && petVisitIndex === 0) {
-        // Charlie's 1st visit (day 40) - unpaid
-        billingStatus = 'unpaid';
-        amountPaid = 0;
-        balanceDue = grandTotal;
-      } else if (petName === 'Charlie' && petVisitIndex === 1) {
-        // Charlie's 2nd visit (day 10) - partially paid
-        billingStatus = 'partial';
-        amountPaid = grandTotal * 0.3;
-        balanceDue = grandTotal - amountPaid;
-      } else if (petName === 'Rocky' && petVisitIndex === 0) {
-        // Rocky's 1st visit (day 45) - partially paid (surgery deposit)
-        billingStatus = 'partial';
-        amountPaid = grandTotal * 0.5;
-        balanceDue = grandTotal - amountPaid;
-      } else if (petName === 'Rocky' && petVisitIndex === 3) {
-        // Rocky's latest visit (day 1, in-progress) - unpaid
-        billingStatus = 'unpaid';
-        amountPaid = 0;
-        balanceDue = grandTotal;
-      } else if (petName === 'Max' && petVisitIndex === 2) {
-        // Max's latest visit (day 2) - partially paid
-        billingStatus = 'partial';
-        amountPaid = grandTotal * 0.6;
-        balanceDue = grandTotal - amountPaid;
-      } else if (petName === 'Luna' && petVisitIndex === 0) {
-        // Luna's 1st visit (day 50) - unpaid
-        billingStatus = 'unpaid';
-        amountPaid = 0;
-        balanceDue = grandTotal;
-      }
+        const petVisitIndex = (createdEncounters[scenario.petName] || []).length;
+        const petName = scenario.petName;
 
-      const invoiceStatus = billingStatus === 'paid' ? 'paid' : billingStatus === 'partial' ? 'partially_paid' : 'active';
-      const dueDate = new Date(visitDate);
-      dueDate.setDate(dueDate.getDate() + 30);
+        if (petName === 'Buddy' && petVisitIndex === 1) {
+          billingStatus = 'partial';
+          amountPaid = grandTotal * 0.4;
+          balanceDue = grandTotal - amountPaid;
+        } else if (petName === 'Whiskers' && petVisitIndex === 0) {
+          billingStatus = 'partial';
+          amountPaid = grandTotal * 0.5;
+          balanceDue = grandTotal - amountPaid;
+        } else if (petName === 'Charlie' && petVisitIndex === 0) {
+          billingStatus = 'unpaid';
+          amountPaid = 0;
+          balanceDue = grandTotal;
+        } else if (petName === 'Charlie' && petVisitIndex === 1) {
+          billingStatus = 'partial';
+          amountPaid = grandTotal * 0.3;
+          balanceDue = grandTotal - amountPaid;
+        } else if (petName === 'Rocky' && petVisitIndex === 0) {
+          billingStatus = 'partial';
+          amountPaid = grandTotal * 0.5;
+          balanceDue = grandTotal - amountPaid;
+        } else if (petName === 'Max' && petVisitIndex === 2) {
+          billingStatus = 'partial';
+          amountPaid = grandTotal * 0.6;
+          balanceDue = grandTotal - amountPaid;
+        } else if (petName === 'Luna' && petVisitIndex === 0) {
+          billingStatus = 'unpaid';
+          amountPaid = 0;
+          balanceDue = grandTotal;
+        } else {
+          billingStatus = 'paid';
+          amountPaid = grandTotal;
+          balanceDue = 0;
+        }
 
-      const invoiceRef = await addDoc(collection(db, 'invoices'), {
-        encounterId,
-        petId: pet.id,
-        petName: pet.name,
-        clientUid: pet.ownerUid,
-        invoiceNo: `INV-${String(createdEncounters[scenario.petName].length + 1).padStart(3, '0')}-${pet.name.toUpperCase().slice(0, 3)}`,
-        status: invoiceStatus,
-        subTotal,
-        taxAmount,
-        discountTotal: 0,
-        grandTotal,
-        amountPaid: Math.round(amountPaid * 100) / 100,
-        balanceDue: Math.round(balanceDue * 100) / 100,
-        issueDate: visitDate,
-        dueDate: dueDate,
-        notes: visit.diagnosis || '',
-        createdAt: visitDate,
-        updatedAt: visitDate
-      });
+        const invoiceStatus = billingStatus === 'paid' ? 'paid' : billingStatus === 'partial' ? 'partially_paid' : 'active';
+        const dueDate = new Date(visitDate);
+        dueDate.setDate(dueDate.getDate() + 30);
 
-      const invoiceId = invoiceRef.id;
-
-      // 8. Create invoice items
-      for (const svc of visit.services) {
-        await addDoc(collection(db, 'invoice_items'), {
-          invoiceId,
+        const invoiceRef = await addDoc(collection(db, 'invoices'), {
           encounterId,
           petId: pet.id,
-          description: svc.name,
-          itemType: svc.type,
-          quantity: svc.qty,
-          unitPrice: svc.price,
-          lineTotal: svc.price * svc.qty,
-          createdAt: visitDate
+          petName: pet.name,
+          clientUid: pet.ownerUid,
+          invoiceNo: `INV-${String(createdEncounters[scenario.petName].length + 1).padStart(3, '0')}-${pet.name.toUpperCase().slice(0, 3)}`,
+          status: invoiceStatus,
+          subTotal,
+          taxAmount,
+          discountTotal: 0,
+          grandTotal,
+          amountPaid: Math.round(amountPaid * 100) / 100,
+          balanceDue: Math.round(balanceDue * 100) / 100,
+          issueDate: visitDate,
+          dueDate: dueDate,
+          notes: visit.diagnosis || '',
+          createdAt: visitDate,
+          updatedAt: visitDate
         });
-      }
 
-      // 9. Create payment record(s)
-      if (billingStatus === 'paid') {
-        await addDoc(collection(db, 'payments'), {
-          invoiceId,
-          encounterId,
-          petId: pet.id,
-          amount: grandTotal,
-          paymentMethod: 'cash',
-          referenceNo: `PAY-${Date.now()}`,
-          receivedBy: 'cashier',
-          paidAt: visitDate,
-          createdAt: visitDate
-        });
-      } else if (billingStatus === 'partial' && amountPaid > 0) {
-        // Create initial partial payment
-        await addDoc(collection(db, 'payments'), {
-          invoiceId,
-          encounterId,
-          petId: pet.id,
-          amount: Math.round(amountPaid * 100) / 100,
-          paymentMethod: Math.random() > 0.5 ? 'cash' : 'gcash',
-          referenceNo: `PAY-${Date.now()}`,
-          receivedBy: 'cashier',
-          paidAt: visitDate,
-          createdAt: visitDate
-        });
+        invoiceId = invoiceRef.id;
+
+        // 8. Create invoice items
+        for (const svc of visit.services) {
+          await addDoc(collection(db, 'invoice_items'), {
+            invoiceId,
+            encounterId,
+            petId: pet.id,
+            description: svc.name,
+            itemType: svc.type,
+            quantity: svc.qty,
+            unitPrice: svc.price,
+            lineTotal: svc.price * svc.qty,
+            createdAt: visitDate
+          });
+        }
+
+        // 9. Create payment record(s)
+        if (billingStatus === 'paid') {
+          await addDoc(collection(db, 'payments'), {
+            invoiceId,
+            encounterId,
+            petId: pet.id,
+            amount: grandTotal,
+            paymentMethod: 'cash',
+            referenceNo: `PAY-${Date.now()}`,
+            receivedBy: 'cashier',
+            paidAt: visitDate,
+            createdAt: visitDate
+          });
+        } else if (billingStatus === 'partial' && amountPaid > 0) {
+          await addDoc(collection(db, 'payments'), {
+            invoiceId,
+            encounterId,
+            petId: pet.id,
+            amount: Math.round(amountPaid * 100) / 100,
+            paymentMethod: Math.random() > 0.5 ? 'cash' : 'gcash',
+            referenceNo: `PAY-${Date.now()}`,
+            receivedBy: 'cashier',
+            paidAt: visitDate,
+            createdAt: visitDate
+          });
+        }
       }
 
       // 10. Create audit logs
@@ -907,7 +906,7 @@ async function seedEndToEndData() {
         billingStatus
       });
 
-      console.log(`   Created encounter for ${pet.name}: ${dateStr} - ${visit.diagnosis || 'Consultation'} [${billingStatus.toUpperCase()}]`);
+      console.log(`   Created encounter for ${pet.name}: ${dateStr} - ${visit.diagnosis || 'Consultation'} [${billingStatus === 'unbilled' ? 'NO INVOICE' : billingStatus.toUpperCase()}]`);
     }
   }
 
