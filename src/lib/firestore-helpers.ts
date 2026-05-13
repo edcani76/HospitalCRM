@@ -744,6 +744,18 @@ export async function updatePrescription(prescriptionId: string, data: any) {
   await updateDoc(ref, { ...data, updatedAt: serverTimestamp() });
 }
 
+// ==================== Admissions ====================
+
+export async function fetchAdmissions(petId?: string) {
+  const queryFn = async () => {
+    let q = query(collection(db, 'admissions'), orderBy('createdAt', 'desc'));
+    if (petId) q = query(collection(db, 'admissions'), where('petId', '==', petId), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache('admissions', queryFn);
+}
+
 export async function addAuditLog(data: {
   action: string;
   userId: string;
