@@ -28,7 +28,9 @@ import {
   AlertCircle,
   AlertTriangle,
   Syringe,
-  Scale
+  Scale,
+  PhilippinePeso,
+  Pill
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
@@ -696,7 +698,7 @@ export default function PatientProfilePage() {
             </Button>
           )}
           <Button size="sm" variant="outline" className="text-xs" onClick={() => navigate(`/crm/billing`)}>
-            <DollarSign className="w-3.5 h-3.5 mr-1.5" /> Billing
+            <PhilippinePeso className="w-3.5 h-3.5 mr-1.5" /> Billing
           </Button>
           <Button size="sm" variant="outline" className="text-xs" onClick={() => setIsPhotoActionModalOpen(true)}>
             <Camera className="w-3.5 h-3.5 mr-1.5" /> Photo
@@ -874,7 +876,7 @@ export default function PatientProfilePage() {
                 </div>
                 <div className="p-4 space-y-2">
                   {encounterVisits.length > 0 ? (
-                    encounterVisits.slice(0, 5).map((enc: any) => {
+                    [...encounterVisits].sort((a: any, b: any) => (b.startedAt?.toDate?.() || b.createdAt?.toDate?.() || 0) - (a.startedAt?.toDate?.() || a.createdAt?.toDate?.() || 0)).slice(0, 5).map((enc: any) => {
                       const encDate = enc.startedAt?.toDate?.() || enc.createdAt?.toDate?.();
                       const dateStr = encDate ? encDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
                       const stale = enc.status === 'in-progress' && encDate && (Date.now() - encDate.getTime()) > 86400000;
@@ -915,7 +917,7 @@ export default function PatientProfilePage() {
               <div className="bg-white rounded-xl border border-stone-200 shadow-sm">
                 <div className="p-4 border-b border-stone-100 flex items-center justify-between">
                   <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-blue-600" /> Billing Summary
+                    <PhilippinePeso className="w-4 h-4 text-blue-600" /> Billing Summary
                   </h3>
                   <button onClick={() => setActiveTab('billing')} className="text-xs text-blue-600 hover:text-blue-700 font-semibold">View All</button>
                 </div>
@@ -955,7 +957,7 @@ export default function PatientProfilePage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {encounterVisits.map((enc: any, idx: number) => (
+                      {[...encounterVisits].sort((a: any, b: any) => new Date(b.startedAt?.toDate?.() || b.date || 0).getTime() - new Date(a.startedAt?.toDate?.() || a.date || 0).getTime()).map((enc: any, idx: number) => (
                   <motion.div key={enc.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.03 }}
                     className={`relative pl-8 pb-4 ${idx < encounterVisits.length - 1 ? 'border-l-2 border-blue-200' : ''}`}
                   >
@@ -984,7 +986,7 @@ export default function PatientProfilePage() {
                             </div>
                           )}
                         </div>
-                        <Button size="sm" variant="outline" className="text-xs" onClick={() => navigate(`/crm/emr/${enc.id}`)}>View Details</Button>
+                        <Button size="sm" variant="outline" className="text-xs" onClick={() => navigate(`/crm/emr/${enc.petId || patient.id}`)}>View Details</Button>
                       </div>
                     </div>
                   </motion.div>
@@ -1018,7 +1020,7 @@ export default function PatientProfilePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100 text-sm">
-                    {appointments.map((apt: any) => (
+                      {[...appointments].sort((a: any, b: any) => new Date(b.date + 'T' + (b.time || '00:00')).getTime() - new Date(a.date + 'T' + (a.time || '00:00')).getTime()).map((apt: any) => (
                       <tr key={apt.id} className="hover:bg-stone-50/50 transition-colors">
                         <td className="px-4 py-3 whitespace-nowrap">
                           <p className="font-bold text-stone-700">{new Date(apt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
@@ -1104,7 +1106,7 @@ export default function PatientProfilePage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-stone-900">Billing & Invoices</h2>
               <Button size="sm" variant="outline" onClick={() => navigate('/crm/billing')}>
-                <DollarSign className="w-4 h-4 mr-1.5" /> Full Billing
+                <PhilippinePeso className="w-4 h-4 mr-1.5" /> Full Billing
               </Button>
             </div>
             <div className="grid grid-cols-3 gap-4 mb-4">
@@ -1123,7 +1125,7 @@ export default function PatientProfilePage() {
             </div>
             {invoices.length === 0 ? (
               <div className="text-center py-12 text-stone-400 bg-white rounded-xl border border-stone-200">
-                <DollarSign className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                <PhilippinePeso className="w-12 h-12 mx-auto mb-3 opacity-40" />
                 <p className="text-lg font-medium">No invoices yet</p>
               </div>
             ) : (

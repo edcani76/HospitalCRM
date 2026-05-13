@@ -72,12 +72,13 @@ export default function EMRDirectory() {
 
   const filteredPatients = useMemo(() => {
     return pets.filter(patient => {
-      const fullName = `${patient.name} (${patient.species})`;
+      if (!patient) return false;
+      const fullName = `${patient.name || ''} (${patient.species || 'Unknown'})`;
       const ownerName = users[patient.ownerUid]?.displayName || users[patient.ownerUid]?.name || '';
       const matchesSearch = fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                             patient.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                             (patient.id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                              ownerName.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesLetter = selectedLetter ? patient.name.toUpperCase().startsWith(selectedLetter) : true;
+      const matchesLetter = selectedLetter ? (patient.name || '').toUpperCase().startsWith(selectedLetter) : true;
       return matchesSearch && matchesLetter;
     });
   }, [pets, users, searchQuery, selectedLetter]);
@@ -146,7 +147,7 @@ export default function EMRDirectory() {
           All
         </button>
         {alphabet.map((letter) => {
-          const count = pets.filter(p => p.name.startsWith(letter)).length;
+          const count = pets.filter(p => p?.name?.startsWith(letter)).length;
           return (
             <button
               key={letter}

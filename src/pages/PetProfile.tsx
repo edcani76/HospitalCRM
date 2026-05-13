@@ -590,14 +590,14 @@ export default function PetProfile() {
                         <p className="text-sm">No medical records yet</p>
                       </div>
                     ) : (
-                      encounters.slice(0, 5).map((enc, idx) => (
+                      [...encounters].sort((a: any, b: any) => (b.startedAt?.toDate?.() || b.createdAt?.toDate?.() || 0) - (a.startedAt?.toDate?.() || a.createdAt?.toDate?.() || 0)).slice(0, 5).map((enc, idx) => (
                         <motion.div
                           key={enc.id}
                           initial={{ opacity: 0, y: 5 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: idx * 0.03 }}
                           className="flex items-start gap-3 p-3 bg-stone-50 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
-                          onClick={() => { if (currentUser?.role === 'admin') navigate(`/crm/emr/${enc.id}`); }}
+                          onClick={() => { if (currentUser?.role === 'admin') navigate(`/crm/emr/${enc.petId || pet?.id}`); }}
                         >
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                             enc.status === 'completed' ? 'bg-green-100' : enc.status === 'medical-completed' ? 'bg-purple-100' : 'bg-blue-100'
@@ -639,7 +639,7 @@ export default function PetProfile() {
                         <p className="text-sm">No appointments yet</p>
                       </div>
                     ) : (
-                      appointments.slice(0, 5).map((appt, idx) => (
+                      [...appointments].sort((a: any, b: any) => new Date(b.date + 'T' + (b.time || '00:00')).getTime() - new Date(a.date + 'T' + (a.time || '00:00')).getTime()).slice(0, 5).map((appt, idx) => (
                         <div key={appt.id} className="flex items-center justify-between p-2.5 bg-stone-50 rounded-lg">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
@@ -769,7 +769,7 @@ export default function PetProfile() {
               ) : (
                 <div className="space-y-4">
                   {/* Encounters as timeline entries */}
-                  {encounters.map((enc, idx) => {
+                  {[...encounters].sort((a: any, b: any) => (b.startedAt?.toDate?.() || b.createdAt?.toDate?.() || 0) - (a.startedAt?.toDate?.() || a.createdAt?.toDate?.() || 0)).map((enc, idx) => {
                     const isLatest = idx === 0;
                     return (
                       <motion.div
@@ -814,7 +814,7 @@ export default function PetProfile() {
                     );
                   })}
                   {/* Completed appointments without encounters */}
-                  {appointments.filter(a => a.status === 'completed' && !encounters.some((e: any) => e.appointmentId === a.id)).map((appt, idx) => (
+                  {[...appointments].filter(a => a.status === 'completed' && !encounters.some((e: any) => e.appointmentId === a.id)).sort((a: any, b: any) => new Date(b.date + 'T' + (b.time || '00:00')).getTime() - new Date(a.date + 'T' + (a.time || '00:00')).getTime()).map((appt, idx) => (
                     <div key={appt.id} className="relative pl-8 pb-4">
                       <div className="absolute left-[-8px] top-1 w-4 h-4 rounded-full border-2 bg-stone-400 border-stone-200" />
                       <div className="bg-white rounded-xl border border-stone-200 p-4 shadow-sm">
@@ -858,7 +858,7 @@ export default function PetProfile() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-100 text-sm">
-                        {appointments.map(appt => (
+                        {[...appointments].sort((a: any, b: any) => new Date(b.date + 'T' + (b.time || '00:00')).getTime() - new Date(a.date + 'T' + (a.time || '00:00')).getTime()).map(appt => (
                           <tr key={appt.id} className="hover:bg-stone-50/50 transition-colors">
                             <td className="px-4 py-3 whitespace-nowrap">
                               <p className="font-bold text-stone-700">{format(new Date(appt.date), 'MMM dd, yyyy')}</p>

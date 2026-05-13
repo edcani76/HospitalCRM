@@ -317,8 +317,8 @@ const getBreadcrumbs = (): CRMBreadcrumb[] => {
       
       // Add current page
       const lastSegment = segments[segments.length - 1];
-      const pet = pets.find(p => p.id === lastSegment);
-      const owner = users.find(u => u.id === lastSegment);
+      const pet = pets.find(p => p?.id === lastSegment);
+      const owner = users.find(u => u?.id === lastSegment);
       const entityName = pet?.name || owner?.displayName || (lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1));
       
       breadcrumbs.push({ name: entityName, path: pathname });
@@ -347,7 +347,7 @@ const getBreadcrumbs = (): CRMBreadcrumb[] => {
         const patientIdx = fromSegments.indexOf('patients');
         if (fromSegments[patientIdx + 1]) {
           const patientId = fromSegments[patientIdx + 1];
-          const patient = pets.find(p => p.id === patientId);
+          const patient = pets.find(p => p?.id === patientId);
           if (patient) {
             breadcrumbs.push({ name: patient.name, path: fromPath });
           }
@@ -357,7 +357,7 @@ const getBreadcrumbs = (): CRMBreadcrumb[] => {
         const ownerIdx = fromSegments.indexOf('owners');
         if (fromSegments[ownerIdx + 1]) {
           const ownerId = fromSegments[ownerIdx + 1];
-          const owner = users.find(u => u.id === ownerId);
+          const owner = users.find(u => u?.id === ownerId);
           if (owner) {
             breadcrumbs.push({ name: owner.displayName || owner.name, path: fromPath });
           }
@@ -370,8 +370,8 @@ const getBreadcrumbs = (): CRMBreadcrumb[] => {
       
       // Add current page
       const lastSegment = segments[segments.length - 1];
-      const pet = pets.find(p => p.id === lastSegment);
-      const owner = users.find(u => u.id === lastSegment);
+      const pet = pets.find(p => p?.id === lastSegment);
+      const owner = users.find(u => u?.id === lastSegment);
       const entityName = pet?.name || owner?.displayName || (lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1));
       
       breadcrumbs.push({ name: entityName, path: pathname });
@@ -414,8 +414,8 @@ const getBreadcrumbs = (): CRMBreadcrumb[] => {
       
       let name = pageNames[segment];
       if (!name) {
-        const pet = pets.find(p => p.id === segment);
-        const owner = users.find(u => u.id === segment);
+        const pet = pets.find(p => p?.id === segment);
+        const owner = users.find(u => u?.id === segment);
         name = pet?.name || owner?.displayName || (segment.charAt(0).toUpperCase() + segment.slice(1));
       }
       
