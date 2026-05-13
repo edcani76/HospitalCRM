@@ -5,7 +5,7 @@ import {
   Heart, Wind, Droplets, Clock, FileText, DollarSign, History,
   ClipboardList, Pill, FlaskConical, Upload, Printer, Eye, Bell, Check,
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  AlertTriangle, FileCheck, Receipt, Calendar, X
+  AlertTriangle, FileCheck, Receipt, Calendar, X, ArrowRight, Box, Hash, Barcode
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { format } from 'date-fns';
@@ -13,6 +13,7 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../../components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
 import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -25,7 +26,7 @@ import {
   fetchLabOrders, fetchPrescriptions, fetchDispensingRecords,
   fetchInvoicesByEncounter, fetchInvoiceItems, fetchPayments,
   fetchAttachments, fetchAuditLogs, fetchUsers,
-  generateInvoiceFromEncounter, recordPayment, addAuditLog
+  generateInvoiceFromEncounter, recordPayment, addAuditLog, createStockMovement, fetchStockMovements
 } from '../../lib/firestore-helpers';
 import { clearCache } from '../../lib/offline-cache';
 import { collection, getDocs, getDoc, addDoc, updateDoc, doc, serverTimestamp, query, where, db, auth } from '../../firebase';
@@ -797,6 +798,11 @@ Mode: Walk-in`,
 
         // Clear cached data to ensure fresh reads
         await clearCache(`invoices_${encounterId}`).catch(() => {});
+        await clearCache(`clinical_notes_${encounterId}`).catch(() => {});
+
+        // Fetch latest encounter data for clinicalNotes fallback
+        const encounterSnap = await getDoc(doc(db, 'encounters', encounterId));
+        const freshEncounter = encounterSnap.data();
 
         const [
           services, vitals, notes, labs, rxs, dispensing,
@@ -825,7 +831,8 @@ Mode: Walk-in`,
 
         setAppointmentServices(services);
         setTriageVitals(vitals);
-        const latestNote = notes.length > 0 ? notes[notes.length - 1] : null;
+        const noteWithPlanItems = notes.find((n: any) => Array.isArray(n.planItems) && n.planItems.length > 0);
+        const latestNote = noteWithPlanItems || (notes.length > 0 ? notes[notes.length - 1] : null);
         setClinicalNotes(latestNote);
         // Populate formData and chiefComplaint from saved clinical notes
         if (latestNote) {
@@ -868,6 +875,10 @@ Mode: Walk-in`,
             urgency: latestNote.chiefComplaintUrgency || 'Routine',
             ownerStatement: latestNote.ownerStatement || '',
           }));
+          if (Array.isArray(latestNote.planItems)) setPlanItems(latestNote.planItems);
+          else if (freshEncounter?.clinicalNotes?.planItems) setPlanItems(freshEncounter.clinicalNotes.planItems);
+        } else if (freshEncounter?.clinicalNotes?.planItems) {
+          setPlanItems(freshEncounter.clinicalNotes.planItems);
         }
         setLabOrders(labs);
         setPrescriptions(rxs);
@@ -1045,12 +1056,26 @@ Mode: Walk-in`,
       setAllPatientVitals(updatedAllVitals);
 
       setVitalsEditMode(false);
-      alert('Vitals saved successfully!');
     } catch (error) {
       console.error('Error saving vitals:', error);
       alert('Error saving vitals. Please try again.');
     } finally {
       setSavingVitals(false);
+    }
+  };
+
+  const persistPlanItems = async (items: any[]) => {
+    if (!selectedEncounter?.id) return;
+    try {
+      const existingNotes = await fetchClinicalNotes(selectedEncounter.id);
+      if (existingNotes.length > 0) {
+        const latest = existingNotes[existingNotes.length - 1];
+        await updateDoc(doc(db, 'clinical_notes', latest.id), { planItems: items, updatedAt: serverTimestamp() });
+      }
+      await updateDoc(doc(db, 'encounters', selectedEncounter.id), { 'clinicalNotes.planItems': items, updatedAt: serverTimestamp() });
+      await clearCache(`clinical_notes_${selectedEncounter.id}`).catch(() => {});
+    } catch (e) {
+      console.error('Error persisting plan items:', e);
     }
   };
 
@@ -1094,6 +1119,7 @@ Mode: Walk-in`,
         warningSigns: formData.warningSigns || '',
         doctorNotes: formData.doctorNotes || '',
         licenseNumber: formData.licenseNumber || '',
+        planItems: planItems,
         createdBy: userName,
         updatedAt: serverTimestamp()
       };
@@ -1147,6 +1173,7 @@ Mode: Walk-in`,
           warningSigns: notesData.warningSigns,
           doctorNotes: notesData.doctorNotes,
           licenseNumber: notesData.licenseNumber,
+          planItems: notesData.planItems,
         },
         updatedAt: serverTimestamp()
       });
@@ -1156,7 +1183,6 @@ Mode: Walk-in`,
       const updatedNotes = await fetchClinicalNotes(selectedEncounter.id);
       setClinicalNotes(updatedNotes.length > 0 ? updatedNotes[updatedNotes.length - 1] : null);
       setNotesEditMode(false);
-      alert('Clinical notes saved successfully!');
     } catch (error) {
       console.error('Error saving clinical notes:', error);
       alert('Error saving clinical notes. Please try again.');
@@ -1698,7 +1724,21 @@ Mode: Walk-in`,
   const [followUpInstructions, setFollowUpInstructions] = useState('');
   const [ownerInstructions, setOwnerInstructions] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
+  const [planItems, setPlanItems] = useState<any[]>([]);
+  const [editingPlanItem, setEditingPlanItem] = useState<any | null>(null);
+  const [cancelItemId, setCancelItemId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelType, setCancelType] = useState('');
+  const [highlightedChargeId, setHighlightedChargeId] = useState<string | null>(null);
+  const chargesRef = useRef<HTMLDivElement>(null);
+  const [invMovementItem, setInvMovementItem] = useState<{ item: any; movement: any } | null>(null);
   const [showOrderLabModal, setShowOrderLabModal] = useState(false);
+  const [showTreatmentDrawer, setShowTreatmentDrawer] = useState(false);
+  const [showPrescriptionDrawer, setShowPrescriptionDrawer] = useState(false);
+  const [showProcedureDrawer, setShowProcedureDrawer] = useState(false);
+  const [showAdmissionDrawer, setShowAdmissionDrawer] = useState(false);
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [showOwnerInstructionsEditor, setShowOwnerInstructionsEditor] = useState(false);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const tabRefs = useRef<Record<string, boolean>>({});
 
@@ -2207,20 +2247,204 @@ Mode: Walk-in`,
                   <h3 className="text-xl font-bold text-stone-800">Plan Builder</h3>
                   <p className="text-sm text-stone-500">Build your treatment and management plan</p>
                 </div>
-                <div className="max-w-2xl space-y-4">
-                  <div><Label>Treatment Plan</Label><Textarea value={formData.plan || clinicalNotes?.plan || ''} onChange={e => setFormData(p => ({...p, plan: e.target.value}))} className="mt-1" rows={4} placeholder={'e.g., Anti-emetic injection administered\nFluid therapy started\nDietary management'} disabled={isReadOnly} /></div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={() => navigateToStep('prescriptions')}><Pill className="w-3.5 h-3.5 mr-1.5" />Add Prescription</Button>
-                    <Button variant="outline" size="sm" onClick={() => setShowOrderLabModal(true)}><FlaskConical className="w-3.5 h-3.5 mr-1.5" />Order Lab</Button>
-                    <Button variant="outline" size="sm" onClick={() => navigateToStep('procedures')}><ClipboardList className="w-3.5 h-3.5 mr-1.5" />Add Procedure</Button>
-                    <Button variant="outline" size="sm" onClick={() => navigateToStep('admission')}><Heart className="w-3.5 h-3.5 mr-1.5" />Recommend Admission</Button>
-                    <Button variant="outline" size="sm" onClick={() => navigateToStep('followup')}><Calendar className="w-3.5 h-3.5 mr-1.5" />Add Follow-Up</Button>
-                    <Button variant="outline" size="sm" onClick={() => navigateToStep('instructions')}><FileText className="w-3.5 h-3.5 mr-1.5" />Add Owner Instructions</Button>
-                  </div>
-                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={() => { saveClinicalNotes(); navigateToStep('prescriptions'); }}><Check className="w-4 h-4 mr-1.5" />Save & Continue</Button></div>}
+
+                {/* Action Buttons */}
+                <div className="flex flex-wrap gap-2 mb-6">
+                  <Button variant="outline" size="sm" onClick={() => setShowTreatmentDrawer(true)} disabled={isReadOnly}><Activity className="w-3.5 h-3.5 mr-1.5" />Add Treatment</Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowPrescriptionDrawer(true)} disabled={isReadOnly}><Pill className="w-3.5 h-3.5 mr-1.5" />Add Prescription</Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowOrderLabModal(true)} disabled={isReadOnly}><FlaskConical className="w-3.5 h-3.5 mr-1.5" />Order Lab</Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowProcedureDrawer(true)} disabled={isReadOnly}><ClipboardList className="w-3.5 h-3.5 mr-1.5" />Add Procedure</Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowAdmissionDrawer(true)} disabled={isReadOnly}><Heart className="w-3.5 h-3.5 mr-1.5" />Recommend Admission</Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowFollowUpModal(true)} disabled={isReadOnly}><Calendar className="w-3.5 h-3.5 mr-1.5" />Add Follow-Up</Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowOwnerInstructionsEditor(true)} disabled={isReadOnly}><FileText className="w-3.5 h-3.5 mr-1.5" />Add Owner Instructions</Button>
                 </div>
+
+                {/* Treatment Plan textarea */}
+                <div className="mb-6">
+                  <Label>Treatment Plan Notes</Label>
+                  <Textarea value={formData.plan || clinicalNotes?.plan || ''} onChange={e => setFormData(p => ({...p, plan: e.target.value}))} className="mt-1" rows={3} placeholder={'e.g., Anti-emetic injection administered\nFluid therapy started\nDietary management'} disabled={isReadOnly} />
+                </div>
+
+                {/* Plan Items Cards */}
+                {planItems.length > 0 && (
+                  <div className="space-y-3 mb-4">
+                    <h4 className="text-sm font-bold text-stone-600 uppercase tracking-wider">Plan Items</h4>
+                    {planItems.map((item, i) => {
+                      const typeIcon: Record<string, any> = { treatment: Activity, prescription: Pill, lab: FlaskConical, procedure: ClipboardList, admission: Heart, followup: Calendar, 'owner-instructions': FileText };
+                      const typeColors: Record<string, string> = { treatment: 'border-blue-200 bg-blue-50', prescription: 'border-purple-200 bg-purple-50', lab: 'border-amber-200 bg-amber-50', procedure: 'border-emerald-200 bg-emerald-50', admission: 'border-rose-200 bg-rose-50', followup: 'border-cyan-200 bg-cyan-50', 'owner-instructions': 'border-stone-200 bg-stone-50' };
+                      const typeLabels: Record<string, string> = { treatment: 'Treatment', prescription: 'Prescription', lab: 'Lab Order', procedure: 'Procedure', admission: 'Admission', followup: 'Follow-Up', 'owner-instructions': 'Owner Instructions' };
+                      const Icon = typeIcon[item.type] || FileText;
+                      const statusBadge: Record<string, string> = { completed: 'bg-emerald-100 text-emerald-700', administered: 'bg-blue-100 text-blue-700', planned: 'bg-stone-100 text-stone-600', 'awaiting-sample': 'bg-amber-100 text-amber-700', recommended: 'bg-amber-100 text-amber-700', open: 'bg-cyan-100 text-cyan-700', 'for-dispensing': 'bg-purple-100 text-purple-700', queued: 'bg-stone-100 text-stone-500', 'pending-owner-consent': 'bg-rose-100 text-rose-700' };
+                      return (
+                        <div key={item.id || i} className={cn('p-4 rounded-lg border-2', typeColors[item.type] || 'border-stone-200')}>
+                          <div className="flex items-start gap-3">
+                            <div className="p-1.5 rounded-lg bg-white/80"><Icon className="w-4 h-4 text-stone-500" /></div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">{typeLabels[item.type] || item.type}</p>
+                                <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded', statusBadge[item.status?.toLowerCase().replace(/\s+/g, '-')] || 'bg-stone-100 text-stone-600')}>{item.status}</span>
+                              </div>
+                              <p className="font-semibold text-stone-800 text-sm mt-0.5">{item.title}</p>
+                              {item.type === 'treatment' && (
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-stone-500">
+                                  {item.details?.Dose && <span><span className="font-medium text-stone-400">Dose:</span> {item.details.Dose}</span>}
+                                  {item.details?.Route && <span><span className="font-medium text-stone-400">Route:</span> {item.details.Route}</span>}
+                                  <span><span className="font-medium text-stone-400">Status:</span> {item.status}</span>
+                                  <span><span className="font-medium text-stone-400">Billing:</span> {item.billingBehavior === 'queue' ? 'Queued' : 'Not charged'}</span>
+                                  <span><span className="font-medium text-stone-400">Inventory:</span> {item.inventoryDeduction ? 'Deducted' : 'Not deducted'}</span>
+                                </div>
+                              )}
+                              {item.type === 'prescription' && (
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-stone-500">
+                                  {item.details?.Dose && <span><span className="font-medium text-stone-400">Dose:</span> {item.details.Dose}</span>}
+                                  {item.details?.Route && <span><span className="font-medium text-stone-400">Route:</span> {item.details.Route}</span>}
+                                  {item.details?.Frequency && <span><span className="font-medium text-stone-400">Frequency:</span> {item.details.Frequency}</span>}
+                                  {item.details?.['Duration'] && <span><span className="font-medium text-stone-400">Duration:</span> {item.details['Duration']}</span>}
+                                  {item.details?.Qty && <span><span className="font-medium text-stone-400">Qty:</span> {item.details.Qty}</span>}
+                                  <span><span className="font-medium text-stone-400">Billing:</span> {item.billingBehavior === 'queue' ? 'Queued' : item.billingBehavior === 'create-invoice-line' ? 'Invoiced' : 'Not charged'}</span>
+                                </div>
+                              )}
+                              {item.type === 'procedure' && (
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-stone-500">
+                                  {item.details?.Indication && <span><span className="font-medium text-stone-400">Indication:</span> {item.details.Indication}</span>}
+                                  {item.details?.['Performed by'] && <span><span className="font-medium text-stone-400">Performed by:</span> {item.details['Performed by']}</span>}
+                                  {item.details?.Supplies && <span><span className="font-medium text-stone-400">Supplies:</span> {item.details.Supplies}</span>}
+                                  <span><span className="font-medium text-stone-400">Billing:</span> {item.billingBehavior === 'queue' ? 'Queued' : item.billingBehavior === 'create-invoice-line' ? 'Invoiced' : 'Not charged'}</span>
+                                </div>
+                              )}
+                              {item.type === 'admission' && (
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-stone-500">
+                                  {item.details?.Reason && <span><span className="font-medium text-stone-400">Reason:</span> {item.details.Reason}</span>}
+                                  {item.details?.['Initial Dx'] && <span><span className="font-medium text-stone-400">Initial Dx:</span> {item.details['Initial Dx']}</span>}
+                                  {item.details?.Duration && <span><span className="font-medium text-stone-400">Duration:</span> {item.details.Duration}</span>}
+                                  {item.details?.Isolation && <span><span className="font-medium text-stone-400">Isolation:</span> {item.details.Isolation}</span>}
+                                </div>
+                              )}
+                              {item.type === 'lab' && (
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-stone-500">
+                                  {Object.entries(item.details || {}).map(([k, v]) => (
+                                    <span key={k}><span className="font-medium text-stone-400">{k}:</span> {v as string}</span>
+                                  ))}
+                                  {item.billingBehavior && <span><span className="font-medium text-stone-400">Billing:</span> {item.billingBehavior === 'queue' ? 'Queued' : 'Invoiced'}</span>}
+                                </div>
+                              )}
+                              {(item.type === 'followup' || item.type === 'owner-instructions') && item.subtitle && (
+                                <p className="text-xs text-stone-500 mt-1">{item.subtitle}</p>
+                              )}
+                              {(item.type === 'followup' || item.type === 'owner-instructions') && (
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-stone-500">
+                                  {Object.entries(item.details || {}).map(([k, v]) => (
+                                    <span key={k}><span className="font-medium text-stone-400">{k}:</span> {v as string}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {!isReadOnly && (
+                            <div className="flex gap-2 mt-2 ml-9">
+                              {item.type === 'treatment' && (
+                                <>
+                                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => { setEditingPlanItem(item); setShowTreatmentDrawer(true); }}>Edit</Button>
+                                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => { setHighlightedChargeId(item.id); chargesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>View Charge</Button>
+                                  {item.inventoryDeduction && item.status === 'Administered' && <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={async () => { try { const movements = await fetchStockMovements(); const mvm = movements.find((m: any) => m.encounterId === selectedEncounter?.id && m.medicationName === item.title); setInvMovementItem({ item, movement: mvm || null }); } catch { setInvMovementItem({ item, movement: null }); } }}>View Stock Deduction</Button>}
+                                  {item.status === 'Planned' && <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={async () => { setPlanItems(prev => { const next = prev.map(p => p.id === item.id ? {...p, status: 'Administered'} : p); persistPlanItems(next); return next; }); if (item.inventoryDeduction) { try { await createStockMovement({ medicationName: item.title, type: 'dispensing', quantity: -1, reference: `ENC-${(selectedEncounter?.id || '').slice(-6)}`, notes: item.details?.Reason || 'Administered during consultation', userName: auth.currentUser?.displayName || '', encounterId: selectedEncounter?.id }); } catch {} } }}>Mark Administered</Button>}
+                                </>
+                              )}
+                              {item.type === 'prescription' && (
+                                <>
+                                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => alert('Edit prescription — coming soon')}>Edit</Button>
+                                  {item.linkedRecordId && <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => navigateToStep('prescriptions')}>View in Pharmacy</Button>}
+                                  {item.billingBehavior === 'create-invoice-line' && <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => { setHighlightedChargeId(item.id); chargesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>View Charge</Button>}
+                                </>
+                              )}
+                              {item.type === 'lab' && item.linkedRecordId && (
+                                <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => navigateToStep('labs')}>View Lab</Button>
+                              )}
+                              {item.type === 'procedure' && (
+                                <>
+                                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => alert('Edit procedure — coming soon')}>Edit</Button>
+                                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => { setHighlightedChargeId(item.id); chargesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>View Charge</Button>
+                                </>
+                              )}
+                              {item.type === 'admission' && item.linkedRecordId && (
+                                <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => navigateToStep('admission')}>View Admission</Button>
+                              )}
+                              {item.type !== 'owner-instructions' && item.type !== 'followup' && (
+                                <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => { setCancelItemId(item.id); setCancelReason(''); setCancelType(''); }}>Cancel</Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Encounter Charges */}
+                {planItems.some(p => p.billingBehavior) && (
+                  <div ref={chargesRef} className="mt-6 pt-4 border-t border-stone-200">
+                    <h4 className="text-sm font-bold text-stone-600 uppercase tracking-wider mb-3">Encounter Charges</h4>
+                    <div className="rounded-lg border border-stone-200 overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-stone-50 text-left text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
+                            <th className="py-2.5 px-4">Item</th>
+                            <th className="py-2.5 px-4 w-16 text-center">Qty</th>
+                            <th className="py-2.5 px-4 w-24">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100">
+                          {planItems.filter(p => p.billingBehavior).map(charge => (
+                            <tr key={charge.id} className={cn(
+                              'transition-colors duration-300',
+                              highlightedChargeId === charge.id ? 'bg-amber-50 ring-2 ring-amber-300 ring-inset' : 'hover:bg-stone-50'
+                            )}>
+                              <td className="py-2.5 px-4 font-medium text-stone-800">{charge.title}</td>
+                              <td className="py-2.5 px-4 text-center text-stone-600">1</td>
+                              <td className="py-2.5 px-4">
+                                <span className={cn(
+                                  'text-[11px] font-medium px-2 py-0.5 rounded',
+                                  charge.billingBehavior === 'create-invoice-line'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-amber-100 text-amber-700'
+                                )}>
+                                  {charge.billingBehavior === 'create-invoice-line' ? 'Invoiced' : 'Queued'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => navigateToStep('summary')}>
+                        <Receipt className="w-3.5 h-3.5 mr-1.5" />Send to Billing
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => navigateToStep('summary')}>
+                        View Full Invoice
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Save & Continue */}
+                {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={() => { saveClinicalNotes(); setActiveStep('prescriptions'); }}><Check className="w-4 h-4 mr-1.5" />Save & Continue</Button></div>}
               </div>
             )}
+
+            <TreatmentDrawer open={showTreatmentDrawer} onOpenChange={v => { setShowTreatmentDrawer(v); if (!v) setEditingPlanItem(null); }} onSave={item => { setPlanItems(prev => { const next = editingPlanItem ? prev.map(p => p.id === editingPlanItem.id ? {...item, id: p.id} : p) : [...prev, item]; persistPlanItems(next); return next; }); setEditingPlanItem(null); }} initialData={editingPlanItem} encounterId={selectedEncounter?.id || ''} patientId={patientId || ''} patientName={patient?.name || ''} ownerId={selectedEncounter?.ownerId || patient?.ownerUid || ''} ownerName={owner?.displayName || owner?.name || ''} />
+
+            <PrescriptionDrawer open={showPrescriptionDrawer} onOpenChange={setShowPrescriptionDrawer} onSave={item => { setPlanItems(prev => { const next = [...prev, item]; persistPlanItems(next); return next; }); }} encounterId={selectedEncounter?.id || ''} patientId={patientId || ''} patientName={patient?.name || ''} ownerId={selectedEncounter?.ownerId || patient?.ownerUid || ''} ownerName={owner?.displayName || owner?.name || ''} />
+
+            <ProcedureDrawer open={showProcedureDrawer} onOpenChange={setShowProcedureDrawer} onSave={item => { setPlanItems(prev => { const next = [...prev, item]; persistPlanItems(next); return next; }); }} encounterId={selectedEncounter?.id || ''} patientId={patientId || ''} patientName={patient?.name || ''} ownerId={selectedEncounter?.ownerId || patient?.ownerUid || ''} ownerName={owner?.displayName || owner?.name || ''} />
+
+            <AdmissionDrawer open={showAdmissionDrawer} onOpenChange={setShowAdmissionDrawer} onSave={item => { setPlanItems(prev => { const next = [...prev, item]; persistPlanItems(next); return next; }); }} encounterId={selectedEncounter?.id || ''} patientId={patientId || ''} patientName={patient?.name || ''} ownerId={selectedEncounter?.ownerId || patient?.ownerUid || ''} ownerName={owner?.displayName || owner?.name || ''} />
+
+            <FollowUpModal open={showFollowUpModal} onOpenChange={setShowFollowUpModal} onSave={item => { setPlanItems(prev => { const next = [...prev, item]; persistPlanItems(next); return next; }); }} encounterId={selectedEncounter?.id || ''} patientId={patientId || ''} patientName={patient?.name || ''} ownerId={selectedEncounter?.ownerId || patient?.ownerUid || ''} ownerName={owner?.displayName || owner?.name || ''} />
+
+            <OwnerInstructionsEditor open={showOwnerInstructionsEditor} onOpenChange={setShowOwnerInstructionsEditor} onSave={item => { setPlanItems(prev => { const next = [...prev, item]; persistPlanItems(next); return next; }); }} onInstructionsChange={(combined, diet, warningSigns) => { setOwnerInstructions(combined); setFormData(p => ({...p, ownerInstructions: combined, dietInstructions: diet, warningSigns})); }} encounterId={selectedEncounter?.id || ''} patientId={patientId || ''} />
+
+            <InventoryMovementDrawer data={invMovementItem} onClose={() => setInvMovementItem(null)} encounterId={selectedEncounter?.id || ''} />
 
             {/* 7. Prescriptions */}
             {activeStep === 'prescriptions' && (
@@ -2700,6 +2924,502 @@ Mode: Walk-in`,
           }
         }}
       />
+
+      {/* Cancel Reason Dialog */}
+      <Dialog open={!!cancelItemId} onOpenChange={v => { if (!v) setCancelItemId(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-red-500" />Cancel Treatment</DialogTitle>
+            <DialogDescription>Review the impact and provide a reason for cancellation</DialogDescription>
+          </DialogHeader>
+          {cancelItemId && (() => {
+            const ci = planItems.find(p => p.id === cancelItemId);
+            if (!ci) return null;
+            return (
+              <div className="space-y-3 py-1">
+                <div className="p-3 rounded-lg border border-stone-200 bg-stone-50 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-stone-500">Treatment</span>
+                    <span className="text-sm font-semibold text-stone-800">{ci.title}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-stone-500">Current Status</span>
+                    <span className={cn('text-xs font-semibold px-2 py-0.5 rounded', ci.status === 'Administered' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700')}>{ci.status}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-stone-500">Billing</span>
+                    <span className="text-xs text-stone-600">{ci.billingBehavior === 'create-invoice-line' ? 'Invoiced' : ci.billingBehavior ? 'Queued' : 'None'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-stone-500">Inventory</span>
+                    <span className="text-xs text-stone-600">{ci.inventoryDeduction ? 'Deducted' : 'None'}</span>
+                  </div>
+                </div>
+
+                <div className="text-xs text-stone-500 space-y-1">
+                  <p className="font-medium text-stone-700 mb-1">This treatment already created:</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                    <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Billing item</span>
+                    {ci.inventoryDeduction && <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Inventory deduction</span>}
+                    <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Medical history event</span>
+                    <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Activity log entry</span>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Reason for cancellation</Label>
+                  <Textarea value={cancelReason} onChange={e => setCancelReason(e.target.value)} rows={2} placeholder="Enter reason..." />
+                </div>
+
+                <div>
+                  <Label>Cancellation Type</Label>
+                  <div className="space-y-1.5 mt-1">
+                    {['Entered by mistake', 'Treatment not performed', 'Duplicate entry', 'Owner declined', 'Changed treatment plan', 'Other'].map(t => (
+                      <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-stone-50 px-2 py-1 rounded">
+                        <input type="radio" name="cancelType" value={t} checked={cancelType === t} onChange={e => setCancelType(e.target.value)} className="accent-red-500" />
+                        {t}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <DialogFooter className="flex gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setCancelItemId(null)}>Back</Button>
+                  <Button variant="destructive" onClick={async () => {
+                    if (!cancelItemId) return;
+                    const ci = planItems.find(p => p.id === cancelItemId);
+                    try {
+                      // 1. Void linked billing item
+                      if (ci?.linkedRecordId) {
+                        await updateDoc(doc(db, 'appointment_services', ci.linkedRecordId), { status: 'voided', voidedAt: serverTimestamp(), voidReason: cancelReason, voidType: cancelType });
+                      }
+                      // 2. Reverse inventory deduction
+                      if (ci?.inventoryDeduction) {
+                        await createStockMovement({
+                          medicationName: ci.title,
+                          type: 'return',
+                          quantity: 1,
+                          reference: `CANCEL-${(selectedEncounter?.id || '').slice(-6)}`,
+                          notes: `Reversal: ${cancelReason || 'Treatment cancelled'} (${cancelType})`,
+                          userId: auth.currentUser?.uid || '',
+                          userName: auth.currentUser?.displayName || '',
+                          encounterId: selectedEncounter?.id
+                        });
+                      }
+                      // 3. Audit log
+                      await addAuditLog({ action: 'treatment_cancelled', userId: auth.currentUser?.uid || '', userName: auth.currentUser?.displayName || '', encounterId: selectedEncounter?.id, patientId, details: `${ci?.title} — ${cancelReason || 'No reason'} (${cancelType})` });
+                    } catch (e) {
+                      console.error('Error reversing linked effects:', e);
+                    }
+                    setPlanItems(prev => {
+                      const next = prev.map(p => p.id === cancelItemId ? { ...p, status: 'Cancelled', cancelReason: cancelReason || 'No reason provided', cancelType } : p);
+                      persistPlanItems(next);
+                      return next;
+                    });
+                    setCancelItemId(null);
+                  }} disabled={!cancelReason.trim() || !cancelType}>Confirm Cancel Treatment</Button>
+                </DialogFooter>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
+
+// ── Inline Drawer/Modal Components for Plan Builder ──────────────────────
+
+function TreatmentDrawer({ open, onOpenChange, onSave, encounterId, patientId, patientName, ownerId, ownerName, onCreated, initialData }: { open: boolean; onOpenChange: (v: boolean) => void; onSave: (item: any) => void; encounterId: string; patientId: string; patientName: string; ownerId: string; ownerName: string; onCreated?: () => Promise<void>; initialData?: any }) {
+  const [tf, setTf] = React.useState({ name: '', reason: '', dose: '', route: 'Subcutaneous', performedBy: auth.currentUser?.displayName || '', status: 'administered', chargeToBilling: true, inventoryDeduction: true, notes: '' });
+  const [saving, setSaving] = React.useState(false);
+  React.useEffect(() => {
+    if (initialData) {
+      setTf({
+        name: initialData.title || '',
+        reason: initialData.details?.Reason || '',
+        dose: initialData.dose || '',
+        route: initialData.route || 'Subcutaneous',
+        performedBy: initialData.details?.['Performed by'] || auth.currentUser?.displayName || '',
+        status: initialData.status?.toLowerCase() === 'administered' ? 'administered' : 'planned',
+        chargeToBilling: initialData.billingBehavior === 'queue',
+        inventoryDeduction: initialData.inventoryDeduction ?? true,
+        notes: initialData.details?.Notes || '',
+      });
+    } else {
+      setTf({ name: '', reason: '', dose: '', route: 'Subcutaneous', performedBy: auth.currentUser?.displayName || '', status: 'administered', chargeToBilling: true, inventoryDeduction: true, notes: '' });
+    }
+  }, [initialData]);
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="max-w-lg">
+        <DrawerHeader><DrawerTitle className="flex items-center gap-2"><Activity className="w-4 h-4 text-blue-600" />{initialData ? 'Edit Treatment' : 'Add Treatment'}</DrawerTitle><DrawerDescription>{initialData ? 'Modify treatment details' : 'Record an in-clinic treatment or procedure'}</DrawerDescription></DrawerHeader>
+        <div className="space-y-3 py-2">
+          <div><Label>Treatment</Label><Input value={tf.name} onChange={e => setTf(p => ({...p, name: e.target.value}))} placeholder="e.g., Cerenia injection" /></div>
+          <div><Label>Reason</Label><Input value={tf.reason} onChange={e => setTf(p => ({...p, reason: e.target.value}))} placeholder="e.g., Vomiting" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Dose</Label><Input value={tf.dose} onChange={e => setTf(p => ({...p, dose: e.target.value}))} placeholder="e.g., 0.5 ml" /></div>
+            <div><Label>Route</Label><select value={tf.route} onChange={e => setTf(p => ({...p, route: e.target.value}))} className="flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option>Subcutaneous</option><option>Intramuscular</option><option>Intravenous</option><option>Oral</option><option>Topical</option><option>Intraosseous</option></select></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Performed by</Label><Input value={tf.performedBy} onChange={e => setTf(p => ({...p, performedBy: e.target.value}))} /></div>
+            <div><Label>Status</Label><select value={tf.status} onChange={e => setTf(p => ({...p, status: e.target.value}))} className="flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option value="administered">Administered</option><option value="planned">Planned</option></select></div>
+          </div>
+          <div className="flex items-center gap-4 text-sm">
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={tf.chargeToBilling} onChange={e => setTf(p => ({...p, chargeToBilling: e.target.checked}))} />Charge to billing</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={tf.inventoryDeduction} onChange={e => setTf(p => ({...p, inventoryDeduction: e.target.checked}))} />Inventory deduction</label>
+          </div>
+          <div><Label>Notes</Label><Textarea value={tf.notes} onChange={e => setTf(p => ({...p, notes: e.target.value}))} rows={2} /></div>
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => { setSaving(false); onOpenChange(false); }} disabled={saving}>Cancel</Button>
+            <Button onClick={async () => {
+              if (!tf.name) return; setSaving(true);
+                try {
+                const item: any = { id: `treat_${Date.now()}`, type: 'treatment', title: tf.name, dose: tf.dose, route: tf.route, subtitle: `${tf.dose} \u00b7 ${tf.route} \u00b7 ${tf.status}`, status: tf.status === 'administered' ? 'Administered' : 'Planned', details: { Reason: tf.reason, 'Performed by': tf.performedBy, Notes: tf.notes }, billingBehavior: tf.chargeToBilling ? 'queue' : undefined, inventoryDeduction: tf.inventoryDeduction };
+                const svcRef = await addDoc(collection(db, 'appointment_services'), {
+                  appointmentId: encounterId, encounterId, petId: patientId, petName: patientName, ownerId, ownerName,
+                  serviceName: tf.name, serviceType: 'treatment', billable: tf.chargeToBilling, status: 'active',
+                  quantity: 1, price: 0, dose: tf.dose, route: tf.route, notes: tf.notes,
+                  performedBy: tf.performedBy, createdBy: auth.currentUser?.displayName || '', createdAt: serverTimestamp()
+                });
+                item.linkedRecordId = svcRef.id;
+                if (tf.inventoryDeduction) {
+                  const movement = await createStockMovement({
+                    medicationName: tf.name,
+                    type: 'dispensing',
+                    quantity: -1,
+                    reference: `ENC-${encounterId.slice(-6)}`,
+                    notes: tf.reason || 'Administered during consultation',
+                    userId: auth.currentUser?.uid || '',
+                    userName: auth.currentUser?.displayName || tf.performedBy,
+                    encounterId
+                  });
+                  item.movementId = movement.id;
+                }
+                await addAuditLog({ action: 'treatment_added', userId: auth.currentUser?.uid || '', userName: auth.currentUser?.displayName || '', encounterId, patientId, details: tf.name });
+                onSave(item);
+                onOpenChange(false);
+                if (onCreated) await onCreated();
+              } finally { setSaving(false); }
+            }} disabled={!tf.name || saving} className="bg-blue-600 hover:bg-blue-700 text-white">{saving ? <><Loader2 className="w-3 h-3 animate-spin mr-1" />Saving...</> : 'Save Treatment'}</Button>
+          </div>
+        </div>
+              </DrawerContent>
+    </Drawer>
+  );
+}
+
+function PrescriptionDrawer({ open, onOpenChange, onSave, encounterId, patientId, patientName, ownerId, ownerName, onCreated }: { open: boolean; onOpenChange: (v: boolean) => void; onSave: (item: any) => void; encounterId: string; patientId: string; patientName: string; ownerId: string; ownerName: string; onCreated?: () => Promise<void> }) {
+  const [pf, setPf] = React.useState({ medication: '', strength: '', dose: '', route: 'Oral', frequency: 'Once daily', duration: '', quantity: '', instructions: '', linkedDiagnosis: '', substitutionAllowed: false, billingBehavior: 'queue' });
+  const [saving, setSaving] = React.useState(false);
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="max-w-lg">
+        <DrawerHeader><DrawerTitle className="flex items-center gap-2"><Pill className="w-4 h-4 text-purple-600" />Add Prescription</DrawerTitle><DrawerDescription>Order take-home medication</DrawerDescription></DrawerHeader>
+        <div className="space-y-3 py-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Medication</Label><Input value={pf.medication} onChange={e => setPf(p => ({...p, medication: e.target.value}))} placeholder="Search medicine..." /></div>
+            <div><Label>Strength</Label><Input value={pf.strength} onChange={e => setPf(p => ({...p, strength: e.target.value}))} placeholder="e.g., 10 mg" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Dose</Label><Input value={pf.dose} onChange={e => setPf(p => ({...p, dose: e.target.value}))} placeholder="e.g., 1 tablet" /></div>
+            <div><Label>Route</Label><select value={pf.route} onChange={e => setPf(p => ({...p, route: e.target.value}))} className="flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option>Oral</option><option>Subcutaneous</option><option>Intramuscular</option><option>Intravenous</option><option>Topical</option></select></div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div><Label>Frequency</Label><select value={pf.frequency} onChange={e => setPf(p => ({...p, frequency: e.target.value}))} className="flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option>Once daily</option><option>Twice daily</option><option>Three times daily</option><option>Every other day</option><option>As needed</option></select></div>
+            <div><Label>Duration</Label><Input value={pf.duration} onChange={e => setPf(p => ({...p, duration: e.target.value}))} placeholder="e.g., 5 days" /></div>
+            <div><Label>Quantity</Label><Input value={pf.quantity} onChange={e => setPf(p => ({...p, quantity: e.target.value}))} placeholder="e.g., 5" /></div>
+          </div>
+          <div><Label>Instructions</Label><Textarea value={pf.instructions} onChange={e => setPf(p => ({...p, instructions: e.target.value}))} rows={2} placeholder="Give before meals" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Linked Diagnosis</Label><Input value={pf.linkedDiagnosis} onChange={e => setPf(p => ({...p, linkedDiagnosis: e.target.value}))} placeholder="e.g., Acute gastritis" /></div>
+            <div><Label>Billing</Label><select value={pf.billingBehavior} onChange={e => setPf(p => ({...p, billingBehavior: e.target.value}))} className="flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option value="queue">Queue charge</option><option value="create-invoice-line">Create invoice line</option></select></div>
+          </div>
+          <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={pf.substitutionAllowed} onChange={e => setPf(p => ({...p, substitutionAllowed: e.target.checked}))} />Substitution allowed</label>
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => { setSaving(false); onOpenChange(false); }} disabled={saving}>Cancel</Button>
+            <Button onClick={async () => {
+              if (!pf.medication) return; setSaving(true);
+              try {
+                const subtitle = `${pf.dose} ${pf.route} ${pf.frequency} for ${pf.duration}`;
+                const item: any = { id: `rx_${Date.now()}`, type: 'prescription', title: `${pf.medication}${pf.strength ? ' ' + pf.strength : ''}`, subtitle, status: 'For Dispensing', details: { Dose: pf.dose, Route: pf.route, Frequency: pf.frequency, Duration: pf.duration, Qty: pf.quantity, Instructions: pf.instructions, 'Linked Dx': pf.linkedDiagnosis }, billingBehavior: pf.billingBehavior };
+                const rxRef = await addDoc(collection(db, 'prescriptions'), {
+                  encounterId, petId: patientId, petName: patientName, doctorName: auth.currentUser?.displayName || '',
+                  medicationName: pf.medication, strength: pf.strength, dosage: pf.dose, route: pf.route,
+                  frequency: pf.frequency, duration: pf.duration, quantity: parseFloat(pf.quantity) || 0,
+                  instructions: pf.instructions, linkedDiagnosis: pf.linkedDiagnosis, substitutionAllowed: pf.substitutionAllowed,
+                  status: 'pending', billingBehavior: pf.billingBehavior, createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+                });
+                item.linkedRecordId = rxRef.id;
+                await addAuditLog({ action: 'prescription_created', userId: auth.currentUser?.uid || '', userName: auth.currentUser?.displayName || '', encounterId, patientId, details: pf.medication });
+                if (pf.billingBehavior === 'create-invoice-line') {
+                  const invoices = await fetchInvoicesByEncounter(encounterId);
+                  if (invoices.length > 0) {
+                    const inv = invoices[0];
+                    await addDoc(collection(db, 'invoice_items'), {
+                      invoiceId: inv.id, encounterId, petId: patientId, description: `Prescription: ${pf.medication} ${pf.strength}`,
+                      quantity: parseFloat(pf.quantity) || 1, unitPrice: 0, total: 0, type: 'prescription', createdAt: serverTimestamp()
+                    });
+                    const items = await fetchInvoiceItems(inv.id);
+                    const subtotal = items.reduce((s: number, i: any) => s + (i.total || i.unitPrice * i.quantity || 0), 0);
+                    await updateDoc(doc(db, 'invoices', inv.id), { subtotal, grandTotal: subtotal, updatedAt: serverTimestamp() });
+                  }
+                }
+                onSave(item);
+                onOpenChange(false);
+                if (onCreated) await onCreated();
+              } finally { setSaving(false); }
+            }} disabled={!pf.medication || saving} className="bg-purple-600 hover:bg-purple-700 text-white">{saving ? <><Loader2 className="w-3 h-3 animate-spin mr-1" />Saving...</> : 'Save Prescription'}</Button>
+          </div>
+        </div>
+              </DrawerContent>
+    </Drawer>
+  );
+}
+
+function ProcedureDrawer({ open, onOpenChange, onSave, encounterId, patientId, patientName, ownerId, ownerName, onCreated }: { open: boolean; onOpenChange: (v: boolean) => void; onSave: (item: any) => void; encounterId: string; patientId: string; patientName: string; ownerId: string; ownerName: string; onCreated?: () => Promise<void> }) {
+  const [prf, setPrf] = React.useState({ name: '', indication: '', consentRequired: false, status: 'Completed', performedBy: auth.currentUser?.displayName || '', supplies: '', notes: '', billingBehavior: 'queue' });
+  const [saving, setSaving] = React.useState(false);
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="max-w-lg">
+        <DrawerHeader><DrawerTitle className="flex items-center gap-2"><ClipboardList className="w-4 h-4 text-emerald-600" />Add Procedure</DrawerTitle><DrawerDescription>Record an in-clinic or recommended procedure</DrawerDescription></DrawerHeader>
+        <div className="space-y-3 py-2">
+          <div><Label>Procedure</Label><Input value={prf.name} onChange={e => setPrf(p => ({...p, name: e.target.value}))} placeholder="e.g., Wound cleaning" /></div>
+          <div><Label>Indication</Label><Input value={prf.indication} onChange={e => setPrf(p => ({...p, indication: e.target.value}))} placeholder="e.g., Infected wound" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Status</Label><select value={prf.status} onChange={e => setPrf(p => ({...p, status: e.target.value}))} className="flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option value="Completed">Completed</option><option value="Recommended">Recommended</option><option value="Scheduled">Scheduled</option></select></div>
+            <div><Label>Performed by</Label><Input value={prf.performedBy} onChange={e => setPrf(p => ({...p, performedBy: e.target.value}))} /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Supplies Used</Label><Input value={prf.supplies} onChange={e => setPrf(p => ({...p, supplies: e.target.value}))} placeholder="Bandage, antiseptic" /></div>
+            <div><Label>Billing</Label><select value={prf.billingBehavior} onChange={e => setPrf(p => ({...p, billingBehavior: e.target.value}))} className="flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option value="queue">Queue charge</option><option value="create-invoice-line">Create invoice line</option></select></div>
+          </div>
+          <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={prf.consentRequired} onChange={e => setPrf(p => ({...p, consentRequired: e.target.checked}))} />Consent required</label>
+          <div><Label>Notes</Label><Textarea value={prf.notes} onChange={e => setPrf(p => ({...p, notes: e.target.value}))} rows={2} /></div>
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => { setSaving(false); onOpenChange(false); }} disabled={saving}>Cancel</Button>
+            <Button onClick={async () => {
+              if (!prf.name) return; setSaving(true);
+              try {
+                const item: any = { id: `proc_${Date.now()}`, type: 'procedure', title: prf.name, subtitle: `Status: ${prf.status}`, status: prf.status, details: { Indication: prf.indication, 'Performed by': prf.performedBy, 'Supplies': prf.supplies, 'Consent': prf.consentRequired ? 'Required' : 'Not required', Notes: prf.notes }, billingBehavior: prf.billingBehavior };
+                const svcRef = await addDoc(collection(db, 'appointment_services'), {
+                  appointmentId: encounterId, encounterId, petId: patientId, petName: patientName, ownerId, ownerName,
+                  serviceName: prf.name, serviceType: 'procedure', billable: prf.billingBehavior !== 'queue',
+                  status: 'active', quantity: 1, price: 0, supplies: prf.supplies, notes: prf.notes,
+                  consentRequired: prf.consentRequired, performedBy: prf.performedBy,
+                  createdBy: auth.currentUser?.displayName || '', createdAt: serverTimestamp()
+                });
+                item.linkedRecordId = svcRef.id;
+                await addAuditLog({ action: 'procedure_added', userId: auth.currentUser?.uid || '', userName: auth.currentUser?.displayName || '', encounterId, patientId, details: prf.name });
+                onSave(item);
+                onOpenChange(false);
+                if (onCreated) await onCreated();
+              } finally { setSaving(false); }
+            }} disabled={!prf.name || saving} className="bg-emerald-600 hover:bg-emerald-700 text-white">{saving ? <><Loader2 className="w-3 h-3 animate-spin mr-1" />Saving...</> : 'Save Procedure'}</Button>
+          </div>
+        </div>
+              </DrawerContent>
+    </Drawer>
+  );
+}
+
+function AdmissionDrawer({ open, onOpenChange, onSave, encounterId, patientId, patientName, ownerId, ownerName, onCreated }: { open: boolean; onOpenChange: (v: boolean) => void; onSave: (item: any) => void; encounterId: string; patientId: string; patientName: string; ownerId: string; ownerName: string; onCreated?: () => Promise<void> }) {
+  const [af, setAf] = React.useState({ type: 'Medical confinement', reason: '', initialDiagnosis: '', monitoring: 'Every 4 hours', expectedDuration: '24-48 hours', isolationRequired: false, consentRequired: true, depositRequired: true, notes: '' });
+  const [saving, setSaving] = React.useState(false);
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="max-w-lg">
+        <DrawerHeader><DrawerTitle className="flex items-center gap-2"><Heart className="w-4 h-4 text-rose-600" />Recommend Admission</DrawerTitle><DrawerDescription>Recommend hospitalization or confinement</DrawerDescription></DrawerHeader>
+        <div className="space-y-3 py-2">
+          <div><Label>Admission Type</Label><select value={af.type} onChange={e => setAf(p => ({...p, type: e.target.value}))} className="flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option>Medical confinement</option><option>Surgical admission</option><option>Isolation</option><option>ICU monitoring</option></select></div>
+          <div><Label>Reason</Label><Textarea value={af.reason} onChange={e => setAf(p => ({...p, reason: e.target.value}))} rows={2} placeholder="Persistent vomiting and dehydration" /></div>
+          <div><Label>Initial Diagnosis</Label><Input value={af.initialDiagnosis} onChange={e => setAf(p => ({...p, initialDiagnosis: e.target.value}))} placeholder="Suspected acute gastritis" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Monitoring Level</Label><select value={af.monitoring} onChange={e => setAf(p => ({...p, monitoring: e.target.value}))} className="flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option>Every 2 hours</option><option>Every 4 hours</option><option>Every 6 hours</option><option>Continuous</option></select></div>
+            <div><Label>Expected Duration</Label><Input value={af.expectedDuration} onChange={e => setAf(p => ({...p, expectedDuration: e.target.value}))} placeholder="24-48 hours" /></div>
+          </div>
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={af.isolationRequired} onChange={e => setAf(p => ({...p, isolationRequired: e.target.checked}))} />Isolation required</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={af.consentRequired} onChange={e => setAf(p => ({...p, consentRequired: e.target.checked}))} />Consent required</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={af.depositRequired} onChange={e => setAf(p => ({...p, depositRequired: e.target.checked}))} />Deposit required</label>
+          </div>
+          <div><Label>Notes</Label><Textarea value={af.notes} onChange={e => setAf(p => ({...p, notes: e.target.value}))} rows={2} /></div>
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => { setSaving(false); onOpenChange(false); }} disabled={saving}>Cancel</Button>
+            <Button onClick={async () => {
+              if (!af.reason) return; setSaving(true);
+              try {
+                const item: any = { id: `adm_${Date.now()}`, type: 'admission', title: af.type, subtitle: `Monitoring: ${af.monitoring}`, status: 'Pending Owner Consent', details: { Reason: af.reason, 'Initial Dx': af.initialDiagnosis, Duration: af.expectedDuration, Isolation: af.isolationRequired ? 'Yes' : 'No', Consent: af.consentRequired ? 'Required' : 'Not required', Deposit: af.depositRequired ? 'Required' : 'Not required' } };
+                const admRef = await addDoc(collection(db, 'admissions'), {
+                  petId: patientId, petName: patientName, ownerId, ownerName,
+                  encounterId, admissionType: af.type, reason: af.reason, initialDiagnosis: af.initialDiagnosis,
+                  monitoring: af.monitoring, expectedDuration: af.expectedDuration,
+                  isolationRequired: af.isolationRequired, consentRequired: af.consentRequired, depositRequired: af.depositRequired,
+                  notes: af.notes, status: 'admitted',
+                  checkInDate: serverTimestamp(), createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+                });
+                item.linkedRecordId = admRef.id;
+                await addAuditLog({ action: 'admission_recommended', userId: auth.currentUser?.uid || '', userName: auth.currentUser?.displayName || '', encounterId, patientId, details: af.type });
+                onSave(item);
+                onOpenChange(false);
+                if (onCreated) await onCreated();
+              } finally { setSaving(false); }
+            }} disabled={!af.reason || saving} className="bg-rose-600 hover:bg-rose-700 text-white">{saving ? <><Loader2 className="w-3 h-3 animate-spin mr-1" />Saving...</> : 'Save Recommendation'}</Button>
+          </div>
+        </div>
+              </DrawerContent>
+    </Drawer>
+  );
+}
+
+function FollowUpModal({ open, onOpenChange, onSave, encounterId, patientId, patientName, ownerId, ownerName, onCreated }: { open: boolean; onOpenChange: (v: boolean) => void; onSave: (item: any) => void; encounterId: string; patientId: string; patientName: string; ownerId: string; ownerName: string; onCreated?: () => Promise<void> }) {
+  const [ff, setFf] = React.useState({ type: 'Recheck', dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0], assignedTo: 'Reception', reminderMethod: 'SMS', createAppointment: false, ownerMessage: '', status: 'Open' });
+  const [saving, setSaving] = React.useState(false);
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="max-w-md">
+        <DrawerHeader><DrawerTitle className="flex items-center gap-2"><Calendar className="w-4 h-4 text-cyan-600" />Add Follow-Up</DrawerTitle><DrawerDescription>Schedule a follow-up or recheck</DrawerDescription></DrawerHeader>
+        <div className="space-y-3 py-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Type</Label><select value={ff.type} onChange={e => setFf(p => ({...p, type: e.target.value}))} className="flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option>Recheck</option><option>Surgery follow-up</option><option>Lab result review</option><option>Vaccination</option><option>Post-op check</option></select></div>
+            <div><Label>Due Date</Label><Input type="date" value={ff.dueDate} onChange={e => setFf(p => ({...p, dueDate: e.target.value}))} /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Assigned to</Label><select value={ff.assignedTo} onChange={e => setFf(p => ({...p, assignedTo: e.target.value}))} className="flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option>Reception</option><option>Doctor</option><option>Lab</option><option>Pharmacy</option><option>Nurse</option></select></div>
+            <div><Label>Reminder Method</Label><select value={ff.reminderMethod} onChange={e => setFf(p => ({...p, reminderMethod: e.target.value}))} className="flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option>SMS</option><option>Call</option><option>Email</option><option>None</option></select></div>
+          </div>
+          <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={ff.createAppointment} onChange={e => setFf(p => ({...p, createAppointment: e.target.checked}))} />Create appointment now</label>
+          <div><Label>Owner Message</Label><Textarea value={ff.ownerMessage} onChange={e => setFf(p => ({...p, ownerMessage: e.target.value}))} rows={2} placeholder="Return if vomiting persists" /></div>
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => { setSaving(false); onOpenChange(false); }} disabled={saving}>Cancel</Button>
+            <Button onClick={async () => {
+              setSaving(true);
+              try {
+                const item: any = { id: `fu_${Date.now()}`, type: 'followup', title: `${ff.type} in 3 days`, subtitle: `Due: ${ff.dueDate}`, status: ff.status, details: { Type: ff.type, Due: ff.dueDate, 'Assigned to': ff.assignedTo, Reminder: ff.reminderMethod, 'Create Apt': ff.createAppointment ? 'Yes' : 'No', Message: ff.ownerMessage } };
+                const fuRef = await addDoc(collection(db, 'follow_ups'), {
+                  encounterId, petId: patientId, petName: patientName, ownerId, ownerName,
+                  type: ff.type, dueDate: ff.dueDate, assignedTo: ff.assignedTo,
+                  reminderMethod: ff.reminderMethod, createAppointment: ff.createAppointment,
+                  ownerMessage: ff.ownerMessage, status: ff.status,
+                  createdBy: auth.currentUser?.displayName || '', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+                });
+                item.linkedRecordId = fuRef.id;
+                await addAuditLog({ action: 'followup_scheduled', userId: auth.currentUser?.uid || '', userName: auth.currentUser?.displayName || '', encounterId, patientId, details: `${ff.type} on ${ff.dueDate}` });
+                onSave(item);
+                onOpenChange(false);
+                if (onCreated) await onCreated();
+              } finally { setSaving(false); }
+            }} disabled={saving} className="bg-cyan-600 hover:bg-cyan-700 text-white">{saving ? <><Loader2 className="w-3 h-3 animate-spin mr-1" />Saving...</> : 'Save Follow-Up'}</Button>
+          </div>
+        </div>
+              </DrawerContent>
+    </Drawer>
+  );
+}
+
+function OwnerInstructionsEditor({ open, onOpenChange, onSave, onInstructionsChange, encounterId, patientId }: { open: boolean; onOpenChange: (v: boolean) => void; onSave: (item: any) => void; onInstructionsChange: (combined: string, diet: string, warningSigns: string) => void; encounterId: string; patientId: string }) {
+  const [oi, setOi] = React.useState({ medicationInstructions: '', diet: '', activity: '', warningSigns: '', followUp: '', labExpectations: '' });
+  const [saving, setSaving] = React.useState(false);
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="max-w-lg">
+        <DrawerHeader><DrawerTitle className="flex items-center gap-2"><FileText className="w-4 h-4 text-stone-600" />Owner Instructions</DrawerTitle><DrawerDescription>Home care and follow-up instructions for the owner</DrawerDescription></DrawerHeader>
+        <div className="space-y-3 py-2">
+          <div><Label>Medication Instructions</Label><Textarea value={oi.medicationInstructions} onChange={e => setOi(p => ({...p, medicationInstructions: e.target.value}))} rows={1} placeholder="Give medicine before meals" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Diet</Label><Textarea value={oi.diet} onChange={e => setOi(p => ({...p, diet: e.target.value}))} rows={1} placeholder="Small frequent meals" /></div>
+            <div><Label>Activity</Label><Textarea value={oi.activity} onChange={e => setOi(p => ({...p, activity: e.target.value}))} rows={1} placeholder="Rest for 24 hours" /></div>
+          </div>
+          <div><Label>Warning Signs</Label><Textarea value={oi.warningSigns} onChange={e => setOi(p => ({...p, warningSigns: e.target.value}))} rows={1} placeholder="Return if vomiting continues" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Follow-Up</Label><Textarea value={oi.followUp} onChange={e => setOi(p => ({...p, followUp: e.target.value}))} rows={1} placeholder="Recheck in 3 days" /></div>
+            <div><Label>Lab Expectations</Label><Textarea value={oi.labExpectations} onChange={e => setOi(p => ({...p, labExpectations: e.target.value}))} rows={1} placeholder="CBC result will be reviewed today" /></div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => { setSaving(false); onOpenChange(false); }} disabled={saving}>Cancel</Button>
+            <Button onClick={async () => {
+              setSaving(true);
+              try {
+                const combined = [oi.medicationInstructions, oi.diet, oi.activity, oi.warningSigns, oi.followUp, oi.labExpectations].filter(Boolean).join(' · ');
+                const item = { id: `oi_${Date.now()}`, type: 'owner-instructions', title: 'Home Care Instructions', subtitle: combined.slice(0, 80) + (combined.length > 80 ? '...' : ''), status: 'Completed', details: { 'In Visit Summary': 'Yes', 'Owner visible': 'Yes' } };
+                await addAuditLog({ action: 'owner_instructions_updated', userId: auth.currentUser?.uid || '', userName: auth.currentUser?.displayName || '', encounterId, patientId, details: '' });
+                onSave(item);
+                onInstructionsChange(combined, oi.diet, oi.warningSigns);
+                onOpenChange(false);
+              } finally { setSaving(false); }
+            }} disabled={saving} className="bg-stone-700 hover:bg-stone-800 text-white">{saving ? <><Loader2 className="w-3 h-3 animate-spin mr-1" />Saving...</> : 'Save Instructions'}</Button>
+          </div>
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
+function InventoryMovementDrawer({ data, onClose, encounterId }: { data: { item: any; movement: any } | null; onClose: () => void; encounterId: string }) {
+  const navigate = useNavigate();
+  const open = !!data;
+  if (!data) return null;
+  const { item, movement } = data;
+  return (
+    <Drawer open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DrawerContent className="max-w-lg">
+        <DrawerHeader>
+          <DrawerTitle className="flex items-center gap-2">
+            <Box className="w-4 h-4 text-amber-600" />Inventory Movement
+          </DrawerTitle>
+          <DrawerDescription>Stock deduction record from this encounter</DrawerDescription>
+        </DrawerHeader>
+        <div className="space-y-3 py-2">
+          <div className="p-4 rounded-lg border border-stone-200 bg-amber-50/40">
+            <span className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider bg-amber-100 px-2 py-0.5 rounded">Stock Out</span>
+          </div>
+          <div className="bg-white rounded-lg border border-stone-200 divide-y divide-stone-100">
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-xs text-stone-500">Item</span>
+              <span className="text-sm font-medium text-stone-800">{movement?.medicationName || item.title}</span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-xs text-stone-500">Quantity Deducted</span>
+              <span className="text-sm font-medium text-stone-800">{Math.abs(movement?.quantity || 1)} {item.dose ? `(${item.dose})` : ''}</span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-xs text-stone-500">Batch / Lot</span>
+              <span className="text-sm font-mono text-stone-600">{movement?.batchNo || 'N/A'}</span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-xs text-stone-500">Expiry Date</span>
+              <span className="text-sm text-stone-600">{movement?.expiryDate || 'N/A'}</span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-xs text-stone-500">Source</span>
+              <span className="text-sm font-medium text-stone-600">EMR Encounter ENC-{encounterId.slice(-6).toUpperCase()}</span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-xs text-stone-500">Reason</span>
+              <span className="text-sm text-stone-600">{movement?.notes || item.details?.Reason || 'Administered during consultation'}</span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-xs text-stone-500">Performed By</span>
+              <span className="text-sm font-medium text-stone-800">{movement?.userName || item.details?.['Performed by'] || 'N/A'}</span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-xs text-stone-500">Date / Time</span>
+              <span className="text-sm text-stone-600">{movement?.createdAt ? new Date(movement.createdAt.toDate?.() || movement.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Recorded during this session'}</span>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => { onClose(); navigate('/crm/pharmacy'); }}>
+              <FileText className="w-3.5 h-3.5 mr-1.5" />Open in Inventory
+            </Button>
+            <Button variant="outline" size="sm" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+}
+

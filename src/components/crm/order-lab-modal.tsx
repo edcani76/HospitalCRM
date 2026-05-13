@@ -5,8 +5,8 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
-} from '../ui/dialog';
+  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription
+} from '../ui/drawer';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '../ui/select';
@@ -191,17 +191,17 @@ export function OrderLabModal({ open, onOpenChange, encounter, patient, owner, d
   const canSubmit = form.testName.trim() && form.reason.trim();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-lg">
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="max-w-2xl overflow-y-auto">
+        <DrawerHeader>
+          <DrawerTitle className="flex items-center gap-2 text-lg">
             <FlaskConical className="w-5 h-5 text-purple-600" />
             Order Lab / Diagnostic
-          </DialogTitle>
-          <DialogDescription>
+          </DrawerTitle>
+          <DrawerDescription>
             Create a new laboratory order or diagnostic imaging request
-          </DialogDescription>
-        </DialogHeader>
+          </DrawerDescription>
+        </DrawerHeader>
 
         <div className="space-y-5 py-2">
           {/* Pre-filled Info */}
@@ -358,7 +358,7 @@ export function OrderLabModal({ open, onOpenChange, encounter, patient, owner, d
             {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-1.5" />Creating...</> : 'Create Lab Order'}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </DrawerContent>
+    </Drawer>
   );
 }

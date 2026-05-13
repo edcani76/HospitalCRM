@@ -360,7 +360,7 @@ export default function Dashboard() {
         );
         const dupSnap = await getDocs(dupQuery);
         if (!dupSnap.empty) {
-          toast?.error?.(`A pet named "${formData.name}" already exists under your account.`) || alert(`A pet named "${formData.name}" already exists under your account.`);
+          alert(`A pet named "${formData.name}" already exists under your account.`);
           return;
         }
       }

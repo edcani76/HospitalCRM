@@ -219,32 +219,57 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 
 31. **Pharmacy Operations Dashboard**
 
-32. **EMR 3-Column Consultation Workspace**
+32. **EMR 15-Step Consultation Workspace**
     - Restructured EMR Details page into full 3-column layout: stepper sidebar, main content, clinical context panel
-    - 10-step stepper with active/completed/future states: Chief Complaint, Subjective, Triage & Vitals, Physical Exam, Assessment, Plan, Orders & Diagnostics, Medications, Follow-Up, Owner Instructions
+    - 15-step stepper: Chief Complaint, Subjective, Triage & Vitals, Physical Exam, Assessment, Plan Builder, Prescriptions, Labs & Diagnostics, Procedures, Admission, Follow-Up, Owner Instructions, Visit Summary, Finish Checklist, Doctor Signature
     - Bottom action bar per step with approval (Continue/Save) or skip actions
+    - Clinical context panel (right side) shows encounter summary: patient/doctor card, chief complaint, triage snapshot, weight trend ± diff, preventive care due status, active admission banner
     - Steps 4–8 (Physical Exam → Medications) reuse existing tab content via `stepToTabMap`
     - Steps 1–2 + 9–10 (Chief Complaint, Subjective, Follow-Up, Owner Instructions) have dedicated inline forms
-    - Step 3 maps to Triage & Vitals tab
-    - Chief Complaint and Subjective forms prepopulate from existing SOAP notes
-    - Follow-Up and Owner Instructions saved as separate clinical note fields
-    - `whitespace-normal` on sidebar step labels to prevent truncation
-    - `handleFinishConsultation` transitions `in-progress` → `medical-completed`, generates invoice, creates audit log
-    - All steps can be navigated non-linearly by clicking sidebar items
-    - Clinical context panel (right side) shows encounter summary: patient/doctor card, chief complaint, triage snapshot link
-    - 6 KPI cards: Total Products, Low Stock Items, Expiring Soon, Prescriptions Pending, Today's Dispensed, Inventory Value (at cost)
-    - 5 tabs: All Medications, Prescription Queue, Stock Movements, Purchase Orders (placeholder), Inventory Reports (placeholder)
-    - Rich inventory table with search, category filter, stock status filter (In Stock/Low Stock/Out of Stock/Has Expired)
-    - Color-coded stock status badges (green In Stock, orange Low Stock, red Out of Stock, red Has Expired)
-    - Expiry tracking per batch with nearest expiry date display and "Expiring Soon" (30 days) / "Expired" warnings
-    - Detail side drawer: full product info summary, inventory batches table with expiry status, recent movements timeline, action buttons
-    - Add/Edit Medication dialogs with full fields (name, category, unit, prices, minStock, reorderPoint, description)
-    - Receive Stock dialog: batch number, quantity, expiry/manufacturing dates, cost/selling prices, notes — auto-creates batch record + movement log + updates stock
-    - Adjust Stock dialog: type (adjustment/dispensing/return), quantity with positive/negative handling, required reason notes — creates movement log
-    - Prescription Queue tab: full table with date, pet, doctor, medication, dosage, status badges (Pending/Dispensed/Cancelled), "Dispense" action button
-    - Dispense from Prescription dialog: shows prescription items, current stock levels with low-stock warnings, notes field, proceeds to stock adjustment
-    - Stock Movements tab: full log table with search, type filter, date, type badge, medication, batch, quantity with +/- colors, running balance, reference, user
-    - Purchase Orders and Inventory Reports tabs with placeholder state for future implementation
+    - All steps navigable non-linearly; auto-saves clinical notes on every step change
+
+33. **Clinical Alert Banner**
+    - Gradient banner below sticky header with 5 alert sources:
+      - Red: Allergies
+      - Orange: Aggression/behavior flags
+      - Amber: Chronic conditions
+      - Yellow: Unpaid balance
+      - Purple: Pending labs
+    - Each alert has an icon, label, and value; only non-empty alerts render
+
+34. **Order Lab Modal (`src/components/crm/order-lab-modal.tsx`)**
+    - Pre-filled patient/owner/encounter/doctor
+    - Test selector from catalog + manual entry; test category (Laboratory/Imaging/External Lab)
+    - Reason, priority (Routine/Urgent/STAT), sample type, expected date, external lab toggle
+    - Billing behavior (Queue/Create Invoice Line)
+    - Owner consent (pending/signed/waived/not required), notes
+    - Creates `lab_order` doc + audit log + medical history entry
+    - If "Create Invoice Line" and invoice exists, adds `invoice_items` line and recalculates totals
+    - 12 statuses with color-coded badges in Labs tab; Cancel Order button for active orders
+
+35. **Plan Builder Refactored — 7 Inline Modals/Drawers**
+    - All 7 plan actions open inline (never navigate away):
+      - **Add Treatment drawer**: name, reason, dose, route (SC/IM/IV/Oral/Topical), performed by, status (Administered/Planned), charge to billing toggle, inventory deduction toggle, notes
+      - **Add Prescription drawer**: medication, strength, dose, route, frequency, duration, quantity, instructions, linked diagnosis, substitution toggle, billing behavior
+      - **Add Procedure drawer**: name, indication, status (Completed/Recommended/Scheduled), performed by, supplies, consent required, billing behavior, notes
+      - **Recommend Admission drawer**: type (Medical/Surgical/Isolation/ICU), reason, initial diagnosis, monitoring, duration, isolation/consent/deposit toggles, notes
+      - **Add Follow-Up modal**: type (Recheck/Surgery follow-up/Lab review/Vaccination/Post-op), due date, assigned to, reminder method, create appointment toggle, owner message
+      - **Add Owner Instructions modal**: medication instructions, diet, activity, warning signs, follow-up, lab expectations — combines into `ownerInstructions` field
+      - **Order Lab** (existing modal, external component)
+    - Each save pushes a structured plan item card immediately below with type-specific colors, icons, status badges
+    - "View Lab" button navigates to Labs step; "View in Pharmacy" button navigates to Prescriptions step
+    - Plan items persisted in `clinicalNotes.planItems` array
+
+36. **Notes Persistence & Auto-Save**
+    - All fields saved: chiefComplaint, appetite, waterIntake, pastHistory, diagnosisStatus, differentials, severity, prognosis, clinicalImpression, problemList, followupType, followUpDate, ownerInstructions, dietInstructions, warningSigns, licenseNumber, planItems
+    - `navigateToStep` auto-saves clinical notes before switching steps
+    - `beforeunload` event handler saves on tab close
+    - Unmount cleanup also calls `saveClinicalNotes()`
+    - `formData` and `chiefComplaint` state populated from saved clinical notes on mount
+    - Duplicate encounter prevention: guard in `startAppointment` queries existing encounter by `appointmentId`
+    - Duplicate cleanup script (`scripts/remove-duplicate-encounters.ts`) run successfully — 1 duplicate found and removed
+
+37. **Pharmacy Operations Dashboard**
 
 
 ### 📝 Recent Commits (branch: `codex/pr-1`)
@@ -272,11 +297,14 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `scripts/seed-pharmacy-data.ts`: Created 15 medications, 33 inventory batches, stock movements, 5 prescriptions
 
 ### 🚀 Next Steps
-1. Test the full pharmacy flow: add medication → receive stock (batch) → view in inventory → adjust stock → view movements → dispense from prescription queue
-2. Test PDF invoice generation with real data
-3. Verify Google Drive uploads work end-to-end
-4. Test full appointment lifecycle (confirm → start → medical-complete → bill → pay → close)
-5. If "ThemeContext invalid hook call" error appears in console: disable MetaMask extension for localhost (SES lockdown removes `Proxy`), or use `npm run build && npx serve dist`
+1. Test all 7 Plan Builder modals end-to-end — verify plan items persist after reload, navigation buttons work, Owner Instructions populate Visit Summary
+2. Test auto-save on page leave (beforeunload + unmount) — confirm no data loss when navigating away mid-consultation
+3. Test Order Lab modal end-to-end (lab_order doc creation, invoice line generation, audit log/medical history entries)
+4. Test the full pharmacy flow: add medication → receive stock (batch) → view in inventory → adjust stock → view movements → dispense from prescription queue
+5. Test PDF invoice generation with real data
+6. Verify Google Drive uploads work end-to-end
+7. Test full appointment lifecycle (confirm → start → medical-complete → bill → pay → close)
+8. If "ThemeContext invalid hook call" error appears in console: disable MetaMask extension for localhost (SES lockdown removes `Proxy`), or use `npm run build && npx serve dist`
 
 ### 🗂️ Key Files Modified
 - `src/pages/crm/pharmacy-page.tsx` - Pharmacy Operations Dashboard: KPI cards (Total Products, Low Stock, Expiring Soon, Prescriptions Pending, Today's Dispensed, Inventory Value), 5 tabs (All Medications, Prescription Queue, Stock Movements, Purchase Orders, Inventory Reports), rich table with stock status badges/expiry/filters, detail side drawer (batches table, movement timeline), dialogs (Add/Edit Medication, Receive Stock with batch details, Adjust Stock, Dispense from Prescription)
