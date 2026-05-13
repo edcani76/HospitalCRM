@@ -2342,7 +2342,7 @@ Mode: Walk-in`,
                           </div>
                           {!isReadOnly && (
                             <div className="flex gap-2 mt-2 ml-9">
-                              {item.type === 'treatment' && (
+                              {item.type === 'treatment' && item.status !== 'Cancelled' && (
                                 <>
                                   <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => { setEditingPlanItem(item); setShowTreatmentDrawer(true); }}>Edit</Button>
                                   <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => { setHighlightedChargeId(item.id); chargesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>View Charge</Button>
@@ -2369,8 +2369,11 @@ Mode: Walk-in`,
                               {item.type === 'admission' && item.linkedRecordId && (
                                 <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => navigateToStep('admission')}>View Admission</Button>
                               )}
-                              {item.type !== 'owner-instructions' && item.type !== 'followup' && (
+                              {item.type !== 'owner-instructions' && item.type !== 'followup' && item.status !== 'Cancelled' && (
                                 <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => { setCancelItemId(item.id); setCancelReason(''); setCancelType(''); }}>Cancel</Button>
+                              )}
+                              {item.status === 'Cancelled' && (
+                                <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-stone-500" onClick={() => navigateToStep('summary')}><FileText className="w-3 h-3 mr-1" />View Audit</Button>
                               )}
                             </div>
                           )}
@@ -2930,11 +2933,15 @@ Mode: Walk-in`,
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-red-500" />Cancel Treatment</DialogTitle>
-            <DialogDescription>Review the impact and provide a reason for cancellation</DialogDescription>
+            {cancelItemId && (() => {
+              const ci = planItems.find(p => p.id === cancelItemId);
+              return <DialogDescription>{ci?.status === 'Administered' ? 'This treatment was already administered — cancelling will reverse all linked effects' : 'Planned treatment — simply mark as cancelled'}</DialogDescription>;
+            })()}
           </DialogHeader>
           {cancelItemId && (() => {
             const ci = planItems.find(p => p.id === cancelItemId);
             if (!ci) return null;
+            const isAdministered = ci.status === 'Administered';
             return (
               <div className="space-y-3 py-1">
                 <div className="p-3 rounded-lg border border-stone-200 bg-stone-50 space-y-1.5">
@@ -2944,27 +2951,48 @@ Mode: Walk-in`,
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-stone-500">Current Status</span>
-                    <span className={cn('text-xs font-semibold px-2 py-0.5 rounded', ci.status === 'Administered' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700')}>{ci.status}</span>
+                    <span className={cn('text-xs font-semibold px-2 py-0.5 rounded', isAdministered ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700')}>{ci.status}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-stone-500">Billing</span>
-                    <span className="text-xs text-stone-600">{ci.billingBehavior === 'create-invoice-line' ? 'Invoiced' : ci.billingBehavior ? 'Queued' : 'None'}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-stone-500">Inventory</span>
-                    <span className="text-xs text-stone-600">{ci.inventoryDeduction ? 'Deducted' : 'None'}</span>
-                  </div>
+                  {isAdministered && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-stone-500">Billing</span>
+                        <span className="text-xs text-stone-600">{ci.billingBehavior === 'create-invoice-line' ? 'Invoiced' : ci.billingBehavior ? 'Queued' : 'None'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-stone-500">Inventory</span>
+                        <span className="text-xs text-stone-600">{ci.inventoryDeduction ? 'Deducted' : 'None'}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                <div className="text-xs text-stone-500 space-y-1">
-                  <p className="font-medium text-stone-700 mb-1">This treatment already created:</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1">
-                    <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Billing item</span>
-                    {ci.inventoryDeduction && <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Inventory deduction</span>}
-                    <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Medical history event</span>
-                    <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Activity log entry</span>
+                {isAdministered && (
+                  <div className="text-xs text-stone-500 space-y-1">
+                    <p className="font-medium text-stone-700 mb-1">This treatment already created:</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Billing item</span>
+                      {ci.inventoryDeduction && <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Inventory deduction</span>}
+                      <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Medical history event</span>
+                      <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Activity log entry</span>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {!isAdministered && (
+                  <div className="text-xs text-stone-500 space-y-1">
+                    <p className="font-medium text-stone-700 mb-1">Behavior</p>
+                    <div className="flex flex-wrap gap-x-6 gap-y-1">
+                      <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" />Plan Builder: Mark as Cancelled</span>
+                      <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400" />Billing Preview: No change needed</span>
+                      <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400" />Inventory: No movement</span>
+                      <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400" />Medical History: Skip event</span>
+                      <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-stone-400" />Activity Log: Record cancellation</span>
+                      <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400" />Visit Summary: Do not show</span>
+                      <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" />Finish Checklist: Remove from active</span>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <Label>Reason for cancellation</Label>
@@ -2988,29 +3016,28 @@ Mode: Walk-in`,
                   <Button variant="destructive" onClick={async () => {
                     if (!cancelItemId) return;
                     const ci = planItems.find(p => p.id === cancelItemId);
-                    try {
-                      // 1. Void linked billing item
-                      if (ci?.linkedRecordId) {
-                        await updateDoc(doc(db, 'appointment_services', ci.linkedRecordId), { status: 'voided', voidedAt: serverTimestamp(), voidReason: cancelReason, voidType: cancelType });
+                    if (ci?.status === 'Administered') {
+                      try {
+                        if (ci.linkedRecordId) {
+                          await updateDoc(doc(db, 'appointment_services', ci.linkedRecordId), { status: 'voided', voidedAt: serverTimestamp(), voidReason: cancelReason, voidType: cancelType });
+                        }
+                        if (ci.inventoryDeduction) {
+                          await createStockMovement({
+                            medicationName: ci.title,
+                            type: 'return',
+                            quantity: 1,
+                            reference: `CANCEL-${(selectedEncounter?.id || '').slice(-6)}`,
+                            notes: `Reversal: ${cancelReason || 'Treatment cancelled'} (${cancelType})`,
+                            userId: auth.currentUser?.uid || '',
+                            userName: auth.currentUser?.displayName || '',
+                            encounterId: selectedEncounter?.id
+                          });
+                        }
+                      } catch (e) {
+                        console.error('Error reversing linked effects:', e);
                       }
-                      // 2. Reverse inventory deduction
-                      if (ci?.inventoryDeduction) {
-                        await createStockMovement({
-                          medicationName: ci.title,
-                          type: 'return',
-                          quantity: 1,
-                          reference: `CANCEL-${(selectedEncounter?.id || '').slice(-6)}`,
-                          notes: `Reversal: ${cancelReason || 'Treatment cancelled'} (${cancelType})`,
-                          userId: auth.currentUser?.uid || '',
-                          userName: auth.currentUser?.displayName || '',
-                          encounterId: selectedEncounter?.id
-                        });
-                      }
-                      // 3. Audit log
-                      await addAuditLog({ action: 'treatment_cancelled', userId: auth.currentUser?.uid || '', userName: auth.currentUser?.displayName || '', encounterId: selectedEncounter?.id, patientId, details: `${ci?.title} — ${cancelReason || 'No reason'} (${cancelType})` });
-                    } catch (e) {
-                      console.error('Error reversing linked effects:', e);
                     }
+                    await addAuditLog({ action: 'treatment_cancelled', userId: auth.currentUser?.uid || '', userName: auth.currentUser?.displayName || '', encounterId: selectedEncounter?.id, patientId, details: `${ci?.title} — ${cancelReason || 'No reason'} (${cancelType})` });
                     setPlanItems(prev => {
                       const next = prev.map(p => p.id === cancelItemId ? { ...p, status: 'Cancelled', cancelReason: cancelReason || 'No reason provided', cancelType } : p);
                       persistPlanItems(next);
