@@ -186,6 +186,35 @@ export default function PatientProfilePage() {
     fetchPatient();
   }, [patientId]);
 
+  const nextAppointment = useMemo(() => {
+    return appointments
+      .filter((a: any) => a.status !== 'cancelled' && a.status !== 'completed')
+      .sort((a: any, b: any) => new Date(a.date + 'T' + (a.time || '00:00')).getTime() - new Date(b.date + 'T' + (b.time || '00:00')).getTime())[0] || null;
+  }, [appointments]);
+
+  const lastVisit = useMemo(() => {
+    const completed = encounterVisits.filter((e: any) => e.status === 'completed' || e.status === 'medical-completed');
+    if (completed.length > 0) return completed[0];
+    const doneAppts = appointments.filter((a: any) => a.status === 'completed');
+    if (doneAppts.length > 0) return doneAppts[0];
+    return null;
+  }, [encounterVisits, appointments]);
+
+  const outstandingBalance = useMemo(() => {
+    return invoices.reduce((sum: number, inv: any) => {
+      const bal = inv.balanceDue ?? (inv.grandTotal ?? inv.amount ?? 0) - (inv.amountPaid ?? 0);
+      return sum + (bal > 0 ? bal : 0);
+    }, 0);
+  }, [invoices]);
+
+  const totalInvoiced = useMemo(() => {
+    return invoices.reduce((sum: number, inv: any) => sum + (inv.grandTotal ?? inv.amount ?? 0), 0);
+  }, [invoices]);
+
+  const totalPaid = useMemo(() => {
+    return invoices.reduce((sum: number, inv: any) => sum + (inv.amountPaid ?? 0), 0);
+  }, [invoices]);
+
   if (loading) {
     return <div className="p-8 text-center">Loading patient profile...</div>;
   }
@@ -547,35 +576,6 @@ export default function PatientProfilePage() {
     }
     return '—';
   };
-
-  const nextAppointment = useMemo(() => {
-    return appointments
-      .filter((a: any) => a.status !== 'cancelled' && a.status !== 'completed')
-      .sort((a: any, b: any) => new Date(a.date + 'T' + (a.time || '00:00')).getTime() - new Date(b.date + 'T' + (b.time || '00:00')).getTime())[0] || null;
-  }, [appointments]);
-
-  const lastVisit = useMemo(() => {
-    const completed = encounterVisits.filter((e: any) => e.status === 'completed' || e.status === 'medical-completed');
-    if (completed.length > 0) return completed[0];
-    const doneAppts = appointments.filter((a: any) => a.status === 'completed');
-    if (doneAppts.length > 0) return doneAppts[0];
-    return null;
-  }, [encounterVisits, appointments]);
-
-  const outstandingBalance = useMemo(() => {
-    return invoices.reduce((sum: number, inv: any) => {
-      const bal = inv.balanceDue ?? (inv.grandTotal ?? inv.amount ?? 0) - (inv.amountPaid ?? 0);
-      return sum + (bal > 0 ? bal : 0);
-    }, 0);
-  }, [invoices]);
-
-  const totalInvoiced = useMemo(() => {
-    return invoices.reduce((sum: number, inv: any) => sum + (inv.grandTotal ?? inv.amount ?? 0), 0);
-  }, [invoices]);
-
-  const totalPaid = useMemo(() => {
-    return invoices.reduce((sum: number, inv: any) => sum + (inv.amountPaid ?? 0), 0);
-  }, [invoices]);
 
   const hasAlerts = !!(patient.allergies?.length || patient.aggressionWarning || patient.chronicConditions?.length || patient.medicationReactions?.length || patient.contagiousDiseaseFlag || patient.specialHandlingNotes);
 
