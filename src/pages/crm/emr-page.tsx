@@ -1729,6 +1729,9 @@ Mode: Walk-in`,
   const [cancelItemId, setCancelItemId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelType, setCancelType] = useState('');
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelTier, setCancelTier] = useState<'cancel' | 'void' | 'void-charge' | 'refund' | 'amendment'>('cancel');
+  const [cancelLinkedData, setCancelLinkedData] = useState<any>(null);
   const [highlightedChargeId, setHighlightedChargeId] = useState<string | null>(null);
   const chargesRef = useRef<HTMLDivElement>(null);
   const [invMovementItem, setInvMovementItem] = useState<{ item: any; movement: any } | null>(null);
@@ -1769,7 +1772,7 @@ Mode: Walk-in`,
       return systems.some(s => physicalExam[s] === 'abnormal' || physicalExam[s] === 'normal');
     }
     if (stepId === 'assessment') return !!formData.assessment;
-    if (stepId === 'plan') return !!formData.plan;
+    if (stepId === 'plan') return !!(formData.plan || planItems.length > 0);
     if (stepId === 'prescriptions') return prescriptions.length > 0;
     if (stepId === 'labs') return labOrders.length > 0;
     if (stepId === 'procedures') return !!procedureForm.name;
@@ -2085,7 +2088,7 @@ Mode: Walk-in`,
                 </div>
                 {mode === 'active' && (
                   <div className="mt-6 pt-6 border-t flex gap-2">
-                    <Button onClick={() => { setFormData(p => ({...p, chiefComplaint: chiefComplaint.reason, subjective: chiefComplaint.reason + (chiefComplaint.duration ? ' (' + chiefComplaint.duration + ')' : '') + '\n' + chiefComplaint.ownerStatement})); navigateToStep('subjective'); }}>
+                    <Button onClick={() => { saveClinicalNotes(); setFormData(p => ({...p, chiefComplaint: chiefComplaint.reason, subjective: chiefComplaint.reason + (chiefComplaint.duration ? ' (' + chiefComplaint.duration + ')' : '') + '\n' + chiefComplaint.ownerStatement})); navigateToStep('subjective'); }}>
                       <Check className="w-4 h-4 mr-1.5" />Save & Continue to Subjective
                     </Button>
                   </div>
@@ -2274,7 +2277,7 @@ Mode: Walk-in`,
                       const typeColors: Record<string, string> = { treatment: 'border-blue-200 bg-blue-50', prescription: 'border-purple-200 bg-purple-50', lab: 'border-amber-200 bg-amber-50', procedure: 'border-emerald-200 bg-emerald-50', admission: 'border-rose-200 bg-rose-50', followup: 'border-cyan-200 bg-cyan-50', 'owner-instructions': 'border-stone-200 bg-stone-50' };
                       const typeLabels: Record<string, string> = { treatment: 'Treatment', prescription: 'Prescription', lab: 'Lab Order', procedure: 'Procedure', admission: 'Admission', followup: 'Follow-Up', 'owner-instructions': 'Owner Instructions' };
                       const Icon = typeIcon[item.type] || FileText;
-                      const statusBadge: Record<string, string> = { completed: 'bg-emerald-100 text-emerald-700', administered: 'bg-blue-100 text-blue-700', planned: 'bg-stone-100 text-stone-600', 'awaiting-sample': 'bg-amber-100 text-amber-700', recommended: 'bg-amber-100 text-amber-700', open: 'bg-cyan-100 text-cyan-700', 'for-dispensing': 'bg-purple-100 text-purple-700', queued: 'bg-stone-100 text-stone-500', 'pending-owner-consent': 'bg-rose-100 text-rose-700' };
+                      const statusBadge: Record<string, string> = { completed: 'bg-emerald-100 text-emerald-700', administered: 'bg-blue-100 text-blue-700', planned: 'bg-stone-100 text-stone-600', voided: 'bg-red-100 text-red-700', 'awaiting-sample': 'bg-amber-100 text-amber-700', recommended: 'bg-amber-100 text-amber-700', open: 'bg-cyan-100 text-cyan-700', 'for-dispensing': 'bg-purple-100 text-purple-700', queued: 'bg-stone-100 text-stone-500', 'pending-owner-consent': 'bg-rose-100 text-rose-700' };
                       return (
                         <div key={item.id || i} className={cn('p-4 rounded-lg border-2', typeColors[item.type] || 'border-stone-200')}>
                           <div className="flex items-start gap-3">
@@ -2290,8 +2293,12 @@ Mode: Walk-in`,
                                   {item.details?.Dose && <span><span className="font-medium text-stone-400">Dose:</span> {item.details.Dose}</span>}
                                   {item.details?.Route && <span><span className="font-medium text-stone-400">Route:</span> {item.details.Route}</span>}
                                   <span><span className="font-medium text-stone-400">Status:</span> {item.status}</span>
-                                  <span><span className="font-medium text-stone-400">Billing:</span> {item.billingBehavior === 'queue' ? 'Queued' : 'Not charged'}</span>
-                                  <span><span className="font-medium text-stone-400">Inventory:</span> {item.inventoryDeduction ? 'Deducted' : 'Not deducted'}</span>
+                                  {item.status === 'Voided' ? (
+                                    <><span><span className="font-medium text-stone-400">Billing:</span> Charge voided</span><span><span className="font-medium text-stone-400">Inventory:</span> Stock deduction reversed</span></>
+                                  ) : (
+                                    <><span><span className="font-medium text-stone-400">Billing:</span> {item.billingBehavior === 'queue' ? 'Queued' : 'Not charged'}</span><span><span className="font-medium text-stone-400">Inventory:</span> {item.inventoryDeduction ? 'Deducted' : 'Not deducted'}</span></>
+                                  )}
+                                  {item.status === 'Voided' && item.cancelReason && <span><span className="font-medium text-stone-400">Reason:</span> {item.cancelReason}</span>}
                                 </div>
                               )}
                               {item.type === 'prescription' && (
@@ -2369,11 +2376,18 @@ Mode: Walk-in`,
                               {item.type === 'admission' && item.linkedRecordId && (
                                 <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => navigateToStep('admission')}>View Admission</Button>
                               )}
-                              {item.type !== 'owner-instructions' && item.type !== 'followup' && item.status !== 'Cancelled' && (
-                                <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => { setCancelItemId(item.id); setCancelReason(''); setCancelType(''); }}>Cancel</Button>
+                              {item.type !== 'owner-instructions' && item.type !== 'followup' && item.status !== 'Cancelled' && item.status !== 'Voided' && (
+                                <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={async () => { const ci = planItems.find(p => p.id === item.id); if (!ci) return; setCancelItemId(item.id); setCancelReason(''); setCancelType(''); setCancelLoading(true); setCancelLinkedData(null); setCancelTier('cancel'); try { let data: any = {}; if (ci.linkedRecordId) { const svcSnap = await getDoc(doc(db, 'appointment_services', ci.linkedRecordId)); if (svcSnap.exists()) data.service = { id: svcSnap.id, ...svcSnap.data() }; } if (data.service?.status === 'active' || data.service?.status === 'voided') { const invItemsSnap = await getDocs(query(collection(db, 'invoice_items'), where('appointmentServiceId', '==', ci.linkedRecordId))); if (!invItemsSnap.empty) { data.invoiceItem = { id: invItemsSnap.docs[0].id, ...invItemsSnap.docs[0].data() }; if (data.invoiceItem.invoiceId) { const invSnap = await getDoc(doc(db, 'invoices', data.invoiceItem.invoiceId)); if (invSnap.exists()) { data.invoice = { id: invSnap.id, ...invSnap.data() }; if (data.invoice?.status === 'paid') { const paysSnap = await getDocs(query(collection(db, 'payments'), where('invoiceId', '==', data.invoice.id))); data.payments = paysSnap.docs.map(d => ({ id: d.id, ...d.data() })); } } } } } setCancelLinkedData(data); if (data.invoice?.status === 'paid') setCancelTier('refund'); else if (data.invoiceItem) setCancelTier('void-charge'); else if (ci.status === 'Administered') setCancelTier('void'); else setCancelTier('cancel'); } catch { setCancelTier(ci.status === 'Administered' ? 'void' : 'cancel'); } finally { setCancelLoading(false); } }}>{item.status === 'Administered' ? 'Void' : 'Cancel'}</Button>
                               )}
                               {item.status === 'Cancelled' && (
                                 <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-stone-500" onClick={() => navigateToStep('summary')}><FileText className="w-3 h-3 mr-1" />View Audit</Button>
+                              )}
+                              {item.status === 'Voided' && (
+                                <>
+                                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-stone-500" onClick={() => navigateToStep('summary')}><FileText className="w-3 h-3 mr-1" />View Audit</Button>
+                                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => { setHighlightedChargeId(item.id); chargesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>View Voided Charge</Button>
+                                  {item.inventoryDeduction && <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={async () => { try { const movements = await fetchStockMovements(); const mvm = movements.find((m: any) => m.encounterId === selectedEncounter?.id && m.medicationName === item.title); setInvMovementItem({ item, movement: mvm || null }); } catch { setInvMovementItem({ item, movement: null }); } }}>View Stock Reversal</Button>}
+                                </>
                               )}
                             </div>
                           )}
@@ -2928,20 +2942,28 @@ Mode: Walk-in`,
         }}
       />
 
-      {/* Cancel Reason Dialog */}
+      {/* Cancel / Void / Refund Dialog */}
       <Dialog open={!!cancelItemId} onOpenChange={v => { if (!v) setCancelItemId(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-red-500" />Cancel Treatment</DialogTitle>
-            {cancelItemId && (() => {
-              const ci = planItems.find(p => p.id === cancelItemId);
-              return <DialogDescription>{ci?.status === 'Administered' ? 'This treatment was already administered — cancelling will reverse all linked effects' : 'Planned treatment — simply mark as cancelled'}</DialogDescription>;
-            })()}
+            {cancelTier === 'amendment' ? (
+              <DialogTitle className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-stone-500" />Amendment Required</DialogTitle>
+            ) : cancelTier === 'refund' ? (
+              <DialogTitle className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-orange-500" />Refund / Credit Required</DialogTitle>
+            ) : (
+              <DialogTitle className="flex items-center gap-2"><AlertTriangle className={cn('w-4 h-4', cancelTier === 'void' || cancelTier === 'void-charge' ? 'text-red-600' : 'text-amber-500')} />{cancelTier === 'void' || cancelTier === 'void-charge' ? 'Void Treatment' : 'Cancel Treatment'}</DialogTitle>
+            )}
+            <DialogDescription>
+              {cancelTier === 'amendment' ? 'The medical record is locked. Submit an amendment instead.' :
+               cancelTier === 'refund' ? 'This item has been paid. A refund or credit note must be issued.' :
+               cancelTier === 'void-charge' ? 'This treatment was administered and billed. Voiding will reverse the charge.' :
+               cancelTier === 'void' ? 'This treatment was administered. Voiding reverses all linked effects.' :
+               'Planned treatment — mark as cancelled, no side effects.'}
+            </DialogDescription>
           </DialogHeader>
           {cancelItemId && (() => {
             const ci = planItems.find(p => p.id === cancelItemId);
             if (!ci) return null;
-            const isAdministered = ci.status === 'Administered';
             return (
               <div className="space-y-3 py-1">
                 <div className="p-3 rounded-lg border border-stone-200 bg-stone-50 space-y-1.5">
@@ -2951,13 +2973,13 @@ Mode: Walk-in`,
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-stone-500">Current Status</span>
-                    <span className={cn('text-xs font-semibold px-2 py-0.5 rounded', isAdministered ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700')}>{ci.status}</span>
+                    <span className={cn('text-xs font-semibold px-2 py-0.5 rounded', ci.status === 'Administered' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700')}>{ci.status}</span>
                   </div>
-                  {isAdministered && (
+                  {(cancelTier === 'void' || cancelTier === 'void-charge') && (
                     <>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-stone-500">Billing</span>
-                        <span className="text-xs text-stone-600">{ci.billingBehavior === 'create-invoice-line' ? 'Invoiced' : ci.billingBehavior ? 'Queued' : 'None'}</span>
+                        <span className="text-xs text-stone-600">{cancelLinkedData?.invoiceItem ? `Invoiced (${cancelLinkedData?.invoice?.status || 'unknown'})` : ci.billingBehavior ? 'Queued' : 'None'}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-stone-500">Inventory</span>
@@ -2967,19 +2989,8 @@ Mode: Walk-in`,
                   )}
                 </div>
 
-                {isAdministered && (
-                  <div className="text-xs text-stone-500 space-y-1">
-                    <p className="font-medium text-stone-700 mb-1">This treatment already created:</p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1">
-                      <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Billing item</span>
-                      {ci.inventoryDeduction && <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Inventory deduction</span>}
-                      <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Medical history event</span>
-                      <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-500" />Activity log entry</span>
-                    </div>
-                  </div>
-                )}
-
-                {!isAdministered && (
+                {/* Tier-specific impact section */}
+                {cancelTier === 'cancel' && (
                   <div className="text-xs text-stone-500 space-y-1">
                     <p className="font-medium text-stone-700 mb-1">Behavior</p>
                     <div className="flex flex-wrap gap-x-6 gap-y-1">
@@ -2994,34 +3005,87 @@ Mode: Walk-in`,
                   </div>
                 )}
 
-                <div>
-                  <Label>Reason for cancellation</Label>
-                  <Textarea value={cancelReason} onChange={e => setCancelReason(e.target.value)} rows={2} placeholder="Enter reason..." />
-                </div>
-
-                <div>
-                  <Label>Cancellation Type</Label>
-                  <div className="space-y-1.5 mt-1">
-                    {['Entered by mistake', 'Treatment not performed', 'Duplicate entry', 'Owner declined', 'Changed treatment plan', 'Other'].map(t => (
-                      <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-stone-50 px-2 py-1 rounded">
-                        <input type="radio" name="cancelType" value={t} checked={cancelType === t} onChange={e => setCancelType(e.target.value)} className="accent-red-500" />
-                        {t}
-                      </label>
-                    ))}
+                {(cancelTier === 'void' || cancelTier === 'void-charge') && (
+                  <div className="text-xs text-stone-500 space-y-1">
+                    <p className="font-medium text-stone-700 mb-1">This will:</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      <span className="flex items-center gap-1"><Check className="w-3 h-3 text-amber-500" />Mark item as Voided in Plan Builder</span>
+                      {cancelLinkedData?.invoiceItem ? (
+                        <span className="flex items-center gap-1"><Check className="w-3 h-3 text-amber-500" />Void invoice line ({cancelLinkedData.invoiceItem.description || 'line item'})</span>
+                      ) : ci.billingBehavior ? (
+                        <span className="flex items-center gap-1"><Check className="w-3 h-3 text-amber-500" />Void queued charge</span>
+                      ) : null}
+                      {ci.inventoryDeduction && <span className="flex items-center gap-1"><Check className="w-3 h-3 text-amber-500" />Create stock reversal movement</span>}
+                      <span className="flex items-center gap-1"><Check className="w-3 h-3 text-amber-500" />Mark treatment event as voided</span>
+                      <span className="flex items-center gap-1"><Check className="w-3 h-3 text-amber-500" />Record in Activity Log</span>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {cancelTier === 'refund' && (
+                  <div className="p-3 rounded-lg border border-orange-200 bg-orange-50 space-y-1.5">
+                    <p className="text-xs font-medium text-orange-700">This item was paid (₱{cancelLinkedData?.invoice?.grandTotal || 0}). Cancelling requires:</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-orange-600">
+                      <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-400" />Issue a refund or credit note</span>
+                      <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-400" />Void original invoice line</span>
+                      <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-400" />Record refund in payment history</span>
+                      <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-400" />Notify accounting</span>
+                    </div>
+                    {cancelLinkedData?.payments?.length > 0 && (
+                      <p className="text-xs text-orange-500 mt-1">{cancelLinkedData.payments.length} payment(s) on record — refund required before voiding</p>
+                    )}
+                  </div>
+                )}
+
+                {cancelTier === 'amendment' && (
+                  <div className="p-3 rounded-lg border border-stone-300 bg-stone-100 space-y-1.5">
+                    <p className="text-xs font-medium text-stone-700">The medical record is locked. You must submit an amendment request to modify this entry. This will be reviewed by a supervisor.</p>
+                  </div>
+                )}
+
+                {cancelTier !== 'amendment' && (
+                  <>
+                    <div>
+                      <Label>Reason for cancellation</Label>
+                      <Textarea value={cancelReason} onChange={e => setCancelReason(e.target.value)} rows={2} placeholder="Enter reason..." />
+                    </div>
+
+                    <div>
+                      <Label>Cancellation Type</Label>
+                      <div className="space-y-1.5 mt-1">
+                        {['Entered by mistake', 'Treatment not performed', 'Duplicate entry', 'Owner declined', 'Changed treatment plan', 'Other'].map(t => (
+                          <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-stone-50 px-2 py-1 rounded">
+                            <input type="radio" name="cancelType" value={t} checked={cancelType === t} onChange={e => setCancelType(e.target.value)} className="accent-red-500" />
+                            {t}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <DialogFooter className="flex gap-2 pt-2">
                   <Button variant="outline" onClick={() => setCancelItemId(null)}>Back</Button>
-                  <Button variant="destructive" onClick={async () => {
-                    if (!cancelItemId) return;
-                    const ci = planItems.find(p => p.id === cancelItemId);
-                    if (ci?.status === 'Administered') {
+                  {cancelTier === 'amendment' ? (
+                    <Button onClick={() => { alert('Amendment workflow — coming soon. Please contact a supervisor to modify this record.'); setCancelItemId(null); }} className="bg-stone-600 hover:bg-stone-700 text-white">Request Amendment</Button>
+                  ) : cancelTier === 'refund' ? (
+                    <Button onClick={() => { alert('Refund workflow — coming soon. Please process the refund in the Billing module first.'); setCancelItemId(null); }} className="bg-orange-600 hover:bg-orange-700 text-white">Continue to Refund</Button>
+                  ) : (
+                    <Button variant="destructive" onClick={async () => {
+                      if (!cancelItemId) return;
+                      const ci = planItems.find(p => p.id === cancelItemId);
+                      setCancelLoading(true);
                       try {
-                        if (ci.linkedRecordId) {
+                        // Void billing appointment_services if administered
+                        if (ci?.linkedRecordId && (cancelTier === 'void' || cancelTier === 'void-charge')) {
                           await updateDoc(doc(db, 'appointment_services', ci.linkedRecordId), { status: 'voided', voidedAt: serverTimestamp(), voidReason: cancelReason, voidType: cancelType });
                         }
-                        if (ci.inventoryDeduction) {
+                        // Void invoice item if billed
+                        if (cancelTier === 'void-charge' && cancelLinkedData?.invoiceItem?.id) {
+                          await updateDoc(doc(db, 'invoice_items', cancelLinkedData.invoiceItem.id), { voided: true, voidedAt: serverTimestamp(), voidReason: cancelReason });
+                        }
+                        // Reverse inventory if deducted
+                        if (ci?.inventoryDeduction && cancelTier !== 'cancel') {
                           await createStockMovement({
                             medicationName: ci.title,
                             type: 'return',
@@ -3033,18 +3097,23 @@ Mode: Walk-in`,
                             encounterId: selectedEncounter?.id
                           });
                         }
+                        const newStatus = cancelTier === 'cancel' ? 'Cancelled' : 'Voided';
+                        await addAuditLog({ action: cancelTier === 'cancel' ? 'treatment_cancelled' : 'treatment_voided', userId: auth.currentUser?.uid || '', userName: auth.currentUser?.displayName || '', encounterId: selectedEncounter?.id, patientId, details: `${ci?.title} — ${cancelReason || 'No reason'} (${cancelType})` });
+                        setPlanItems(prev => {
+                          const next = prev.map(p => p.id === cancelItemId ? { ...p, status: newStatus, cancelReason: cancelReason || 'No reason provided', cancelType } : p);
+                          persistPlanItems(next);
+                          return next;
+                        });
                       } catch (e) {
-                        console.error('Error reversing linked effects:', e);
+                        console.error('Error during cancellation:', e);
+                      } finally {
+                        setCancelLoading(false);
+                        setCancelItemId(null);
                       }
-                    }
-                    await addAuditLog({ action: 'treatment_cancelled', userId: auth.currentUser?.uid || '', userName: auth.currentUser?.displayName || '', encounterId: selectedEncounter?.id, patientId, details: `${ci?.title} — ${cancelReason || 'No reason'} (${cancelType})` });
-                    setPlanItems(prev => {
-                      const next = prev.map(p => p.id === cancelItemId ? { ...p, status: 'Cancelled', cancelReason: cancelReason || 'No reason provided', cancelType } : p);
-                      persistPlanItems(next);
-                      return next;
-                    });
-                    setCancelItemId(null);
-                  }} disabled={!cancelReason.trim() || !cancelType}>Confirm Cancel Treatment</Button>
+                    }} disabled={!cancelReason.trim() || !cancelType || cancelLoading}>
+                      {cancelLoading ? <><Loader2 className="w-3 h-3 animate-spin mr-1" />Processing...</> : cancelTier === 'cancel' ? 'Confirm Cancel' : 'Confirm Void'}
+                    </Button>
+                  )}
                 </DialogFooter>
               </div>
             );
