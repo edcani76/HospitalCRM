@@ -12,7 +12,7 @@ import PaymentTermsDialog from '../../components/ui/payment-terms-dialog';
 import { db, auth } from '../../firebase';
 import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion, addDoc, serverTimestamp, query, where } from '../../firebase';
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
-import { generateInvoiceFromEncounter, addAuditLog } from '../../lib/firestore-helpers';
+import { generateInvoiceFromEncounter, addAuditLog, fetchEncountersByAppointment } from '../../lib/firestore-helpers';
 import { format } from 'date-fns';
 import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft, Play, Plus, Activity } from 'lucide-react';
 import { Appointment, Doctor } from '../../types';
@@ -592,50 +592,41 @@ export default function AppointmentDetailsPage() {
         setAppointment({ id: updatedSnap.id, ...updatedSnap.data() } as Appointment);
       }
 
-      // Create ENCOUNTER record
-      const encounterData = {
-        appointmentId: appointment.id,
-        petId: appointment.petId,
-        petName: appointment.petName,
-        clientUid: appointment.clientUid,
-        doctorId: appointment.doctorId,
-        doctorName: appointment.doctorName,
-        completedAt: null,
-        status: 'in-progress',
-        vitals: {
-          weightKg: 0,
-          temperatureC: 0,
-          heartRateBpm: 0,
-          respiratoryRateRpm: 0,
-          mmColor: '',
-          crtSeconds: 0,
-          notes: ''
-        },
-        clinicalNotes: {
-          subjective: '',
-          objective: '',
-          assessment: '',
-          plan: '',
-          diagnosis: '',
-          doctorNotes: '',
-          followUpInstructions: ''
-        },
-        createdBy: userUid,
-        startedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      const encounterRef = await addDoc(collection(db, 'encounters'), encounterData);
-      const encounterId = encounterRef.id;
+      // Guard: prevent duplicate encounters for the same appointment
+      const existingEncounters = await fetchEncountersByAppointment(appointment.id);
+      let encounterId: string;
+      if (existingEncounters.length > 0) {
+        encounterId = existingEncounters[0].id;
+        console.warn(`Encounter ${encounterId} already exists for appointment ${appointment.id}; reusing.`);
+      } else {
+        const encounterData = {
+          appointmentId: appointment.id,
+          petId: appointment.petId,
+          petName: appointment.petName,
+          clientUid: appointment.clientUid,
+          doctorId: appointment.doctorId,
+          doctorName: appointment.doctorName,
+          completedAt: null,
+          status: 'in-progress',
+          vitals: { weightKg: 0, temperatureC: 0, heartRateBpm: 0, respiratoryRateRpm: 0, mmColor: '', crtSeconds: 0, notes: '' },
+          clinicalNotes: { subjective: '', objective: '', assessment: '', plan: '', diagnosis: '', doctorNotes: '', followUpInstructions: '' },
+          createdBy: userUid,
+          startedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+        const encounterRef = await addDoc(collection(db, 'encounters'), encounterData);
+        encounterId = encounterRef.id;
 
-      await addAuditLog({
-        action: 'encounter_created',
-        userId: auth.currentUser?.uid || 'unknown',
-        userName: auth.currentUser?.displayName || undefined,
-        appointmentId: appointment.id,
-        patientId: appointment?.petId || '',
-        encounterId: encounterId,
-        details: 'Encounter started'
-      });
+        await addAuditLog({
+          action: 'encounter_created',
+          userId: auth.currentUser?.uid || 'unknown',
+          userName: auth.currentUser?.displayName || undefined,
+          appointmentId: appointment.id,
+          patientId: appointment?.petId || '',
+          encounterId: encounterId,
+          details: 'Encounter started'
+        });
+      }
 
       // Create appointment_service records for ALL services
       // First try new format: "Services: consultation, vaccination"

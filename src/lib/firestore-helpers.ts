@@ -258,6 +258,13 @@ export async function fetchEncounters(petId?: string) {
   return queryFn();
 }
 
+// Fetch encounters by appointment ID - bypass cache
+export async function fetchEncountersByAppointment(appointmentId: string) {
+  const q = query(collection(db, 'encounters'), where('appointmentId', '==', appointmentId));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
 // Fetch single encounter by ID - bypass cache
 export async function fetchEncounterById(encounterId: string) {
   const docRef = doc(db, 'encounters', encounterId);
@@ -754,6 +761,40 @@ export async function fetchAdmissions(petId?: string) {
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   };
   return fetchWithCache('admissions', queryFn);
+}
+
+// Create Lab Order
+export async function createLabOrder(data: any) {
+  const now = serverTimestamp();
+  const docData = {
+    ...data,
+    status: data.status || 'ordered',
+    orderedAt: now,
+    createdAt: now,
+    updatedAt: now
+  };
+  const ref = await addDoc(collection(db, 'lab_orders'), docData);
+  return { id: ref.id, ...docData };
+}
+
+// Update Lab Order
+export async function updateLabOrder(labId: string, data: any) {
+  const ref = doc(db, 'lab_orders', labId);
+  const now = serverTimestamp();
+  const updates = { ...data, updatedAt: now };
+  if (data.status === 'completed') updates.completedAt = now;
+  await updateDoc(ref, updates);
+}
+
+// Update pet medical history (appends event text)
+export async function appendPetMedicalHistory(petId: string, eventText: string) {
+  const ref = doc(db, 'pets', petId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const existing = snap.data().medicalHistory || '';
+  const entry = `[${new Date().toLocaleDateString()}] ${eventText}`;
+  const updated = existing ? `${existing}\n${entry}` : entry;
+  await updateDoc(ref, { medicalHistory: updated, updatedAt: serverTimestamp() });
 }
 
 export async function addAuditLog(data: {

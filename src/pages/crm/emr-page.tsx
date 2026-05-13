@@ -4,7 +4,8 @@ import {
   Plus, Loader2, Mail, Phone, User, Stethoscope, Activity, Thermometer,
   Heart, Wind, Droplets, Clock, FileText, DollarSign, History,
   ClipboardList, Pill, FlaskConical, Upload, Printer, Eye, Bell, Check,
-  ChevronDown, ChevronUp, AlertTriangle, FileCheck, Receipt, Calendar
+  ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
+  AlertTriangle, FileCheck, Receipt, Calendar, X
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { format } from 'date-fns';
@@ -34,6 +35,7 @@ import {
 import { uploadToGoogleDrive, getGoogleDriveLink } from '../../lib/google-drive';
 import { InvoicePDF } from '../../components/invoice-pdf';
 import { pdf } from '@react-pdf/renderer';
+import { OrderLabModal } from '../../components/crm/order-lab-modal';
 
 // Helper to get file type from file name
 function getFileType(fileName: string): string {
@@ -725,7 +727,7 @@ Mode: Walk-in`,
         // Cross-reference: if active encounter's appointment is medical-completed,
         // treat as medical-completed and update encounter data (handles legacy encounters)
         const isActiveReallyMedComplete = activeEncounter && !medCompleteEncounter
-          ? appointmentsData.some((a: any) => a.id === activeEncounter.appointmentId && a.status === 'medical-completed')
+          ? appointmentsData.some((a: any) => a.id === (activeEncounter as any).appointmentId && a.status === 'medical-completed')
           : false;
 
         if (isActiveReallyMedComplete && activeEncounter) {
@@ -823,7 +825,50 @@ Mode: Walk-in`,
 
         setAppointmentServices(services);
         setTriageVitals(vitals);
-        setClinicalNotes(notes.length > 0 ? notes[notes.length - 1] : null);
+        const latestNote = notes.length > 0 ? notes[notes.length - 1] : null;
+        setClinicalNotes(latestNote);
+        // Populate formData and chiefComplaint from saved clinical notes
+        if (latestNote) {
+          setFormData(p => ({
+            ...p,
+            chiefComplaint: latestNote.chiefComplaint || '',
+            subjective: latestNote.subjective || '',
+            objective: latestNote.objective || '',
+            assessment: latestNote.assessment || '',
+            plan: latestNote.plan || '',
+            diagnosis: latestNote.diagnosis || '',
+            diagnosisStatus: latestNote.diagnosisStatus || 'working',
+            differentials: latestNote.differentials || '',
+            severity: latestNote.severity || '',
+            prognosis: latestNote.prognosis || '',
+            clinicalImpression: latestNote.clinicalImpression || '',
+            problemList: latestNote.problemList || '',
+            appetite: latestNote.appetite || '',
+            waterIntake: latestNote.waterIntake || '',
+            urination: latestNote.urination || '',
+            stool: latestNote.stool || '',
+            vomiting: latestNote.vomiting || '',
+            coughing: latestNote.coughing || '',
+            activity: latestNote.activity || '',
+            currentMeds: latestNote.currentMeds || '',
+            pastHistory: latestNote.pastHistory || '',
+            followUpInstructions: latestNote.followUpInstructions || '',
+            followupType: latestNote.followupType || 'Recheck',
+            followUpDate: latestNote.followUpDate || '',
+            ownerInstructions: latestNote.ownerInstructions || '',
+            dietInstructions: latestNote.dietInstructions || '',
+            warningSigns: latestNote.warningSigns || '',
+            doctorNotes: latestNote.doctorNotes || '',
+            licenseNumber: latestNote.licenseNumber || '',
+          }));
+          setChiefComplaint(p => ({
+            ...p,
+            reason: latestNote.chiefComplaint || '',
+            duration: latestNote.chiefComplaintDuration || '',
+            urgency: latestNote.chiefComplaintUrgency || 'Routine',
+            ownerStatement: latestNote.ownerStatement || '',
+          }));
+        }
         setLabOrders(labs);
         setPrescriptions(rxs);
         setDispensingRecords(dispensing);
@@ -947,7 +992,7 @@ Mode: Walk-in`,
     setFormData((prev: any) => ({ ...prev, [name]: value }));
   };
 
-  const handleVitalsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleVitalsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> | { target: { name: string; value: string } }) => {
     const { name, value } = e.target;
     setVitalsForm((prev: any) => ({ ...prev, [name]: value }));
   };
@@ -1017,13 +1062,38 @@ Mode: Walk-in`,
       const notesData = {
         encounterId: selectedEncounter.id,
         patientId: patientId,
+        chiefComplaint: chiefComplaint.reason || formData.chiefComplaint || '',
+        chiefComplaintDuration: chiefComplaint.duration || '',
+        chiefComplaintUrgency: chiefComplaint.urgency || 'Routine',
+        ownerStatement: chiefComplaint.ownerStatement || '',
         subjective: formData.subjective || '',
         objective: formData.objective || '',
         assessment: formData.assessment || '',
         plan: formData.plan || '',
         diagnosis: formData.diagnosis || '',
+        diagnosisStatus: formData.diagnosisStatus || 'working',
+        differentials: formData.differentials || '',
+        severity: formData.severity || '',
+        prognosis: formData.prognosis || '',
+        clinicalImpression: formData.clinicalImpression || '',
+        problemList: formData.problemList || '',
+        appetite: formData.appetite || '',
+        waterIntake: formData.waterIntake || '',
+        urination: formData.urination || '',
+        stool: formData.stool || '',
+        vomiting: formData.vomiting || '',
+        coughing: formData.coughing || '',
+        activity: formData.activity || '',
+        currentMeds: formData.currentMeds || '',
+        pastHistory: formData.pastHistory || '',
+        followUpInstructions: formData.followUpInstructions || followUpInstructions || '',
+        followupType: formData.followupType || 'Recheck',
+        followUpDate: formData.followUpDate || followUpDate || '',
+        ownerInstructions: formData.ownerInstructions || ownerInstructions || '',
+        dietInstructions: formData.dietInstructions || '',
+        warningSigns: formData.warningSigns || '',
         doctorNotes: formData.doctorNotes || '',
-        followUpInstructions: formData.followUpInstructions || '',
+        licenseNumber: formData.licenseNumber || '',
         createdBy: userName,
         updatedAt: serverTimestamp()
       };
@@ -1045,13 +1115,38 @@ Mode: Walk-in`,
       const encounterRef = doc(db, 'encounters', selectedEncounter.id);
       await updateDoc(encounterRef, {
         clinicalNotes: {
+          chiefComplaint: notesData.chiefComplaint,
+          chiefComplaintDuration: notesData.chiefComplaintDuration,
+          chiefComplaintUrgency: notesData.chiefComplaintUrgency,
+          ownerStatement: notesData.ownerStatement,
           subjective: notesData.subjective,
           objective: notesData.objective,
           assessment: notesData.assessment,
           plan: notesData.plan,
           diagnosis: notesData.diagnosis,
+          diagnosisStatus: notesData.diagnosisStatus,
+          differentials: notesData.differentials,
+          severity: notesData.severity,
+          prognosis: notesData.prognosis,
+          clinicalImpression: notesData.clinicalImpression,
+          problemList: notesData.problemList,
+          appetite: notesData.appetite,
+          waterIntake: notesData.waterIntake,
+          urination: notesData.urination,
+          stool: notesData.stool,
+          vomiting: notesData.vomiting,
+          coughing: notesData.coughing,
+          activity: notesData.activity,
+          currentMeds: notesData.currentMeds,
+          pastHistory: notesData.pastHistory,
+          followUpInstructions: notesData.followUpInstructions,
+          followupType: notesData.followupType,
+          followUpDate: notesData.followUpDate,
+          ownerInstructions: notesData.ownerInstructions,
+          dietInstructions: notesData.dietInstructions,
+          warningSigns: notesData.warningSigns,
           doctorNotes: notesData.doctorNotes,
-          followUpInstructions: notesData.followUpInstructions
+          licenseNumber: notesData.licenseNumber,
         },
         updatedAt: serverTimestamp()
       });
@@ -1593,6 +1688,89 @@ Mode: Walk-in`,
     return typeMap[ext || ''] || 'other';
   }
 
+  const [activeStep, setActiveStep] = useState<string>('chief-complaint');
+  const [chiefComplaint, setChiefComplaint] = useState({ reason: '', duration: '', urgency: 'Routine', ownerStatement: '' });
+  const [showRightPanel, setShowRightPanel] = useState(true);
+  const [admissionForm, setAdmissionForm] = useState({ reason: '', type: 'Medical confinement', initialDiagnosis: '', monitoring: '', expectedDuration: '', isolationRequired: false, depositRequired: false, consentRequired: true, status: 'Recommended' });
+  const [procedureForm, setProcedureForm] = useState({ name: '', indication: '', consentRequired: false, consentStatus: 'Pending', performedBy: '', anesthesia: 'None', supplies: '', notes: '', status: 'Recommended' });
+  const [physicalExam, setPhysicalExam] = useState<Record<string, string>>({});
+  const [examNotes, setExamNotes] = useState<Record<string, string>>({});
+  const [followUpInstructions, setFollowUpInstructions] = useState('');
+  const [ownerInstructions, setOwnerInstructions] = useState('');
+  const [followUpDate, setFollowUpDate] = useState('');
+  const [showOrderLabModal, setShowOrderLabModal] = useState(false);
+  const [showFinishDialog, setShowFinishDialog] = useState(false);
+  const tabRefs = useRef<Record<string, boolean>>({});
+
+  const steps = [
+    { id: 'chief-complaint', label: 'Chief Complaint', icon: FileText },
+    { id: 'subjective', label: 'Subjective', icon: ClipboardList },
+    { id: 'vitals', label: 'Objective / Vitals', icon: Activity },
+    { id: 'physical-exam', label: 'Physical Exam', icon: Stethoscope },
+    { id: 'assessment', label: 'Assessment', icon: FileText },
+    { id: 'plan', label: 'Plan Builder', icon: FileText },
+    { id: 'prescriptions', label: 'Prescriptions', icon: Pill },
+    { id: 'labs', label: 'Labs & Diagnostics', icon: FlaskConical },
+    { id: 'procedures', label: 'Procedures', icon: ClipboardList },
+    { id: 'admission', label: 'Admission', icon: Heart },
+    { id: 'followup', label: 'Follow-Up', icon: Calendar },
+    { id: 'instructions', label: 'Owner Instructions', icon: FileText },
+    { id: 'summary', label: 'Visit Summary', icon: FileText },
+    { id: 'checklist', label: 'Finish Checklist', icon: Check },
+    { id: 'signature', label: 'Doctor Signature', icon: User },
+  ];
+
+  const checkStepComplete = (stepId: string): boolean => {
+    if (stepId === 'chief-complaint') return !!chiefComplaint.reason;
+    if (stepId === 'subjective') return !!formData.subjective;
+    if (stepId === 'vitals') return triageVitals.length > 0;
+    if (stepId === 'physical-exam') {
+      const systems = ['general','skin','eyes','ears','oral','cardio','respiratory','gi','gu','msk','neuro','lymph'];
+      return systems.some(s => physicalExam[s] === 'abnormal' || physicalExam[s] === 'normal');
+    }
+    if (stepId === 'assessment') return !!formData.assessment;
+    if (stepId === 'plan') return !!formData.plan;
+    if (stepId === 'prescriptions') return prescriptions.length > 0;
+    if (stepId === 'labs') return labOrders.length > 0;
+    if (stepId === 'procedures') return !!procedureForm.name;
+    if (stepId === 'admission') return !!admissionForm.reason;
+    if (stepId === 'followup') return !!followUpInstructions;
+    if (stepId === 'instructions') return !!ownerInstructions;
+    if (stepId === 'summary') return true;
+    if (stepId === 'checklist') return false;
+    if (stepId === 'signature') return false;
+    return false;
+  };
+
+  const navigateToStep = (stepId: string) => {
+    if (!isReadOnly && selectedEncounter?.id) {
+      saveClinicalNotes();
+    }
+    setActiveStep(stepId);
+  };
+
+  const handleStepSubmit = async (stepId: string) => {
+    const stepOrder = steps.map(s => s.id);
+    const currentIdx = stepOrder.indexOf(stepId);
+    if (currentIdx < stepOrder.length - 1) setActiveStep(stepOrder[currentIdx + 1]);
+  };
+
+  const handleFinishConsultation = async () => {
+    if (!selectedEncounter?.id) return;
+    try {
+      await updateDoc(doc(db, 'encounters', selectedEncounter.id), { status: 'medical-completed', completedAt: serverTimestamp() });
+      await saveClinicalNotes();
+      const billableServices = appointmentServices.filter((s: any) => s.billable !== false);
+      if (billableServices.length > 0) {
+        await generateInvoiceFromEncounter(selectedEncounter.id, billableServices, patientId || '', selectedEncounter.ownerId || patient?.ownerUid || '');
+      }
+      await addAuditLog({ action: 'consultation_completed', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter.id, patientId: patientId, details: 'Consultation finished via Doctor Signature step' });
+      navigate(`/crm/emr`);
+    } catch (err) {
+      console.error('Error finishing consultation:', err);
+    }
+  };
+
   // Disable edit modes when encounter is medical-completed
   useEffect(() => {
     if (mode === 'medical-completed') {
@@ -1601,6 +1779,19 @@ Mode: Walk-in`,
       setShowAddForm(false);
     }
   }, [mode]);
+
+  // Auto-save on page leave
+  const readOnlyMode = mode !== 'active';
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (!readOnlyMode && selectedEncounter?.id) saveClinicalNotes();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (!readOnlyMode && selectedEncounter?.id) saveClinicalNotes();
+    };
+  }, [readOnlyMode, selectedEncounter?.id]);
 
   if (loading) {
     return (
@@ -1651,1222 +1842,864 @@ Mode: Walk-in`,
           mode === 'active'
             ? `🟢 Active Visit in Progress - ${patient.name}${selectedEncounter?.startedAt?.toDate?.() ? ` (Started at ${format(selectedEncounter.startedAt.toDate(), 'hh:mm a')})` : ''}`
             : mode === 'medical-completed'
-            ? `🟣 Medical Complete - ${patient.name}`
-            : `⚪ No Active Visit - ${patient.name}`
+              ? `✅ Visit Complete - ${patient.name}`
+              : `⚪ Viewing Medical Records for ${patient.name}`
         }
-        backText={location.state?.backText || 'Back'}
+        backTo="/crm/emr"
+        backText="Back to EMR Directory"
+        actions={
+          <div className="flex items-center gap-2">
+            <Badge variant={mode === 'active' ? 'default' : mode === 'medical-completed' ? 'secondary' : 'outline'}>
+              {mode === 'active' ? '🟢 Active Visit' : mode === 'medical-completed' ? '✅ Complete' : '⚪ Viewing'}
+            </Badge>
+            {mode === 'view' && !isReadOnly && (
+              <Button variant="outline" size="sm" onClick={() => {}}>
+                <Plus className="w-4 h-4 mr-2" /> Start New Visit
+              </Button>
+            )}
+          </div>
+        }
       />
 
-      {mode === 'active' && selectedEncounter?.startedAt?.toDate && (() => {
-        const started = selectedEncounter.startedAt.toDate();
-        const hoursSinceStart = (Date.now() - started.getTime()) / (1000 * 60 * 60);
-        if (hoursSinceStart > 24) {
-          return (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-red-700">Stale Encounter</p>
-                <p className="text-xs text-red-600">
-                  This encounter has been in-progress for {Math.floor(hoursSinceStart)} hours (since {format(started, 'MMM dd, hh:mm a')}). 
-                  Consider closing it if the visit is complete.
-                </p>
-              </div>
-            </div>
-          );
-        }
-        return null;
-      })()}
-
-      {(mode === 'view' || mode === 'medical-completed') && (
-        <div className="flex gap-2 mb-4">
-          {mode === 'view' && scheduledAppointment ? (
-            <Button
-              onClick={handleSendReminder}
-              className="bg-yellow-600 hover:bg-yellow-700 text-white"
-            >
-              <Bell className="w-4 h-4 mr-2" />
-              Send Reminder
-            </Button>
-          ) : mode === 'view' && !scheduledAppointment ? (
-            <Button
-              onClick={handleQuickStartVisit}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Starting Visit...
-                </span>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Quick Start Visit
-                </>
-              )}
-            </Button>
-          ) : null}
-          <Button
-            variant="outline"
-            onClick={() => setActiveTab('history')}
-          >
-            <History className="w-4 h-4 mr-2" />
-            View Past Visits
-          </Button>
+      {selectedEncounter?.status === 'in-progress' && mode === 'active' && !scheduledAppointment?.id && (
+        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0" />
+          <p className="text-sm text-orange-800">
+            This encounter may have been orphaned.
+            {selectedEncounter?.startedAt?.toDate?.() && (
+              <span className="block text-xs text-orange-600 mt-1">
+                Started {format(selectedEncounter.startedAt.toDate(), 'MMM d, yyyy h:mm a')}
+              </span>
+            )}
+          </p>
         </div>
       )}
 
-      {/* Patient Info Header */}
-      <div className="bg-white rounded-lg p-6 shadow mb-8">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
-          <div className="flex items-center gap-6">
-            <div className="w-24 h-24 rounded-xl overflow-hidden border-4 border-white shadow-xl bg-blue-50 flex items-center justify-center text-3xl font-bold text-blue-600">
+      {/* Sticky Encounter Header */}
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm mb-6 -mx-6 px-6 py-3">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow bg-blue-50 flex items-center justify-center text-xl font-bold text-blue-600 shrink-0">
               {patient?.imageUrl || patient?.photo ? (
                 <img src={patient.imageUrl || patient.photo} alt={patient.name} className="w-full h-full object-cover" />
               ) : (
                 patient?.name?.[0] || 'P'
               )}
             </div>
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900">{patient.name}</h2>
-              <p className="text-sm text-gray-600"><span className="font-medium">Pet ID:</span> {patient.id}</p>
-              <p className="text-sm text-gray-600"><span className="font-medium">Species:</span> {patient.species || 'N/A'}</p>
-              <p className="text-sm text-gray-600"><span className="font-medium">Breed:</span> {patient.breed || 'N/A'}</p>
-              <p className="text-sm text-gray-600"><span className="font-medium">Age:</span> {patient.age ? `${patient.age} years` : 'N/A'}</p>
-              <p className="text-sm text-gray-600"><span className="font-medium">Status:</span> {patient.currentStatus || patient.status || 'N/A'}</p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-bold text-gray-900 truncate">{patient.name}</h2>
+                <Badge variant={mode === 'active' ? 'default' : mode === 'medical-completed' ? 'secondary' : 'outline'} className="text-[10px] py-0 h-5">
+                  {mode === 'active' ? '🟢 In Consultation' : mode === 'medical-completed' ? '✅ Complete' : '⚪ Viewing'}
+                </Badge>
+              </div>
+              <p className="text-xs text-gray-600 truncate">
+                {patient.species || 'N/A'} · {patient.breed || 'N/A'}
+                {patient.gender ? ` · ${patient.gender}` : ''}
+                {patient.age ? ` · ${patient.age} yrs` : patient.dateOfBirth ? ` · ${Math.floor((Date.now() - new Date(patient.dateOfBirth).getTime()) / 31536000000)} yrs` : ''}
+                {patient.weight ? ` · ${patient.weight} kg` : ''}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                Owner: {owner?.displayName || owner?.name || 'N/A'} · {owner?.phone || patient?.ownerPhone || ''}
+                {selectedEncounter?.id ? ` · ENC: ${selectedEncounter.id.slice(-8)}` : ''}
+                {selectedEncounter?.doctorName ? ` · Dr. ${selectedEncounter.doctorName.replace(/^Dr\.?\s*/i, '')}` : ''}
+              </p>
             </div>
           </div>
-
-          {owner && (
-            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 min-w-[320px]">
-              <h4 className="font-bold text-blue-900 mb-3 text-sm uppercase tracking-wider">Owner Information</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-blue-700/70 font-medium">Name:</span>
-                  <span className="text-blue-900 font-semibold">{owner?.displayName || owner?.name || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-blue-700/70 font-medium">Email:</span>
-                  <span className="text-blue-900 underline decoration-blue-200">{owner?.email || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-blue-700/70 font-medium">Phone:</span>
-                  <span className="text-blue-900">{owner?.phone || patient?.ownerPhone || 'N/A'}</span>
-                </div>
+          <div className="flex items-center gap-2 flex-wrap lg:ml-auto shrink-0">
+            {(patient?.allergies?.length > 0 || patient?.aggressionWarning || patient?.chronicConditions?.length > 0) && (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-red-50 border border-red-200 text-[10px] text-red-700 font-medium">
+                <AlertTriangle className="w-3 h-3 text-red-500" />
+                {patient.allergies?.length > 0 && <span>Allergies: {patient.allergies.join(', ')}</span>}
+                {patient.aggressionWarning && <span>{patient.allergies?.length > 0 ? '·' : ''} Aggressive</span>}
               </div>
-            </div>
-          )}
+            )}
+            {invoice && (() => {
+              const bal = invoice.balanceDue ?? invoice.grandTotal - (invoice.amountPaid||0);
+              if (bal <= 0) return null;
+              return <span className="px-2 py-1 rounded-md bg-amber-50 border border-amber-200 text-[10px] text-amber-700 font-medium">₱{bal.toLocaleString()} unpaid</span>;
+            })()}
+            {labOrders.filter((l: any) => l.status !== 'completed').length > 0 && (
+              <span className="px-2 py-1 rounded-md bg-purple-50 border border-purple-200 text-[10px] text-purple-700 font-medium">
+                {labOrders.filter((l: any) => l.status !== 'completed').length} lab{labOrders.filter((l: any) => l.status !== 'completed').length > 1 ? 's' : ''} pending
+              </span>
+            )}
+            {prescriptions.filter((r: any) => r.status === 'prescribed' || r.status === 'pending').length > 0 && (
+              <span className="px-2 py-1 rounded-md bg-blue-50 border border-blue-200 text-[10px] text-blue-700 font-medium">
+                {prescriptions.filter((r: any) => r.status === 'prescribed' || r.status === 'pending').length} rx pending
+              </span>
+            )}
+            {mode === 'active' && (
+              <Button variant="outline" size="sm" onClick={() => setShowFinishDialog(true)} className="border-emerald-300 text-emerald-700 h-7 text-xs">
+                <Check className="w-3 h-3 mr-1" /> Finish
+              </Button>
+            )}
+          </div>
         </div>
-
-        {/* Encounter Selector */}
-        {encounters.length > 0 && (
-          <div className="border-t pt-4">
-            <Label className="text-sm font-medium text-gray-600">Select Encounter:</Label>
-            <div className="flex gap-2 mt-2 flex-wrap">
-              {encounters
-                .sort((a: any, b: any) => {
-                  const aRaw = a.startedAt || a.createdAt;
-                  const bRaw = b.startedAt || b.createdAt;
-                  const aTs = typeof aRaw?.toDate === 'function' ? aRaw.toDate() : aRaw;
-                  const bTs = typeof bRaw?.toDate === 'function' ? bRaw.toDate() : bRaw;
-                  return (bTs ? new Date(bTs).getTime() : 0) - (aTs ? new Date(aTs).getTime() : 0);
-                })
-                .slice(0, showAllEncounters ? undefined : 5)
-                .map((enc: any) => (
-                  <Button
-                    key={enc.id}
-                    variant={selectedEncounter?.id === enc.id ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedEncounter(enc)}
-                    className={cn(
-                      selectedEncounter?.id === enc.id
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'text-blue-600 border-blue-200 hover:bg-blue-50'
-                    )}
-                  >
-                    {(() => {
-                      const raw = enc.startedAt || enc.createdAt;
-                      const ts = typeof raw?.toDate === 'function' ? raw.toDate() : raw;
-                      if (!ts) return 'New';
-                      const d = new Date(ts);
-                      if (isNaN(d.getTime())) return 'New';
-                      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    })()}
-                    {enc.status === 'in-progress' && (
-                      <span className="ml-2 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                    )}
-                    {enc.status === 'in-progress' && enc.startedAt?.toDate && (Date.now() - enc.startedAt.toDate().getTime()) > 86400000 && (
-                      <span className="ml-1 text-red-500" title="Stale — started more than 24h ago">⚠</span>
-                    )}
-                  </Button>
-                ))}
-            </div>
-            {encounters.length > 5 && (
-              <button
-                onClick={() => setShowAllEncounters(!showAllEncounters)}
-                className="mt-2 w-full text-center text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
-              >
-                {showAllEncounters ? 'Show Less' : `See More (${encounters.length - 5} more)`}
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* Tabs */}
-      <div className="mb-4 flex gap-3 flex-wrap">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <Button
-              key={tab.id}
-              variant={activeTab === tab.id ? 'default' : 'outline'}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'flex items-center gap-2',
-                activeTab === tab.id
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'text-blue-600 border-blue-200 hover:bg-blue-50'
-              )}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </Button>
-          );
-        })}
-      </div>
-
-      {/* Tab Content */}
-      <div className="bg-white rounded-lg shadow">
-        {activeTab === 'visit-summary' && (
-          <VisitSummaryTab
-            patient={patient}
-            owner={owner}
-            encounter={selectedEncounter}
-            encounters={encounters}
-            vitals={triageVitals}
-            services={appointmentServices}
-            clinicalNotes={clinicalNotes}
-            labOrders={labOrders}
-            prescriptions={prescriptions}
-            invoice={invoice}
-            invoiceItems={invoiceItems}
-            payments={payments}
-            attachments={attachments}
-          />
-        )}
-
-        {activeTab === 'triage-vitals' && (
-          <div className="p-6">
-            <h3 className="text-lg font-bold mb-4">Triage & Vitals</h3>
-
-            {/* Current Vitals Form */}
-            <div className="mb-8">
-              <h4 className="font-semibold mb-3">Current Vitals</h4>
-              <form onSubmit={(e: React.FormEvent) => {
-                e.preventDefault();
-                if (isReadOnly) return;
-                if (vitalsEditMode) {
-                  saveVitals();
-                } else {
-                  setVitalsEditMode(true);
-                }
-              }} className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="weightKg">Weight (kg)</Label>
-                    <Input
-                      id="weightKg"
-                      name="weightKg"
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={vitalsForm.weightKg || ''}
-                      onChange={handleVitalsChange}
-                      disabled={!vitalsEditMode}
-                      className="mt-1"
-                      placeholder="0.0"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="temperatureC">Temperature (°C)</Label>
-                    <Input
-                      id="temperatureC"
-                      name="temperatureC"
-                      type="number"
-                      step="0.1"
-                      min="35"
-                      max="45"
-                      value={vitalsForm.temperatureC || ''}
-                      onChange={handleVitalsChange}
-                      disabled={!vitalsEditMode}
-                      className="mt-1"
-                      placeholder="38.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="heartRateBpm">Heart Rate (bpm)</Label>
-                    <Input
-                      id="heartRateBpm"
-                      name="heartRateBpm"
-                      type="number"
-                      value={vitalsForm.heartRateBpm || ''}
-                      onChange={handleVitalsChange}
-                      disabled={!vitalsEditMode}
-                      className="mt-1"
-                      placeholder="120"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="respiratoryRateRpm">Respiratory Rate (rpm)</Label>
-                    <Input
-                      id="respiratoryRateRpm"
-                      name="respiratoryRateRpm"
-                      type="number"
-                      value={vitalsForm.respiratoryRateRpm || ''}
-                      onChange={handleVitalsChange}
-                      disabled={!vitalsEditMode}
-                      className="mt-1"
-                      placeholder="20"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="mmColor">MM Color</Label>
-                    <Input
-                      id="mmColor"
-                      name="mmColor"
-                      value={vitalsForm.mmColor || ''}
-                      onChange={handleVitalsChange}
-                      disabled={!vitalsEditMode}
-                      className="mt-1"
-                      placeholder="Pink"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="crtSeconds">CRT (seconds)</Label>
-                    <Input
-                      id="crtSeconds"
-                      name="crtSeconds"
-                      type="number"
-                      step="0.1"
-                      value={vitalsForm.crtSeconds || ''}
-                      onChange={handleVitalsChange}
-                      disabled={!vitalsEditMode}
-                      className="mt-1"
-                      placeholder="2"
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                    disabled={savingVitals}
-                  >
-                    {savingVitals ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Saving...
-                      </span>
-                    ) : vitalsEditMode ? (
-                      'Save Vitals'
-                    ) : (
-                      'Edit Vitals'
-                    )}
-                  </Button>
-                  {vitalsEditMode && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        const latest = triageVitals[triageVitals.length - 1];
-                        setVitalsForm(latest || {});
-                        setVitalsEditMode(false);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </div>
-
-            {/* Historical Vitals Chart */}
-            {allPatientVitals.length > 0 && (
-              <div>
-                <h4 className="font-semibold mb-3">Historical Vitals Trends</h4>
-                <div className="h-80 w-full">
-                  <ResponsiveContainer width="100%" height={320}>
-                    <LineChart
-                      data={allPatientVitals
-                        .slice()
-                        .sort((a: any, b: any) => {
-                          const da = parseDate(a.createdAt);
-                          const db = parseDate(b.createdAt);
-                          return da - db;
-                        })
-                        .map((v: any) => {
-                          const ts = parseDate(v.createdAt);
-                          const dateObj = new Date(ts);
-                          return {
-                            date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }),
-                            fullDate: dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-                            weight: parseFloat(String(v.weightKg || 0)),
-                            temp: parseFloat((v.temperatureC || 0).toFixed(1)),
-                            hr: v.heartRateBpm || 0,
-                            rr: v.respiratoryRateRpm || 0,
-                          };
-                        })}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="date"
-                        tickFormatter={(label: string) => {
-                          return label;
-                        }}
-                      />
-                      <YAxis />
-                      <Tooltip
-                        formatter={(value: any, name: string) => {
-                          if (name === 'weight') return [`${value} kg`, 'Weight'];
-                          if (name === 'temp') return [`${value}°C`, 'Temperature'];
-                          if (name === 'hr') return [`${value} bpm`, 'Heart Rate'];
-                          if (name === 'rr') return [`${value} rpm`, 'Resp Rate'];
-                          return [value, name];
-                        }}
-                        labelFormatter={(date: string, payload: any) => {
-                          if (payload && payload[0]?.payload?.fullDate) {
-                            return payload[0].payload.fullDate;
-                          }
-                          return date;
-                        }}
-                      />
-                      <div className="flex gap-4 justify-center pt-2">
-                        {[
-                          { key: 'weight', label: 'Weight', color: '#3b82f6' },
-                          { key: 'temp', label: 'Temperature', color: '#ef4444' },
-                          { key: 'hr', label: 'Heart Rate', color: '#10b981' },
-                          { key: 'rr', label: 'Resp Rate', color: '#f59e0b' },
-                        ].map(item => (
-                          <button
-                            key={item.key}
-                            onClick={() => handleLegendClick(item.key)}
-                            className={cn(
-                              "flex items-center gap-1.5 text-xs font-medium transition-opacity",
-                              hiddenLines.has(item.key) && "opacity-40 line-through"
-                            )}
-                          >
-                            <span
-                              className="w-3 h-0.5 rounded"
-                              style={{ backgroundColor: item.color }}
-                            />
-                            {item.label}
-                          </button>
-                        ))}
-                      </div>
-                      <Line type="monotone" dataKey="weight" stroke="#3b82f6" activeDot={{ r: 8 }} name="Weight" hide={hiddenLines.has('weight')} />
-                      <Line type="monotone" dataKey="temp" stroke="#ef4444" activeDot={{ r: 8 }} name="Temperature" hide={hiddenLines.has('temp')} />
-                      <Line type="monotone" dataKey="hr" stroke="#10b981" activeDot={{ r: 8 }} name="Heart Rate" hide={hiddenLines.has('hr')} />
-                      <Line type="monotone" dataKey="rr" stroke="#f59e0b" activeDot={{ r: 8 }} name="Resp Rate" hide={hiddenLines.has('rr')} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Intelligent Vitals Trend Analysis */}
-                {(() => {
-                  const analysis = generateVitalsAnalysis();
-                  if (!analysis || analysis.length === 0) return null;
-
-  return (
-                    <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl">
-                      <div className="flex items-start gap-2 mb-2">
-                        <Activity className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                        <h5 className="font-semibold text-blue-900 text-sm">Clinical Vitals Analysis</h5>
-                      </div>
-                      <ul className="space-y-1.5">
-                        {analysis.map((insight: string, i: number) => (
-                          <li key={i} className="text-sm text-blue-800 flex items-start gap-2">
-                            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5 flex-shrink-0" />
-                            {insight}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'clinical-notes' && (
-          <div className="p-6">
-            <h3 className="text-lg font-bold mb-4">Clinical Notes (SOAP)</h3>
-            <form onSubmit={(e: React.FormEvent) => {
-              e.preventDefault();
-              if (isReadOnly) return;
-              saveClinicalNotes();
-            }} className="space-y-4">
-              <div>
-                <Label htmlFor="subjective">Subjective</Label>
-                  <Textarea
-                    id="subjective"
-                    name="subjective"
-                    value={formData.subjective || clinicalNotes?.subjective || ''}
-                    onChange={handleInputChange}
-                    className="mt-1"
-                    rows={3}
-                    placeholder="Patient history, owner's complaints..."
-                    disabled={!notesEditMode}
-                  />
-              </div>
-              <div>
-                <Label htmlFor="objective">Objective</Label>
-                  <Textarea
-                    id="objective"
-                    name="objective"
-                    value={formData.objective || clinicalNotes?.objective || ''}
-                    onChange={handleInputChange}
-                    className="mt-1"
-                    rows={3}
-                    placeholder="Physical examination findings, vitals..."
-                    disabled={!notesEditMode}
-                  />
-              </div>
-              <div>
-                <Label htmlFor="assessment">Assessment</Label>
-                  <Textarea
-                    id="assessment"
-                    name="assessment"
-                    value={formData.assessment || clinicalNotes?.assessment || ''}
-                    onChange={handleInputChange}
-                    className="mt-1"
-                    rows={3}
-                    placeholder="Diagnosis, differential diagnosis..."
-                    disabled={!notesEditMode}
-                  />
-              </div>
-              <div>
-                <Label htmlFor="plan">Plan</Label>
-                  <Textarea
-                    id="plan"
-                    name="plan"
-                    value={formData.plan || clinicalNotes?.plan || ''}
-                    onChange={handleInputChange}
-                    className="mt-1"
-                    rows={3}
-                    placeholder="Treatment plan, medications..."
-                    disabled={!notesEditMode}
-                  />
-              </div>
-              {notesEditMode ? (
-                <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                    disabled={savingNotes}
-                  >
-                    {savingNotes ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Saving...
-                      </span>
-                    ) : (
-                      'Save Clinical Notes'
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setFormData(prev => ({ ...prev, subjective: '', objective: '', assessment: '', plan: '' }));
-                      setNotesEditMode(false);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              ) : !isReadOnly && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setNotesEditMode(true)}
-                >
-                  Edit Notes
-                </Button>
-              )}
-            </form>
-          </div>
-        )}
-
-        {activeTab === 'orders-services' && (
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Orders & Services</h3>
-              {!isReadOnly && (
-                <Button onClick={() => setShowAddForm(true)} size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Service
-                </Button>
-              )}
-            </div>
-
-            {!isReadOnly && showAddForm && (
-              <div className="mb-6 p-4 border rounded-lg bg-gray-50">
-                <h4 className="font-semibold mb-3">Add New Service</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Service</Label>
-                    <select
-                      name="serviceCatalogId"
-                      onChange={handleInputChange}
-                      className="w-full mt-1 p-2 border rounded-lg bg-white"
-                    >
-                      <option value="">Select service...</option>
-                      {serviceCatalog.map((srv: any) => (
-                        <option key={srv.id} value={srv.id}>
-                          {srv.name} (₱{srv.defaultPrice})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Quantity</Label>
-                    <Input
-                      name="quantity"
-                      type="number"
-                      min="1"
-                      defaultValue="1"
-                      onChange={handleInputChange}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    onClick={() => addService()}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    Add
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowAddForm(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              {appointmentServices.map((srv: any) => (
-                <div key={srv.id} className="p-4 border rounded-lg hover:bg-gray-50">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">{srv.serviceName}</p>
-                      <p className="text-sm text-gray-500">
-                        {srv.serviceType} • {srv.source} • Qty: {srv.quantity}
-                      </p>
-                    </div>
-                    <div className="text-right flex items-center gap-2">
-                      <p className="font-bold">₱{srv.unitPrice * srv.quantity}</p>
-                      {getStatusBadge(srv.status)}
-                      {srv.status === 'in-progress' && !isReadOnly && (
-                        <Button
-                          size="sm"
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                          onClick={() => completeService(srv)}
-                        >
-                          Complete
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'medications-pharmacy' && (
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Medications / Pharmacy</h3>
-              {!isReadOnly && (
-                <Button onClick={() => setShowAddForm(true)} size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Prescribe
-                </Button>
-              )}
-            </div>
-
-            {!isReadOnly && showAddForm && (
-              <div className="mb-6 p-4 border rounded-lg bg-gray-50">
-                <h4 className="font-semibold mb-3">Prescribe Medication</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Medication</Label>
-                    <select
-                      name="serviceCatalogId"
-                      onChange={handleInputChange}
-                      className="w-full mt-1 p-2 border rounded-lg bg-white"
-                    >
-                      <option value="">Select medication...</option>
-                      {serviceCatalog
-                        .filter((s: any) => s.category === 'medication')
-                        .map((srv: any) => (
-                          <option key={srv.id} value={srv.id}>
-                            {srv.name} (₱{srv.defaultPrice})
-                          </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Dosage</Label>
-                    <Input
-                      name="dosage"
-                      value={formData.dosage || ''}
-                      onChange={handleInputChange}
-                      className="mt-1"
-                      placeholder="e.g., 1 tablet twice daily"
-                    />
-                  </div>
-                  <div>
-                    <Label>Frequency</Label>
-                    <Input
-                      name="frequency"
-                      value={formData.frequency || ''}
-                      onChange={handleInputChange}
-                      className="mt-1"
-                      placeholder="e.g., for 7 days"
-                    />
-                  </div>
-                  <div>
-                    <Label>Duration</Label>
-                    <Input
-                      name="duration"
-                      value={formData.duration || ''}
-                      onChange={handleInputChange}
-                      className="mt-1"
-                      placeholder="e.g., 7 days"
-                    />
-                  </div>
-                </div>
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    onClick={() => prescribeMedication()}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    Prescribe
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowAddForm(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Prescriptions */}
-            <div className="mb-6">
-              <h4 className="font-semibold mb-3">Prescriptions</h4>
-              <div className="space-y-2">
-                {prescriptions.map((rx: any) => (
-                  <div key={rx.id} className="p-4 border rounded-lg">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium">{rx.medicationName}</p>
-                        <p className="text-sm text-gray-500">
-                          {rx.dosage} • {rx.frequency} • {rx.duration}
-                        </p>
-                        <p className="text-xs text-gray-400">Prescribed by: {rx.prescribedBy}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {rx.status === 'prescribed' && (
-                          <Button
-                            size="sm"
-                            onClick={() => dispenseMedication(rx.id)}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            Dispense
-                          </Button>
-                        )}
-                        {getStatusBadge(rx.status)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Dispensing Records */}
-            <div>
-              <h4 className="font-semibold mb-3">Dispensing Records</h4>
-              <div className="space-y-2">
-                {dispensingRecords.map((disp: any) => (
-                  <div key={disp.id} className="p-4 border rounded-lg">
-                    <div className="flex justify-between">
-                      <div>
-                        <p className="font-medium">{disp.medicationName}</p>
-                        <p className="text-sm text-gray-500">
-                          Qty Dispensed: {disp.quantityDispensed} • ₱{disp.totalPrice}
-                        </p>
-                        <p className="text-xs text-gray-400">Dispensed by: {disp.dispensedBy}</p>
-                      </div>
-                      <Badge className="bg-green-100 text-green-700">Dispensed</Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'diagnostics-files' && (
-          <div className="p-6">
-            <h3 className="text-lg font-bold mb-4">Diagnostics & Files</h3>
-
-            {/* Lab Orders */}
-            <div className="mb-6">
-              <h4 className="font-semibold mb-3">Lab Orders</h4>
-              <div className="space-y-2">
-                {labOrders.map((lab: any) => (
-                  <div key={lab.id} className="p-4 border rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium">{lab.testName}</p>
-                        <p className="text-sm text-gray-500">{lab.testCode}</p>
-                        {lab.resultSummary && (
-                          <p className="text-sm mt-1">{lab.resultSummary}</p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        {getStatusBadge(lab.status)}
-                        {lab.resultFileUrl && (
-                          <a
-                            href={lab.resultFileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline text-sm mt-1 block"
-                          >
-                            <Eye className="w-4 h-4 inline mr-1" />
-                            View Result
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Attachments */}
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="font-semibold">Files & Attachments</h4>
-                {!isReadOnly && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    id="file-upload"
-                    className="hidden"
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFileUpload(e)}
-                    accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.doc,.docx,.xls,.xlsx,.txt"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() => document.getElementById('file-upload')?.click()}
-                    disabled={uploadingFile}
-                  >
-                    {uploadingFile ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Uploading...
-                      </span>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Upload File
-                      </>
-                    )}
-                  </Button>
-                </div>
-                )}
-              </div>
-              <div className="space-y-2">
-                {attachments.map((att: any) => (
-                  <div key={att.id} className="p-4 border rounded-lg flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{att.fileName}</p>
-                      <p className="text-sm text-gray-500">{att.fileType}</p>
-                      <p className="text-xs text-gray-400">Uploaded by: {att.uploadedBy}</p>
-                    </div>
-                    <a
-                      href={att.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'billing' && (
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Billing</h3>
-              <div className="flex gap-2">
-                {invoice && (
-                  <Button
-                    onClick={handleDownloadInvoicePDF}
-                    variant="outline"
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    Download PDF
-                  </Button>
-                )}
-                {invoice && invoice.status !== 'paid' && (
-                  <Button
-                    onClick={() => setShowPaymentDialog(true)}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    Record Payment
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {invoice ? (
-              <div>
-                {/* Invoice Summary */}
-                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                  <div className="flex justify-between items-center mb-3">
-                    <h4 className="font-semibold">Invoice #{invoice.invoiceNo}</h4>
-                    {getStatusBadge(invoice.status)}
-                  </div>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-500">Subtotal</p>
-                      <p className="font-bold text-lg">₱{invoice.subTotal?.toFixed(2) || '0.00'}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Discount</p>
-                      <p className="font-bold text-lg">₱{invoice.discountTotal?.toFixed(2) || '0.00'}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">VAT (12%)</p>
-                      <p className="font-bold text-lg">₱{invoice.taxAmount?.toFixed(2) || '0.00'}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Grand Total</p>
-                      <p className="font-bold text-lg text-blue-600">₱{invoice.grandTotal?.toFixed(2) || '0.00'}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Paid</p>
-                      <p className="font-bold text-lg text-green-600">₱{invoice.amountPaid?.toFixed(2) || '0.00'}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Balance Due</p>
-                      <p className="font-bold text-lg text-red-600">₱{invoice.balanceDue?.toFixed(2) || '0.00'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Invoice Items */}
-                <div className="mb-6">
-                  <h4 className="font-semibold mb-3">Invoice Items</h4>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b">
-                        <th className="text-left p-3">Description</th>
-                        <th className="text-left p-3">Type</th>
-                        <th className="text-left p-3">Qty</th>
-                        <th className="text-right p-3">Unit Price</th>
-                        <th className="text-right p-3">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {invoiceItems.map((item: any) => (
-                        <tr key={item.id} className="border-b hover:bg-gray-50">
-                          <td className="p-3">{item.description}</td>
-                          <td className="p-3">{item.itemType}</td>
-                          <td className="p-3">{item.quantity}</td>
-                          <td className="p-3 text-right">₱{item.unitPrice?.toFixed(2)}</td>
-                          <td className="p-3 text-right font-medium">₱{item.lineTotal?.toFixed(2)}</td>
-                        </tr>
-                      ))}
-                      {(invoice.taxAmount || 0) > 0 && (
-                        <tr className="border-b bg-gray-50">
-                          <td className="p-3 font-medium">VAT (12%)</td>
-                          <td className="p-3">tax</td>
-                          <td className="p-3">—</td>
-                          <td className="p-3 text-right">—</td>
-                          <td className="p-3 text-right font-medium">₱{(invoice.taxAmount || 0).toFixed(2)}</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Payments */}
-                {payments.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold mb-3">Payments</h4>
-                    <div className="space-y-2">
-                      {payments.map((pay: any) => (
-                        <div key={pay.id} className="p-3 bg-green-50 rounded-lg flex justify-between">
-                          <div>
-                            <p className="font-medium">₱{pay.amount?.toFixed(2)}</p>
-                            <p className="text-sm text-gray-500">{pay.paymentMethod} • {pay.referenceNo}</p>
-                          </div>
-                          <p className="text-sm text-gray-400">
-                            {pay.paidAt?.toDate?.()?.toLocaleDateString?.()}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <FileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                <p>No invoice generated yet.</p>
-                <Button
-                  onClick={generateDraftInvoice}
-                  disabled={generatingInvoice}
-                  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  {generatingInvoice ? (
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Generating...
-                    </span>
-                  ) : (
-                    'Generate Draft Invoice'
-                  )}
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'history' && (
-          <div className="p-6">
-            <h3 className="text-lg font-bold mb-4">Visit History</h3>
-            <div className="space-y-3">
-              {encounters.map((enc: any) => (
-                <div
-                  key={enc.id}
-                  className={`p-4 border rounded-lg cursor-pointer hover:bg-blue-50 transition-colors ${
-                    selectedEncounter?.id === enc.id ? 'border-blue-500 bg-blue-50' : ''
-                  }`}
-                  onClick={() => setSelectedEncounter(enc)}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">
-                        {enc.startedAt?.toDate?.()?.toLocaleDateString?.() || 'New Visit'}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {enc.appointmentId ? 'Appointment' : 'Walk-in'} • {enc.doctorName || 'N/A'}
-                      </p>
-                    </div>
-                    {getStatusBadge(enc.status)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-      </div>
-
-      {/* Compact Audit Trail Card */}
-      {auditLogs.length > 0 && (
-        <div className="mt-6 mx-6 mb-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Eye className="w-4 h-4" />
-                Audit Trail
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {auditLogs
-                  .sort((a: any, b: any) => {
-                    const aRaw = a.timestamp || a.createdAt;
-                    const bRaw = b.timestamp || b.createdAt;
-                    const aTs = typeof aRaw?.toDate === 'function' ? aRaw.toDate() : aRaw;
-                    const bTs = typeof bRaw?.toDate === 'function' ? bRaw.toDate() : bRaw;
-                    return (bTs ? new Date(bTs).getTime() : 0) - (aTs ? new Date(aTs).getTime() : 0);
-                  })
-                  .slice(0, showAllAudit ? undefined : 5)
-                  .map((log: any, idx: number) => (
-                    <div key={log.id || idx} className="text-sm flex justify-between items-start py-2 border-b border-gray-100 last:border-0">
-                      <div>
-                        <span className="font-medium capitalize">{log.action || log.event}</span>
-                        {log.details && <span className="text-gray-600 ml-2 text-xs">{log.details}</span>}
-                        <span className="text-gray-500 ml-2 text-xs">by {resolveName(log.userId || log.staff)}</span>
-                      </div>
-                      <span className="text-xs text-gray-400 whitespace-nowrap">
-                        {(() => {
-                          const raw = log.timestamp || log.createdAt;
-                          const ts = typeof raw?.toDate === 'function' ? raw.toDate() : raw;
-                          if (!ts) return 'N/A';
-                          const d = new Date(ts);
-                          if (isNaN(d.getTime())) return 'N/A';
-                          return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
-                            ' at ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                        })()}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-              {auditLogs.length > 5 && (
-                <button
-                  onClick={() => setShowAllAudit(!showAllAudit)}
-                  className="mt-3 w-full text-center text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
-                >
-                  {showAllAudit ? 'Show Less' : `See More (${auditLogs.length - 5} more)`}
-                </button>
-              )}
-            </CardContent>
-          </Card>
+      {/* Clinical Alert Banner */}
+      {(patient?.allergies?.length > 0 || patient?.aggressionWarning || patient?.chronicConditions?.length > 0 || invoice?.balanceDue > 0 || labOrders.filter((l: any) => l.status !== 'completed').length > 0) && (
+        <div className="mb-4 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          <span className="font-semibold text-amber-800 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> Clinical Alerts:</span>
+          {patient?.allergies?.map((a: string, i: number) => (
+            <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-100 text-red-700"><span className="w-1.5 h-1.5 rounded-full bg-red-400" />Allergy: {a}</span>
+          ))}
+          {patient?.aggressionWarning && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-100 text-orange-700"><span className="w-1.5 h-1.5 rounded-full bg-orange-400" />Aggressive handling</span>
+          )}
+          {patient?.chronicConditions?.map((c: string, i: number) => (
+            <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" />{c}</span>
+          ))}
+          {(() => {
+            const bal = invoice?.balanceDue ?? (invoice?.grandTotal ?? 0) - (invoice?.amountPaid ?? 0);
+            if (bal > 0) return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700"><span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />₱{bal.toLocaleString()} unpaid</span>;
+            return null;
+          })()}
+          {labOrders.filter((l: any) => l.status !== 'completed').length > 0 && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-100 text-purple-700"><span className="w-1.5 h-1.5 rounded-full bg-purple-400" />{labOrders.filter((l: any) => l.status !== 'completed').length} pending lab{labOrders.filter((l: any) => l.status !== 'completed').length > 1 ? 's' : ''}</span>
+          )}
         </div>
       )}
 
-      {/* Payment Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Record Payment</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Amount (₱)</Label>
-              <Input
-                type="number"
-                value={paymentData.amount || invoice?.balanceDue || 0}
-                onChange={(e) => setPaymentData({ ...paymentData, amount: parseFloat(e.target.value) || 0 })}
-                placeholder="0.00"
-              />
-              <p className="text-xs text-gray-500 mt-1">Balance due: ₱{invoice?.balanceDue?.toFixed(2) || '0.00'}</p>
-            </div>
-            <div>
-              <Label>Payment Method</Label>
-              <select
-                value={paymentData.method}
-                onChange={(e) => setPaymentData({ ...paymentData, method: e.target.value })}
-                className="w-full mt-1 p-2 border rounded-lg bg-white"
-              >
-                <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="gcash">GCash</option>
-                <option value="bank-transfer">Bank Transfer</option>
-                <option value="check">Check</option>
-              </select>
-            </div>
-            <div>
-              <Label>Reference No. (Optional)</Label>
-              <Input
-                value={paymentData.referenceNo}
-                onChange={(e) => setPaymentData({ ...paymentData, referenceNo: e.target.value })}
-                placeholder="Transaction reference"
-              />
-            </div>
+      {/* Three-Column Workspace */}
+      <div className="flex gap-0 items-stretch">
+        {/* Left Step Sidebar */}
+        <div className="hidden lg:flex flex-col w-48 shrink-0 border border-gray-200 rounded-lg bg-white">
+          <div className="p-3 border-b border-gray-100 bg-stone-50 rounded-t-lg">
+            <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Consultation</p>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancel</Button>
-            <Button
-              onClick={handleRecordPayment}
-              disabled={recordingPayment}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {recordingPayment ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Recording...
-                </span>
-              ) : (
-                'Record Payment'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Doctor Selector Dialog for Quick Start Visit */}
-      <Dialog open={showDoctorDialog} onOpenChange={setShowDoctorDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Select Doctor for Quick Start</DialogTitle>
-            <DialogDescription>
-              Choose a doctor who is scheduled to be on-duty at this time. 
-              Quick Start is for walk-in/emergency visits.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {availableDoctors.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">No doctors available at this time.</p>
-              ) : (
-                availableDoctors.map(doc => (
-                  <div
-                    key={doc.id}
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                      selectedDoctorId === doc.id 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-200 hover:bg-gray-50'
-                    }`}
-                    onClick={() => {
-                      setSelectedDoctorId(doc.id);
-                      setSelectedDoctorName(doc.name);
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{doc.name}</p>
-                        <p className="text-xs text-gray-500">{doc.specialization || 'General'}</p>
+          <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
+            {steps.map((step, idx) => {
+              const StepIcon = step.icon;
+              const isComp = checkStepComplete(step.id);
+              const isAct = activeStep === step.id;
+              return (
+                <button key={step.id} onClick={() => navigateToStep(step.id)}
+                  className={cn('w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors text-sm',
+                    isAct ? 'bg-blue-50 text-blue-700 font-medium shadow-sm' : isComp ? 'text-emerald-700 hover:bg-stone-100' : 'text-stone-500 hover:bg-stone-100'
+                  )}
+                >
+                  <span className={cn('flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0',
+                    isComp ? 'bg-emerald-100 text-emerald-700' : isAct ? 'bg-blue-100 text-blue-700' : 'bg-stone-100 text-stone-400'
+                  )}>
+                    {isComp ? <Check className="w-3.5 h-3.5" /> : idx + 1}
+                  </span>
+                  <StepIcon className={cn('w-3.5 h-3.5 shrink-0', isAct ? 'text-blue-600' : isComp ? 'text-emerald-500' : 'text-stone-400')} />
+                  <span className="text-xs leading-tight whitespace-normal">{step.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Center Workspace */}
+        <div className="flex-1 min-w-0">
+          <div className="bg-white rounded-lg shadow">
+            {/* Mobile step indicator */}
+            <div className="lg:hidden p-3 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-stone-500 uppercase">Step:</span>
+                <span className="text-sm font-medium text-blue-700">{steps.find(s => s.id === activeStep)?.label || activeStep}</span>
+                <div className="flex-1" />
+                <Button variant="outline" size="sm" onClick={() => { const i = steps.findIndex(s => s.id === activeStep); if (i > 0) navigateToStep(steps[i-1].id); }} disabled={activeStep === steps[0].id}>Prev</Button>
+                <Button variant="outline" size="sm" onClick={() => { const i = steps.findIndex(s => s.id === activeStep); if (i < steps.length-1) navigateToStep(steps[i+1].id); }} disabled={activeStep === steps[steps.length-1].id}>Next</Button>
+              </div>
+            </div>
+
+            {/* 1. Chief Complaint */}
+            {activeStep === 'chief-complaint' && (
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-stone-800">Chief Complaint</h3>
+                    <p className="text-sm text-stone-500">Main reason for this visit</p>
+                  </div>
+                  {scheduledAppointment?.reason && (
+                    <Button variant="outline" size="sm" onClick={() => setChiefComplaint(p => ({ ...p, reason: scheduledAppointment.reason }))}>
+                      <FileText className="w-3.5 h-3.5 mr-1.5" />Import from appt
+                    </Button>
+                  )}
+                </div>
+                <div className="max-w-2xl space-y-5">
+                  <div><Label>Reason for Visit</Label><Input value={chiefComplaint.reason} onChange={e => setChiefComplaint(p => ({...p, reason: e.target.value}))} className="mt-1" placeholder="e.g., Vomiting, Limping" disabled={isReadOnly} /></div>
+                  <div><Label>Duration</Label><Input value={chiefComplaint.duration} onChange={e => setChiefComplaint(p => ({...p, duration: e.target.value}))} className="mt-1" placeholder="e.g., 2 days" disabled={isReadOnly} /></div>
+                  <div><Label>Urgency</Label>
+                    <select value={chiefComplaint.urgency} onChange={e => setChiefComplaint(p => ({...p, urgency: e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm disabled:opacity-50" disabled={isReadOnly}>
+                      <option value="Routine">Routine</option>
+                      <option value="Urgent">Urgent</option>
+                      <option value="Emergency">Emergency</option>
+                    </select>
+                  </div>
+                  <div><Label>Owner Statement</Label><Textarea value={chiefComplaint.ownerStatement} onChange={e => setChiefComplaint(p => ({...p, ownerStatement: e.target.value}))} className="mt-1" rows={3} placeholder="Owner's exact statement..." disabled={isReadOnly} /></div>
+                  {!isReadOnly && (
+                    <div>
+                      <p className="text-xs font-medium text-stone-500 mb-2">Quick symptom chips</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['Vomiting','Diarrhea','Limping','Coughing','Sneezing','Lethargy','Skin issue','Eye problem','Ear infection','Weight loss','Appetite loss','Vaccination'].map(t => (
+                          <button key={t} type="button" onClick={() => setChiefComplaint(p => ({...p, reason: p.reason ? p.reason + ', ' + t.toLowerCase() : t}))} className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200">{t}</button>
+                        ))}
                       </div>
-                      {selectedDoctorId === doc.id && (
-                        <Check className="w-5 h-5 text-blue-600" />
-                      )}
+                    </div>
+                  )}
+                </div>
+                {mode === 'active' && (
+                  <div className="mt-6 pt-6 border-t flex gap-2">
+                    <Button onClick={() => { setFormData(p => ({...p, chiefComplaint: chiefComplaint.reason, subjective: chiefComplaint.reason + (chiefComplaint.duration ? ' (' + chiefComplaint.duration + ')' : '') + '\n' + chiefComplaint.ownerStatement})); navigateToStep('subjective'); }}>
+                      <Check className="w-4 h-4 mr-1.5" />Save & Continue to Subjective
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 2. Subjective */}
+            {activeStep === 'subjective' && (
+              <div className="p-6">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-stone-800">Subjective</h3>
+                  <p className="text-sm text-stone-500">Patient history and owner's description</p>
+                </div>
+                <div className="max-w-2xl space-y-4">
+                  {chiefComplaint.reason && <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800"><span className="font-medium">Chief Complaint:</span> {chiefComplaint.reason}{chiefComplaint.duration ? <span className="text-blue-600"> ({chiefComplaint.duration})</span> : ''}</div>}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><Label>Appetite</Label><select value={formData.appetite||''} onChange={e=>setFormData(p=>({...p, appetite:e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="">Normal</option><option value="Poor">Poor</option><option value="Increased">Increased</option><option value="None">None</option></select></div>
+                    <div><Label>Water Intake</Label><select value={formData.waterIntake||''} onChange={e=>setFormData(p=>({...p, waterIntake:e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="">Normal</option><option value="Reduced">Reduced</option><option value="Increased">Increased</option><option value="None">None</option></select></div>
+                    <div><Label>Urination</Label><select value={formData.urination||''} onChange={e=>setFormData(p=>({...p, urination:e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="">Normal</option><option value="Frequent">Frequent</option><option value="Straining">Straining</option><option value="None">None</option></select></div>
+                    <div><Label>Stool</Label><select value={formData.stool||''} onChange={e=>setFormData(p=>({...p, stool:e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="">Normal</option><option value="Soft">Soft</option><option value="Diarrhea">Diarrhea</option><option value="Constipation">Constipation</option></select></div>
+                    <div><Label>Vomiting</Label><Input value={formData.vomiting||''} onChange={e=>setFormData(p=>({...p, vomiting: e.target.value}))} className="mt-1" placeholder="e.g., 3 episodes" disabled={isReadOnly} /></div>
+                    <div><Label>Coughing</Label><select value={formData.coughing||''} onChange={e=>setFormData(p=>({...p, coughing:e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="">None</option><option value="Mild">Mild</option><option value="Moderate">Moderate</option><option value="Severe">Severe</option></select></div>
+                    <div><Label>Activity Level</Label><select value={formData.activity||''} onChange={e=>setFormData(p=>({...p, activity:e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="">Normal</option><option value="Lethargic">Lethargic</option><option value="Depressed">Depressed</option><option value="Hyperactive">Hyperactive</option></select></div>
+                    <div><Label>Current Meds</Label><Input value={formData.currentMeds||''} onChange={e=>setFormData(p=>({...p, currentMeds: e.target.value}))} className="mt-1" placeholder="None" disabled={isReadOnly} /></div>
+                  </div>
+                  {!isReadOnly && (
+                    <div>
+                      <p className="text-xs font-medium text-stone-500 mb-2">Quick symptom chips</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['Vomiting','Diarrhea','Lethargy','Poor Appetite','Coughing','Itching','Lameness','Ear Odor'].map(t => (
+                          <button key={t} type="button" onClick={() => setFormData(p=>({...p, subjective: (p.subjective||'') ? p.subjective + ', ' + t : t}))} className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 border border-green-200">{t}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div><Label>History of Present Illness</Label><Textarea value={formData.subjective || clinicalNotes?.subjective || ''} onChange={e => setFormData(p => ({...p, subjective: e.target.value}))} className="mt-1" rows={3} placeholder="Onset, progression, associated symptoms..." disabled={isReadOnly} /></div>
+                  <div><Label>Past Medical History</Label><Textarea value={formData.pastHistory || ''} onChange={e => setFormData(p => ({...p, pastHistory: e.target.value}))} className="mt-1" rows={2} placeholder="Previous illnesses, surgeries, medications..." disabled={isReadOnly} /></div>
+                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={() => { saveClinicalNotes(); navigateToStep('vitals'); }}><Check className="w-4 h-4 mr-1.5" />Save & Continue to Vitals</Button></div>}
+                </div>
+              </div>
+            )}
+
+            {/* 3. Objective / Vitals */}
+            {activeStep === 'vitals' && (
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-stone-800">Objective / Vitals</h3>
+                    <p className="text-sm text-stone-500">Physical measurements and clinical observations</p>
+                  </div>
+                </div>
+                <form onSubmit={(e) => { e.preventDefault(); if (isReadOnly) return; if (vitalsEditMode) saveVitals(); else setVitalsEditMode(true); }} className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div><Label htmlFor="weightKg">Weight (kg)</Label><Input id="weightKg" name="weightKg" type="number" step="0.1" min="0" value={vitalsForm.weightKg || ''} onChange={handleVitalsChange} disabled={!vitalsEditMode} className="mt-1" placeholder="0.0" /></div>
+                    <div><Label htmlFor="temperatureC">Temperature (°C)</Label><Input id="temperatureC" name="temperatureC" type="number" step="0.1" min="35" max="45" value={vitalsForm.temperatureC || ''} onChange={handleVitalsChange} disabled={!vitalsEditMode} className="mt-1" placeholder="38.5" /></div>
+                    <div><Label htmlFor="heartRateBpm">Heart Rate (bpm)</Label><Input id="heartRateBpm" name="heartRateBpm" type="number" value={vitalsForm.heartRateBpm || ''} onChange={handleVitalsChange} disabled={!vitalsEditMode} className="mt-1" placeholder="120" /></div>
+                    <div><Label htmlFor="respiratoryRateRpm">Respiratory Rate (rpm)</Label><Input id="respiratoryRateRpm" name="respiratoryRateRpm" type="number" value={vitalsForm.respiratoryRateRpm || ''} onChange={handleVitalsChange} disabled={!vitalsEditMode} className="mt-1" placeholder="20" /></div>
+                    <div><Label htmlFor="mmColor">MM Color</Label><Input id="mmColor" name="mmColor" value={vitalsForm.mmColor || ''} onChange={handleVitalsChange} disabled={!vitalsEditMode} className="mt-1" placeholder="Pink" /></div>
+                    <div><Label htmlFor="crtSeconds">CRT (seconds)</Label><Input id="crtSeconds" name="crtSeconds" type="number" step="0.1" value={vitalsForm.crtSeconds || ''} onChange={handleVitalsChange} disabled={!vitalsEditMode} className="mt-1" placeholder="2" /></div>
+                    <div><Label>Hydration</Label><select value={vitalsForm.hydration||''} onChange={e=>handleVitalsChange({target:{name:'hydration',value:e.target.value}})} disabled={!vitalsEditMode} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option value="">Normal</option><option value="Mild dehydration">Mild dehydration</option><option value="Moderate dehydration">Moderate dehydration</option><option value="Severe dehydration">Severe dehydration</option></select></div>
+                    <div><Label>Pain Score</Label><select value={vitalsForm.painScore||''} onChange={e=>handleVitalsChange({target:{name:'painScore',value:e.target.value}})} disabled={!vitalsEditMode} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option value="">None</option><option value="Mild">Mild</option><option value="Moderate">Moderate</option><option value="Severe">Severe</option></select></div>
+                    <div><Label>BCS</Label><select value={vitalsForm.bcs||''} onChange={e=>handleVitalsChange({target:{name:'bcs',value:e.target.value}})} disabled={!vitalsEditMode} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option value="">5/9</option><option value="1/9">1/9</option><option value="2/9">2/9</option><option value="3/9">3/9</option><option value="4/9">4/9</option><option value="5/9">5/9</option><option value="6/9">6/9</option><option value="7/9">7/9</option><option value="8/9">8/9</option><option value="9/9">9/9</option></select></div>
+                    <div><Label>Mentation</Label><select value={vitalsForm.mentation||''} onChange={e=>handleVitalsChange({target:{name:'mentation',value:e.target.value}})} disabled={!vitalsEditMode} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option value="">Alert</option><option value="Depressed">Depressed</option><option value="Obtunded">Obtunded</option><option value="Stuporous">Stuporous</option><option value="Comatose">Comatose</option></select></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={savingVitals}>
+                      {savingVitals ? (<><Loader2 className="w-4 h-4 animate-spin mr-1.5" />Saving...</>) : vitalsEditMode ? 'Save Vitals' : 'Edit Vitals'}
+                    </Button>
+                    {vitalsEditMode && (<Button type="button" variant="outline" onClick={() => { const latest = triageVitals[triageVitals.length - 1]; setVitalsForm(latest || {}); setVitalsEditMode(false); }}>Cancel</Button>)}
+                  </div>
+                </form>
+                {!isReadOnly && <div className="mt-6 pt-4 border-t flex gap-2"><Button onClick={() => navigateToStep('physical-exam')}><Check className="w-4 h-4 mr-1.5" />Continue to Physical Exam</Button></div>}
+              </div>
+            )}
+
+            {/* 4. Physical Exam */}
+            {activeStep === 'physical-exam' && (
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-stone-800">Physical Exam</h3>
+                    <p className="text-sm text-stone-500">Systematic body system evaluation</p>
+                  </div>
+                  {!isReadOnly && (
+                    <Button variant="outline" size="sm" onClick={() => {
+                      const updated = {}; const notes = {};
+                      ['general','skin','eyes','ears','oral','cardio','respiratory','gi','gu','msk','neuro','lymph'].forEach(s => { updated[s] = 'normal'; notes[s] = ''; });
+                      setPhysicalExam(updated); setExamNotes(notes);
+                    }}>
+                      <Check className="w-3.5 h-3.5 mr-1.5" />Mark All Normal
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-3 max-w-3xl">
+                  {[
+                    {id:'general', label:'General Appearance'},
+                    {id:'skin', label:'Skin / Coat'},
+                    {id:'eyes', label:'Eyes'},
+                    {id:'ears', label:'Ears'},
+                    {id:'oral', label:'Oral / Dental'},
+                    {id:'cardio', label:'Cardiovascular'},
+                    {id:'respiratory', label:'Respiratory'},
+                    {id:'gi', label:'Gastrointestinal'},
+                    {id:'gu', label:'Genitourinary'},
+                    {id:'msk', label:'Musculoskeletal'},
+                    {id:'neuro', label:'Neurologic'},
+                    {id:'lymph', label:'Lymph Nodes'},
+                  ].map(sys => (
+                    <div key={sys.id} className="flex items-start gap-3 p-3 rounded-lg border border-stone-200">
+                      <div className="flex items-center gap-2 w-44 shrink-0">
+                        <button type="button" onClick={() => { if (isReadOnly) return; setPhysicalExam(p => ({...p, [sys.id]: physicalExam[sys.id] === 'normal' ? 'abnormal' : 'normal'})); }}
+                          className={cn('px-3 py-1 rounded-md text-xs font-medium border transition-colors',
+                            physicalExam[sys.id] === 'abnormal' ? 'bg-red-50 text-red-700 border-red-200' :
+                            physicalExam[sys.id] === 'normal' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            'bg-stone-50 text-stone-400 border-stone-200'
+                          )}
+                        >
+                          {physicalExam[sys.id] === 'abnormal' ? 'Abnormal' : physicalExam[sys.id] === 'normal' ? 'Normal' : 'Tap'}
+                        </button>
+                        <span className="text-sm font-medium text-stone-700">{sys.label}</span>
+                      </div>
+                      <div className="flex-1">
+                        <Input value={examNotes[sys.id] || ''} onChange={e => setExamNotes(p => ({...p, [sys.id]: e.target.value}))} className="text-sm" placeholder="Notes if abnormal..." disabled={isReadOnly || physicalExam[sys.id] !== 'abnormal'} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {!isReadOnly && <div className="mt-6 pt-4 border-t flex gap-2"><Button onClick={() => { setFormData(p => ({...p, objective: ['general','skin','eyes','ears','oral','cardio','respiratory','gi','gu','msk','neuro','lymph'].filter(s=>physicalExam[s]==='abnormal').map(s=>s+': '+examNotes[s]).join('\n')})); navigateToStep('assessment'); }}><Check className="w-4 h-4 mr-1.5" />Continue to Assessment</Button></div>}
+              </div>
+            )}
+
+            {/* 5. Assessment */}
+            {activeStep === 'assessment' && (
+              <div className="p-6">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-stone-800">Assessment</h3>
+                  <p className="text-sm text-stone-500">Clinical impression and diagnosis</p>
+                </div>
+                <div className="max-w-2xl space-y-4">
+                  <div><Label>Primary Diagnosis</Label><Input value={formData.assessment || clinicalNotes?.assessment || ''} onChange={e => setFormData(p => ({...p, assessment: e.target.value}))} className="mt-1" placeholder="e.g., Acute gastritis" disabled={isReadOnly} /></div>
+                  <div><Label>Diagnosis Status</Label><select value={formData.diagnosisStatus||'working'} onChange={e=>setFormData(p=>({...p, diagnosisStatus: e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="working">Working</option><option value="confirmed">Confirmed</option><option value="ruled-out">Ruled Out</option><option value="differential">Differential</option></select></div>
+                  <div><Label>Differential Diagnoses</Label><Input value={formData.differentials || ''} onChange={e => setFormData(p => ({...p, differentials: e.target.value}))} className="mt-1" placeholder="e.g., Parasites, Dietary indiscretion, Pancreatitis" disabled={isReadOnly} /></div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><Label>Severity</Label><select value={formData.severity||''} onChange={e=>setFormData(p=>({...p, severity:e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="">Select</option><option value="Mild">Mild</option><option value="Moderate">Moderate</option><option value="Severe">Severe</option></select></div>
+                    <div><Label>Prognosis</Label><select value={formData.prognosis||''} onChange={e=>setFormData(p=>({...p, prognosis:e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="">Select</option><option value="Good">Good</option><option value="Guarded">Guarded</option><option value="Poor">Poor</option></select></div>
+                  </div>
+                  <div><Label>Clinical Impression</Label><Textarea value={formData.clinicalImpression || ''} onChange={e => setFormData(p => ({...p, clinicalImpression: e.target.value}))} className="mt-1" rows={3} placeholder="Clinical findings are consistent with..." disabled={isReadOnly} /></div>
+                  <div><Label>Problem List</Label><Textarea value={formData.problemList || ''} onChange={e => setFormData(p => ({...p, problemList: e.target.value}))} className="mt-1" rows={2} placeholder={'Line 1: Vomiting\nLine 2: Mild dehydration'} disabled={isReadOnly} /></div>
+                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={() => { saveClinicalNotes(); navigateToStep('plan'); }}><Check className="w-4 h-4 mr-1.5" />Save & Continue to Plan</Button></div>}
+                </div>
+              </div>
+            )}
+
+            {/* 6. Plan Builder */}
+            {activeStep === 'plan' && (
+              <div className="p-6">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-stone-800">Plan Builder</h3>
+                  <p className="text-sm text-stone-500">Build your treatment and management plan</p>
+                </div>
+                <div className="max-w-2xl space-y-4">
+                  <div><Label>Treatment Plan</Label><Textarea value={formData.plan || clinicalNotes?.plan || ''} onChange={e => setFormData(p => ({...p, plan: e.target.value}))} className="mt-1" rows={4} placeholder={'e.g., Anti-emetic injection administered\nFluid therapy started\nDietary management'} disabled={isReadOnly} /></div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" onClick={() => navigateToStep('prescriptions')}><Pill className="w-3.5 h-3.5 mr-1.5" />Add Prescription</Button>
+                    <Button variant="outline" size="sm" onClick={() => setShowOrderLabModal(true)}><FlaskConical className="w-3.5 h-3.5 mr-1.5" />Order Lab</Button>
+                    <Button variant="outline" size="sm" onClick={() => navigateToStep('procedures')}><ClipboardList className="w-3.5 h-3.5 mr-1.5" />Add Procedure</Button>
+                    <Button variant="outline" size="sm" onClick={() => navigateToStep('admission')}><Heart className="w-3.5 h-3.5 mr-1.5" />Recommend Admission</Button>
+                    <Button variant="outline" size="sm" onClick={() => navigateToStep('followup')}><Calendar className="w-3.5 h-3.5 mr-1.5" />Add Follow-Up</Button>
+                    <Button variant="outline" size="sm" onClick={() => navigateToStep('instructions')}><FileText className="w-3.5 h-3.5 mr-1.5" />Add Owner Instructions</Button>
+                  </div>
+                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={() => { saveClinicalNotes(); navigateToStep('prescriptions'); }}><Check className="w-4 h-4 mr-1.5" />Save & Continue</Button></div>}
+                </div>
+              </div>
+            )}
+
+            {/* 7. Prescriptions */}
+            {activeStep === 'prescriptions' && (
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-stone-800">Prescriptions</h3>
+                    <p className="text-sm text-stone-500">Medication orders for the patient</p>
+                  </div>
+                </div>
+                {prescriptions.length === 0 ? (
+                  <div className="text-center py-8 text-stone-400">
+                    <Pill className="w-10 h-10 mx-auto mb-2 text-stone-300" />
+                    <p className="text-sm">No prescriptions yet</p>
+                    <p className="text-xs mt-1">Click "Add Prescription" in the Plan section or use the action bar</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-w-2xl">
+                    {prescriptions.map((rx, i) => (
+                      <div key={rx.id || i} className="p-4 rounded-lg border border-stone-200">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-semibold text-stone-800">{rx.medicationName || rx.name || rx.medication}</p>
+                            <p className="text-sm text-stone-600">{rx.dosage || ''}{rx.dosage && rx.frequency ? ' \u00b7 ' : ''}{rx.frequency || ''}</p>
+                            <p className="text-xs text-stone-500">Qty: {rx.quantity || 'N/A'} \u2022 Route: {rx.route || 'Oral'}</p>
+                          </div>
+                          <Badge variant={(rx.status === 'Dispensed' ? 'secondary' : rx.status === 'Prescribed' ? 'default' : 'outline')}>{rx.status || 'Prescribed'}</Badge>
+                        </div>
+                        {rx.instructions && <p className="text-xs text-stone-500 mt-2">{rx.instructions}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!isReadOnly && <div className="mt-6 pt-4 border-t flex gap-2">
+                  <Button onClick={() => navigateToStep('labs')}><Check className="w-4 h-4 mr-1.5" />Continue to Labs</Button>
+                </div>}
+              </div>
+            )}
+
+            {/* 8. Labs & Diagnostics */}
+            {activeStep === 'labs' && (
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-stone-800">Labs & Diagnostics</h3>
+                    <p className="text-sm text-stone-500">Laboratory tests and diagnostic imaging</p>
+                  </div>
+                  {!isReadOnly && (
+                    <Button variant="outline" size="sm" onClick={() => setShowOrderLabModal(true)}>
+                      <FlaskConical className="w-4 h-4 mr-1.5" />Order Lab
+                    </Button>
+                  )}
+                </div>
+                {labOrders.length === 0 ? (
+                  <div className="text-center py-8 text-stone-400">
+                    <FlaskConical className="w-10 h-10 mx-auto mb-2 text-stone-300" />
+                    <p className="text-sm">No lab orders yet</p>
+                    <p className="text-xs mt-1">Click "Order Lab" above or use the action bar</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-w-2xl">
+                    {labOrders.map((lab, i) => {
+                      const statusColor: Record<string, string> = {
+                        'draft': 'bg-stone-100 text-stone-600 border-stone-300',
+                        'ordered': 'bg-blue-100 text-blue-700 border-blue-300',
+                        'awaiting-sample': 'bg-amber-100 text-amber-700 border-amber-300',
+                        'sample-collected': 'bg-purple-100 text-purple-700 border-purple-300',
+                        'in-progress': 'bg-indigo-100 text-indigo-700 border-indigo-300',
+                        'ready-for-review': 'bg-cyan-100 text-cyan-700 border-cyan-300',
+                        'completed': 'bg-emerald-100 text-emerald-700 border-emerald-300',
+                        'cancelled': 'bg-red-100 text-red-700 border-red-300',
+                        'rejected-sample': 'bg-rose-100 text-rose-700 border-rose-300',
+                        'awaiting-external-lab': 'bg-yellow-100 text-yellow-700 border-yellow-300',
+                        'critical-result': 'bg-red-200 text-red-800 border-red-400',
+                        'amended': 'bg-orange-100 text-orange-700 border-orange-300',
+                      };
+                      const statusLabel: Record<string, string> = {
+                        'draft': 'Draft',
+                        'ordered': 'Ordered',
+                        'awaiting-sample': 'Awaiting Sample',
+                        'sample-collected': 'Sample Collected',
+                        'in-progress': 'In Progress',
+                        'ready-for-review': 'Ready for Review',
+                        'completed': 'Completed',
+                        'cancelled': 'Cancelled',
+                        'rejected-sample': 'Rejected Sample',
+                        'awaiting-external-lab': 'Awaiting External Lab',
+                        'critical-result': 'Critical Result',
+                        'amended': 'Amended',
+                      };
+                      const st = (lab.status || 'ordered').toLowerCase();
+                      return (
+                        <div key={lab.id || i} className="p-4 rounded-lg border border-stone-200 hover:border-stone-300 transition-colors">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-stone-800">{lab.testName || lab.name || lab.type}</p>
+                                {lab.externalLab && <Badge variant="outline" className="text-[10px] border-blue-200 text-blue-600 bg-blue-50">External Lab</Badge>}
+                              </div>
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-stone-500">
+                                {lab.reason && <span><span className="font-medium text-stone-500">Reason:</span> {lab.reason}</span>}
+                                <span><span className="font-medium text-stone-500">Priority:</span>
+                                  <span className={cn('ml-1', lab.priority === 'STAT' ? 'text-red-600 font-semibold' : lab.priority === 'Urgent' ? 'text-amber-600 font-medium' : 'text-stone-500')}>{lab.priority || 'Routine'}</span>
+                                </span>
+                                {lab.sampleType && <span><span className="font-medium text-stone-500">Sample:</span> {lab.sampleType}</span>}
+                                <span><span className="font-medium text-stone-500">Billing:</span> {lab.billingBehavior === 'create-invoice-line' ? 'Invoiced' : 'Queued'}</span>
+                                {lab.orderedBy && <span><span className="font-medium text-stone-500">Ordered by:</span> {lab.orderedBy}</span>}
+                              </div>
+                            </div>
+                            <Badge className={cn('border text-xs font-medium', statusColor[st] || 'bg-stone-100 text-stone-600')}>{statusLabel[st] || lab.status || 'Ordered'}</Badge>
+                          </div>
+                          {lab.notes && <p className="text-xs text-stone-400 mt-1 italic">{lab.notes}</p>}
+                          {lab.ownerConsent && lab.ownerConsent !== 'pending' && (
+                            <p className="text-[10px] text-stone-400 mt-1">Consent: {lab.ownerConsent}</p>
+                          )}
+                          {lab.ownerConsent === 'pending' && (
+                            <Badge variant="outline" className="text-[10px] border-amber-200 text-amber-600 bg-amber-50 mt-1">Consent pending</Badge>
+                          )}
+                          {!isReadOnly && (['ordered', 'awaiting-sample', 'draft'].includes(st)) && (
+                            <div className="flex gap-2 mt-2">
+                              <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={async () => {
+                                if (!confirm('Cancel this lab order?')) return;
+                                try {
+                                  const { updateLabOrder } = await import('../../lib/firestore-helpers');
+                                  const eid = selectedEncounter?.id || patientId;
+                                  await updateLabOrder(lab.id, { status: 'cancelled' });
+                                  if (eid) {
+                                    const updated = await fetchLabOrders(eid);
+                                    setLabOrders(updated);
+                                  }
+                                } catch (e) { console.error(e); }
+                              }}><X className="w-3 h-3 mr-1" />Cancel Order</Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {!isReadOnly && <div className="mt-6 pt-4 border-t flex gap-2">
+                  <Button onClick={() => navigateToStep('procedures')}><Check className="w-4 h-4 mr-1.5" />Continue to Procedures</Button>
+                </div>}
+              </div>
+            )}
+
+            {/* 9. Procedures */}
+            {activeStep === 'procedures' && (
+              <div className="p-6">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-stone-800">Procedures</h3>
+                  <p className="text-sm text-stone-500">Procedures performed or recommended</p>
+                </div>
+                <div className="max-w-2xl space-y-4">
+                  <div><Label>Procedure Name</Label><Input value={procedureForm.name} onChange={e => setProcedureForm(p => ({...p, name: e.target.value}))} className="mt-1" placeholder="e.g., Wound Cleaning" disabled={isReadOnly} /></div>
+                  <div><Label>Indication</Label><Input value={procedureForm.indication} onChange={e => setProcedureForm(p => ({...p, indication: e.target.value}))} className="mt-1" placeholder="Reason for procedure" disabled={isReadOnly} /></div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><Label>Consent Required</Label><select value={procedureForm.consentRequired ? 'yes' : 'no'} onChange={e => setProcedureForm(p => ({...p, consentRequired: e.target.value === 'yes'}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="no">No</option><option value="yes">Yes</option></select></div>
+                    <div><Label>Anesthesia / Sedation</Label><select value={procedureForm.anesthesia} onChange={e => setProcedureForm(p => ({...p, anesthesia: e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="None">None</option><option value="Local">Local</option><option value="General">General</option></select></div>
+                  </div>
+                  <div><Label>Supplies Used</Label><Input value={procedureForm.supplies} onChange={e => setProcedureForm(p => ({...p, supplies: e.target.value}))} className="mt-1" placeholder="Bandage, antiseptic..." disabled={isReadOnly} /></div>
+                  <div><Label>Notes</Label><Textarea value={procedureForm.notes} onChange={e => setProcedureForm(p => ({...p, notes: e.target.value}))} className="mt-1" rows={2} disabled={isReadOnly} /></div>
+                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t">
+                    <Button onClick={() => navigateToStep('admission')}><Check className="w-4 h-4 mr-1.5" />Continue to Admission</Button>
+                  </div>}
+                </div>
+              </div>
+            )}
+
+            {/* 10. Admission Recommendation */}
+            {activeStep === 'admission' && (
+              <div className="p-6">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-stone-800">Admission Recommendation</h3>
+                  <p className="text-sm text-stone-500">If the pet needs confinement or hospitalization</p>
+                </div>
+                <div className="max-w-2xl space-y-4">
+                  <div><Label>Reason for Admission</Label><Textarea value={admissionForm.reason} onChange={e => setAdmissionForm(p => ({...p, reason: e.target.value}))} className="mt-1" rows={2} placeholder="Persistent vomiting and dehydration..." disabled={isReadOnly} /></div>
+                  <div><Label>Admission Type</Label><select value={admissionForm.type} onChange={e => setAdmissionForm(p => ({...p, type: e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="Medical confinement">Medical confinement</option><option value="Surgical">Surgical</option><option value="ICU">ICU</option><option value="Isolation">Isolation</option></select></div>
+                  <div><Label>Initial Diagnosis</Label><Input value={admissionForm.initialDiagnosis} onChange={e => setAdmissionForm(p => ({...p, initialDiagnosis: e.target.value}))} className="mt-1" placeholder="Suspected acute gastritis" disabled={isReadOnly} /></div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><Label>Monitoring Level</Label><select value={admissionForm.monitoring} onChange={e => setAdmissionForm(p => ({...p, monitoring: e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="">Select</option><option value="Every 2 hours">Every 2 hours</option><option value="Every 4 hours">Every 4 hours</option><option value="Every 6 hours">Every 6 hours</option><option value="Every 8 hours">Every 8 hours</option><option value="ICU continuous">ICU continuous</option></select></div>
+                    <div><Label>Expected Duration</Label><Input value={admissionForm.expectedDuration} onChange={e => setAdmissionForm(p => ({...p, expectedDuration: e.target.value}))} className="mt-1" placeholder="24-48 hours" disabled={isReadOnly} /></div>
+                  </div>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={admissionForm.isolationRequired} onChange={e => setAdmissionForm(p => ({...p, isolationRequired: e.target.checked}))} disabled={isReadOnly} />Isolation Required</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={admissionForm.depositRequired} onChange={e => setAdmissionForm(p => ({...p, depositRequired: e.target.checked}))} disabled={isReadOnly} />Deposit Required</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={admissionForm.consentRequired} onChange={e => setAdmissionForm(p => ({...p, consentRequired: e.target.checked}))} disabled={isReadOnly} />Consent Required</label>
+                  </div>
+                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t">
+                    <Button onClick={() => navigateToStep('followup')}><Check className="w-4 h-4 mr-1.5" />Continue to Follow-Up</Button>
+                  </div>}
+                </div>
+              </div>
+            )}
+
+            {/* 11. Follow-Up */}
+            {activeStep === 'followup' && (
+              <div className="p-6">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-stone-800">Follow-Up Plan</h3>
+                  <p className="text-sm text-stone-500">Schedule follow-up and recheck</p>
+                </div>
+                <div className="max-w-2xl space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><Label>Follow-Up Type</Label><select value={formData.followupType||'Recheck'} onChange={e=>setFormData(p=>({...p, followupType: e.target.value}))} className="mt-1 flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" disabled={isReadOnly}><option value="Recheck">Recheck</option><option value="Surgery Follow-up">Surgery Follow-up</option><option value="Lab Result Review">Lab Result Review</option><option value="Vaccination">Vaccination</option></select></div>
+                    <div><Label>Due Date</Label><Input type="date" value={followUpDate} onChange={e => setFollowUpDate(e.target.value)} className="mt-1" disabled={isReadOnly} /></div>
+                  </div>
+                  <div><Label>Instructions</Label><Textarea value={followUpInstructions} onChange={e => setFollowUpInstructions(e.target.value)} className="mt-1" rows={2} disabled={isReadOnly} /></div>
+                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={() => navigateToStep('instructions')}><Check className="w-4 h-4 mr-1.5" />Continue to Owner Instructions</Button></div>}
+                </div>
+              </div>
+            )}
+
+            {/* 12. Owner Instructions */}
+            {activeStep === 'instructions' && (
+              <div className="p-6">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-stone-800">Owner Instructions</h3>
+                  <p className="text-sm text-stone-500">Home care instructions in owner-friendly language</p>
+                </div>
+                <div className="max-w-2xl space-y-4">
+                  <div><Label>Medication Instructions</Label><Textarea value={ownerInstructions} onChange={e => setOwnerInstructions(e.target.value)} className="mt-1" rows={2} placeholder="Give medication after meals..." disabled={isReadOnly} /></div>
+                  <div><Label>Diet & Activity</Label><Textarea value={formData.dietInstructions || ''} onChange={e => setFormData(p => ({...p, dietInstructions: e.target.value}))} className="mt-1" rows={2} placeholder="Offer small frequent meals. Rest." disabled={isReadOnly} /></div>
+                  <div><Label>Warning Signs</Label><Textarea value={formData.warningSigns || ''} onChange={e => setFormData(p => ({...p, warningSigns: e.target.value}))} className="mt-1" rows={2} placeholder="Return immediately if vomiting continues, becomes weak, or refuses water." disabled={isReadOnly} /></div>
+                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={() => navigateToStep('summary')}><Check className="w-4 h-4 mr-1.5" />Continue to Visit Summary</Button></div>}
+                </div>
+              </div>
+            )}
+
+            {/* 13. Visit Summary */}
+            {activeStep === 'summary' && (
+              <VisitSummaryTab
+                patient={patient}
+                owner={owner}
+                encounter={selectedEncounter}
+                encounters={encounters}
+                vitals={triageVitals}
+                services={appointmentServices}
+                clinicalNotes={clinicalNotes}
+                labOrders={labOrders}
+                prescriptions={prescriptions}
+                invoice={invoice}
+                invoiceItems={invoiceItems}
+                payments={payments}
+                attachments={attachments}
+              />
+            )}
+
+            {/* 14. Finish Checklist */}
+            {activeStep === 'checklist' && (
+              <div className="p-6">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-stone-800">Finish Consultation Checklist</h3>
+                  <p className="text-sm text-stone-500">Review all items before finishing</p>
+                </div>
+                <div className="max-w-2xl space-y-3">
+                  {[
+                    { id: 'chief-complaint', label: 'Chief complaint entered' },
+                    { id: 'subjective', label: 'Subjective completed' },
+                    { id: 'vitals', label: 'Vitals recorded' },
+                    { id: 'physical-exam', label: 'Physical exam completed' },
+                    { id: 'assessment', label: 'Assessment / diagnosis entered' },
+                    { id: 'plan', label: 'Treatment plan added' },
+                    { id: 'prescriptions', label: 'Prescriptions reviewed' },
+                    { id: 'labs', label: 'Lab orders reviewed' },
+                    { id: 'followup', label: 'Follow-up added' },
+                    { id: 'instructions', label: 'Owner instructions completed' },
+                  ].map(item => {
+                    const done = checkStepComplete(item.id);
+                    return (
+                      <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg border" style={{ borderColor: done ? '#bbf7d0' : '#fecaca', backgroundColor: done ? '#f0fdf4' : '#fef2f2' }}>
+                        <span className={cn('w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold', done ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700')}>
+                          {done ? <Check className="w-3.5 h-3.5" /> : '!'}
+                        </span>
+                        <span className={cn('text-sm', done ? 'text-emerald-800' : 'text-red-800')}>{item.label}</span>
+                        {!done && <Button variant="outline" size="sm" className="ml-auto" onClick={() => navigateToStep(item.id)}>Go to {item.id}</Button>}
+                      </div>
+                    );
+                  })}
+                </div>
+                {mode === 'active' && (
+                  <div className="mt-6 pt-6 border-t flex gap-2">
+                    <Button variant="outline" onClick={() => navigateToStep('signature')}>Continue to Signing</Button>
+                    <Button onClick={() => setShowFinishDialog(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                      <Check className="w-4 h-4 mr-1.5" />Finish with Missing Items
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 15. Doctor Signature */}
+            {activeStep === 'signature' && (
+              <div className="p-6">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-stone-800">Doctor Signature</h3>
+                  <p className="text-sm text-stone-500">Sign and lock the clinical record</p>
+                </div>
+                <div className="max-w-xl space-y-4">
+                  <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">Record Signing</p>
+                        <p className="text-xs text-amber-700 mt-1">Signing the record will lock it from casual editing. Amendments after signing require a reason and will be tracked in the audit log.</p>
+                      </div>
                     </div>
                   </div>
-                ))
+                  <div><Label>Attending Veterinarian</Label><Input value={auth.currentUser?.displayName || ''} className="mt-1" disabled /></div>
+                  <div><Label>License Number</Label><Input value={formData.licenseNumber || ''} onChange={e => setFormData(p => ({...p, licenseNumber: e.target.value}))} className="mt-1" placeholder="PRC license number" disabled={isReadOnly} /></div>
+                  <div><Label>Signature (Type full name)</Label><Input value={formData.signature || ''} onChange={e => setFormData(p => ({...p, signature: e.target.value}))} className="mt-1" placeholder="Dr. [Full Name]" disabled={isReadOnly} /></div>
+                  <div className="flex gap-3">
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={formData.confirmSign || false} onChange={e => setFormData(p => ({...p, confirmSign: e.target.checked}))} disabled={isReadOnly} />I confirm that the above information is accurate and complete</label>
+                  </div>
+                  {!isReadOnly && (
+                    <div className="flex gap-2 pt-4 border-t">
+                      <Button variant="outline" onClick={() => navigateToStep('checklist')}><ChevronLeft className="w-4 h-4 mr-1.5" />Back to Checklist</Button>
+                      <Button disabled={!formData.confirmSign || !formData.signature} onClick={() => { if (!formData.confirmSign || !formData.signature) return; handleFinishConsultation(); }} className="bg-blue-600 hover:bg-blue-700 text-white">
+                        <Check className="w-4 h-4 mr-1.5" />Sign & Complete
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Clinical Context Panel */}
+        {showRightPanel && (
+          <div className="hidden lg:flex flex-col w-64 shrink-0 border border-gray-200 rounded-lg bg-white">
+            <div className="p-3 border-b border-gray-100 bg-stone-50 rounded-t-lg flex items-center justify-between">
+              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Context</p>
+              <button onClick={() => setShowRightPanel(false)} className="text-stone-400 hover:text-stone-600"><X className="w-3.5 h-3.5" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-4 text-sm">
+              {(patient?.allergies?.length > 0 || patient?.aggressionWarning || patient?.chronicConditions?.length > 0) && (
+                <div>
+                  <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><AlertTriangle className="w-3 h-3 text-amber-500" /> Medical Alerts</h4>
+                  <div className="space-y-1.5">
+                    {patient.allergies?.map((a, i) => (<div key={i} className="flex items-center gap-2 p-1.5 rounded bg-red-50 text-red-700 text-xs"><span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" /><span>Allergy: {a}</span></div>))}
+                    {patient.aggressionWarning && (<div className="flex items-center gap-2 p-1.5 rounded bg-orange-50 text-orange-700 text-xs"><span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" /><span>Aggressive - handle with caution</span></div>)}
+                    {patient.chronicConditions?.map((c, i) => (<div key={i} className="flex items-center gap-2 p-1.5 rounded bg-amber-50 text-amber-700 text-xs"><span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" /><span>{c}</span></div>))}
+                  </div>
+                </div>
+              )}
+              <div>
+                <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><History className="w-3 h-3" /> Previous Visits</h4>
+                <div className="space-y-1.5">
+                  {encounters.filter(e => e.id !== selectedEncounter?.id).sort((a, b) => { const aTs = typeof (a.startedAt||a.createdAt)?.toDate === 'function' ? (a.startedAt||a.createdAt).toDate() : (a.startedAt||a.createdAt); const bTs = typeof (b.startedAt||b.createdAt)?.toDate === 'function' ? (b.startedAt||b.createdAt).toDate() : (b.startedAt||b.createdAt); return (bTs?new Date(bTs).getTime():0) - (aTs?new Date(aTs).getTime():0); }).slice(0, 3).map(enc => (
+                    <div key={enc.id} className="p-2 rounded bg-stone-50 border border-stone-100">
+                      <p className="text-xs font-medium text-stone-700">{enc.startedAt?.toDate?.()?.toLocaleDateString?.() || 'N/A'}</p>
+                      <p className="text-[10px] text-stone-500">{enc.doctorName || 'N/A'} &middot; {enc.diagnosis || enc.status || 'N/A'}</p>
+                    </div>
+                  ))}
+                  {encounters.filter(e => e.id !== selectedEncounter?.id).length === 0 && <p className="text-xs text-stone-400 italic">No previous visits</p>}
+                </div>
+              </div>
+              {prescriptions.length > 0 && (<div><h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Pill className="w-3 h-3" /> Active Medications</h4>
+                  <div className="space-y-1.5">{prescriptions.slice(0, 3).map((rx, i) => (<div key={rx.id||i} className="p-2 rounded bg-blue-50 border border-blue-100"><p className="text-xs font-medium text-blue-800">{rx.medicationName||rx.name||rx.medication}</p><p className="text-[10px] text-blue-600">{rx.dosage||''}{rx.dosage&&rx.frequency?' · ':''}{rx.frequency||''}</p></div>))}</div></div>)}
+              {labOrders.length > 0 && (<div><h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FlaskConical className="w-3 h-3" /> Recent Labs</h4>
+                  <div className="space-y-1.5">{labOrders.slice(0, 3).map((lab, i) => (<div key={lab.id||i} className="p-2 rounded bg-purple-50 border border-purple-100"><p className="text-xs font-medium text-purple-800">{lab.testName||lab.name||lab.type}</p><p className="text-[10px] text-purple-600">{lab.status||'Pending'}</p></div>))}</div></div>)}
+              {triageVitals.length > 0 && (<div><h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Activity className="w-3 h-3" /> Latest Vitals</h4>
+                  <div className="grid grid-cols-2 gap-1.5">{(() => { const v = triageVitals[triageVitals.length - 1]; return [{label:'Weight',value:v.weight? v.weight+' kg':null},{label:'Temp',value:v.temperature? v.temperature+'°C':null},{label:'HR',value:v.heartRate? v.heartRate+' bpm':null},{label:'RR',value:v.respRate? v.respRate+' /min':null}].filter(i=>i.value!==null).map((item,i) => (<div key={i} className="p-1.5 rounded bg-stone-50 text-center"><p className="text-[10px] text-stone-500">{item.label}</p><p className="text-xs font-semibold text-stone-800">{item.value}</p></div>)) })()}</div></div>)}
+              {invoice && (() => { const balance = invoice.balanceDue ?? invoice.grandTotal - (invoice.amountPaid||0); if (balance <= 0) return null; return (<div><h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><DollarSign className="w-3 h-3 text-amber-500" /> Billing</h4><div className="p-2 rounded bg-amber-50 border border-amber-200"><p className="text-xs font-semibold text-amber-800">Outstanding: ₱{(balance||0).toLocaleString()}</p><p className="text-[10px] text-amber-600">Due: {invoice.dueDate?.toDate?.()?.toLocaleDateString?.()||'N/A'}</p></div></div>); })()}
+              {triageVitals.length > 1 && (() => {
+                const current = triageVitals[triageVitals.length - 1];
+                const previous = triageVitals[triageVitals.length - 2];
+                if (!current?.weight) return null;
+                const diff = previous?.weight ? current.weight - previous.weight : 0;
+                const diffText = diff !== 0 ? (diff > 0 ? `+${diff.toFixed(1)} kg` : `${diff.toFixed(1)} kg`) : null;
+                return (
+                  <div>
+                    <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Activity className="w-3 h-3" /> Weight Trend</h4>
+                    <div className="p-2 rounded bg-stone-50 border border-stone-200">
+                      <p className="text-xs font-semibold text-stone-800">{current.weight} kg <span className="text-xs font-normal text-stone-500">(current)</span></p>
+                      {previous?.weight && <p className="text-[10px] text-stone-500">Previous: {previous.weight} kg</p>}
+                      {diffText && <p className={cn('text-[10px] font-medium', diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-red-600' : 'text-stone-400')}>{diffText} from last visit</p>}
+                    </div>
+                  </div>
+                );
+              })()}
+              <div>
+                <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Calendar className="w-3 h-3" /> Preventive Care</h4>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between p-2 rounded bg-emerald-50 border border-emerald-100">
+                    <span className="text-[10px] text-emerald-700">Deworming</span>
+                    <span className="text-[10px] font-medium text-emerald-600">Due soon</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded bg-blue-50 border border-blue-100">
+                    <span className="text-[10px] text-blue-700">Rabies Vaccine</span>
+                    <span className="text-[10px] font-medium text-blue-600">Due Jun 2026</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded bg-purple-50 border border-purple-100">
+                    <span className="text-[10px] text-purple-700">Heartworm Test</span>
+                    <span className="text-[10px] font-medium text-purple-600">Up to date</span>
+                  </div>
+                  <p className="text-[9px] text-stone-400 italic mt-1">Configure in Pet Details</p>
+                </div>
+              </div>
+              {selectedEncounter?.admissionId && (
+                <div>
+                  <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Heart className="w-3 h-3" /> Active Admission</h4>
+                  <div className="p-2 rounded bg-rose-50 border border-rose-200">
+                    <p className="text-xs font-medium text-rose-800">Pet is currently confined</p>
+                    <p className="text-[10px] text-rose-600">Admission: {selectedEncounter.admissionId.slice(-8)}</p>
+                  </div>
+                </div>
+              )}
+              {owner?.notes && (
+                <div>
+                  <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-3 h-3" /> Owner Notes</h4>
+                  <div className="p-2 rounded bg-stone-50 border border-stone-200">
+                    <p className="text-[10px] text-stone-600">{owner.notes}</p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDoctorDialog(false)}>Cancel</Button>
-            <Button 
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-              disabled={!selectedDoctorId || loading}
-              onClick={confirmQuickStart}
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Starting Visit...
-                </span>
-              ) : (
-                'Confirm Quick Start'
-              )}
+        )}
+
+        {!showRightPanel && (
+          <button onClick={() => setShowRightPanel(true)} className="hidden lg:flex items-center justify-center w-6 border border-gray-200 rounded-r-lg bg-white hover:bg-stone-50 text-stone-400 hover:text-stone-600 cursor-pointer" title="Show context panel">
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Bottom Action Bar */}
+      <div className="sticky bottom-0 z-10 border-t border-gray-200 bg-white/95 backdrop-blur-sm px-6 py-3 flex items-center gap-3 mt-4 rounded-lg shadow-sm">
+        <div className="flex items-center gap-2 text-xs text-stone-500 mr-2">
+          <span className="font-medium">{patient.name}</span>
+          <span className="text-stone-300">|</span>
+          <span className={cn('font-medium', mode === 'active' ? 'text-emerald-600' : mode === 'medical-completed' ? 'text-purple-600' : 'text-stone-500')}>{mode === 'active' ? 'Active' : mode === 'medical-completed' ? 'Complete' : 'Viewing'}</span>
+          <span className="text-stone-300">|</span>
+          <span className="text-xs text-stone-500">Step {steps.findIndex(s=>s.id===activeStep)+1}/{steps.length}</span>
+        </div>
+        <div className="flex-1" />
+        {!isReadOnly && (
+          <>
+            <Button variant="outline" size="sm" onClick={() => { if (formData.subjective||formData.objective||formData.assessment||formData.plan) saveClinicalNotes(); alert('Draft saved.'); }}><FileText className="w-3.5 h-3.5 mr-1.5" />Save Draft</Button>
+            <Button variant="outline" size="sm" onClick={() => navigateToStep('prescriptions')}><Pill className="w-3.5 h-3.5 mr-1.5" />Add Prescription</Button>
+            <Button variant="outline" size="sm" onClick={() => setShowOrderLabModal(true)}><FlaskConical className="w-3.5 h-3.5 mr-1.5" />Order Lab</Button>
+            <Button variant="outline" size="sm" onClick={() => navigateToStep('admission')}><Heart className="w-3.5 h-3.5 mr-1.5" />Recommend Admission</Button>
+            <Button variant="outline" size="sm" onClick={() => navigateToStep('summary')}><FileText className="w-3.5 h-3.5 mr-1.5" />Generate Visit Summary</Button>
+          </>
+        )}
+        <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="w-3.5 h-3.5 mr-1.5" />Print</Button>
+        <Button variant="outline" size="sm" onClick={() => setShowRightPanel(!showRightPanel)} className="hidden lg:inline-flex">{showRightPanel ? <ChevronRight className="w-3.5 h-3.5 mr-1.5" /> : <ChevronLeft className="w-3.5 h-3.5 mr-1.5" />}{showRightPanel ? 'Hide Panel' : 'Show Panel'}</Button>
+        {mode === 'active' && (
+          <>
+            <Button variant="outline" size="sm" onClick={() => navigateToStep('checklist')} className="border-amber-300 text-amber-700 hover:bg-amber-50">
+              <ClipboardList className="w-3.5 h-3.5 mr-1.5" />Checklist
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <Button size="sm" onClick={() => setShowFinishDialog(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              <Check className="w-3.5 h-3.5 mr-1.5" />Finish Consultation
+            </Button>
+          </>
+        )}
+      </div>
+
+      {/* Order Lab Modal */}
+      <OrderLabModal
+        open={showOrderLabModal}
+        onOpenChange={setShowOrderLabModal}
+        encounter={selectedEncounter}
+        patient={patient}
+        owner={owner}
+        doctorName={auth.currentUser?.displayName || selectedEncounter?.assignedDoctorName || ''}
+        serviceCatalog={serviceCatalog}
+        onCreated={async () => {
+          if (selectedEncounter?.id) {
+            const updatedLabs = await fetchLabOrders(selectedEncounter.id);
+            setLabOrders(updatedLabs);
+            const updatedServices = await fetchAppointmentServices(selectedEncounter.id);
+            setAppointmentServices(updatedServices);
+          }
+        }}
+      />
     </div>
   );
 }

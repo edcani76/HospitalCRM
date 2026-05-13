@@ -267,4 +267,49 @@ export interface Prescription {
   updatedAt?: any;
 }
 
+export type LabOrderStatus =
+  | 'draft'
+  | 'ordered'
+  | 'awaiting-sample'
+  | 'sample-collected'
+  | 'in-progress'
+  | 'ready-for-review'
+  | 'completed'
+  | 'cancelled'
+  | 'rejected-sample'
+  | 'awaiting-external-lab'
+  | 'critical-result'
+  | 'amended';
+
+export interface LabOrder {
+  id?: string;
+  encounterId: string;
+  appointmentServiceId?: string;
+  patientId: string;
+  petName?: string;
+  ownerName?: string;
+  ownerId?: string;
+  testName: string;
+  testCode?: string;
+  testCategory: 'Laboratory' | 'Imaging' | 'External Lab';
+  status: LabOrderStatus;
+  reason: string;
+  priority: 'Routine' | 'Urgent' | 'STAT';
+  sampleType?: 'Blood' | 'Urine' | 'Fecal' | 'Swab' | '';
+  expectedDate?: any;
+  externalLab?: boolean;
+  notes?: string;
+  billingBehavior: 'queue' | 'create-invoice-line';
+  ownerConsent?: 'pending' | 'signed' | 'waived';
+  orderedBy: string;
+  orderedByUid?: string;
+  completedBy?: string;
+  orderedAt?: any;
+  completedAt?: any;
+  resultSummary?: string;
+  resultFileUrls?: string[];
+  createdAt?: any;
+  updatedAt?: any;
+}
+
 export type PatientStatus = 'active' | 'inactive' | 'critical' | 'stable' | 'recovered';

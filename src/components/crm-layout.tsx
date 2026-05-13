@@ -192,7 +192,7 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
         roles: ['admin', 'doctor', 'staff'],
       },
       {
-        name: 'Medical Records',
+        name: 'EMR & Medical Records',
         path: '/crm/emr',
         icon: ClipboardList,
         roles: ['admin', 'doctor', 'staff'],
@@ -365,7 +365,7 @@ const getBreadcrumbs = (): CRMBreadcrumb[] => {
       } else if (fromSegments.includes('appointments')) {
         breadcrumbs.push({ name: 'Appointments', path: '/crm/appointments' });
       } else if (fromSegments.includes('emr')) {
-        breadcrumbs.push({ name: 'Medical Records', path: '/crm/emr' });
+        breadcrumbs.push({ name: 'EMR & Medical Records', path: '/crm/emr' });
       }
       
       // Add current page
@@ -397,7 +397,7 @@ const getBreadcrumbs = (): CRMBreadcrumb[] => {
       'appointments': 'Appointments',
       'patients': 'Patients',
       'owners': 'Pet Owners',
-      'emr': 'Medical Records',
+      'emr': 'EMR & Medical Records',
       'billing': 'Billing',
       'pharmacy': 'Pharmacy',
       'lab-reports': 'Lab Reports',

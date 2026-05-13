@@ -3,7 +3,7 @@
 ## Goal
 Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix timestamp display, add full service management to Edit Appointment matching Create Appointment, build Visit Summary tab, modernize portal dashboard UI/UX, integrate Google Drive via server proxy, build unified service catalog with provider-resource mapping, rebuild customer booking with doctor carousel and dynamic availability, and enhance patient records with full clinical details.
 
-## Current Status (2026-05-11)
+## Current Status (2026-05-13)
 
 ### ✅ Completed Features
 
@@ -218,6 +218,20 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
     - Friendly empty state with Create Invoice button
 
 31. **Pharmacy Operations Dashboard**
+
+32. **EMR 3-Column Consultation Workspace**
+    - Restructured EMR Details page into full 3-column layout: stepper sidebar, main content, clinical context panel
+    - 10-step stepper with active/completed/future states: Chief Complaint, Subjective, Triage & Vitals, Physical Exam, Assessment, Plan, Orders & Diagnostics, Medications, Follow-Up, Owner Instructions
+    - Bottom action bar per step with approval (Continue/Save) or skip actions
+    - Steps 4–8 (Physical Exam → Medications) reuse existing tab content via `stepToTabMap`
+    - Steps 1–2 + 9–10 (Chief Complaint, Subjective, Follow-Up, Owner Instructions) have dedicated inline forms
+    - Step 3 maps to Triage & Vitals tab
+    - Chief Complaint and Subjective forms prepopulate from existing SOAP notes
+    - Follow-Up and Owner Instructions saved as separate clinical note fields
+    - `whitespace-normal` on sidebar step labels to prevent truncation
+    - `handleFinishConsultation` transitions `in-progress` → `medical-completed`, generates invoice, creates audit log
+    - All steps can be navigated non-linearly by clicking sidebar items
+    - Clinical context panel (right side) shows encounter summary: patient/doctor card, chief complaint, triage snapshot link
     - 6 KPI cards: Total Products, Low Stock Items, Expiring Soon, Prescriptions Pending, Today's Dispensed, Inventory Value (at cost)
     - 5 tabs: All Medications, Prescription Queue, Stock Movements, Purchase Orders (placeholder), Inventory Reports (placeholder)
     - Rich inventory table with search, category filter, stock status filter (In Stock/Low Stock/Out of Stock/Has Expired)
@@ -255,21 +269,21 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 ### 📂 Migration Scripts (Already Run)
 - `scripts/migrate-appointment-services.ts`: 12 appointments migrated from `Type:` to `Services:` format
 - `scripts/migrate-encounters-startedAt.ts`: Encounters already have `startedAt`
+- `scripts/seed-pharmacy-data.ts`: Created 15 medications, 33 inventory batches, stock movements, 5 prescriptions
 
 ### 🚀 Next Steps
 1. Test the full pharmacy flow: add medication → receive stock (batch) → view in inventory → adjust stock → view movements → dispense from prescription queue
 2. Test PDF invoice generation with real data
 3. Verify Google Drive uploads work end-to-end
 4. Test full appointment lifecycle (confirm → start → medical-complete → bill → pay → close)
-5. Run `scripts/seed-pharmacy-data.ts` to populate inventory_batches, stock_movements, and prescriptions collections with realistic test data
-6. If "ThemeContext invalid hook call" error appears in console: disable MetaMask extension for localhost (SES lockdown removes `Proxy`), or use `npm run build && npx serve dist`
+5. If "ThemeContext invalid hook call" error appears in console: disable MetaMask extension for localhost (SES lockdown removes `Proxy`), or use `npm run build && npx serve dist`
 
 ### 🗂️ Key Files Modified
 - `src/pages/crm/pharmacy-page.tsx` - Pharmacy Operations Dashboard: KPI cards (Total Products, Low Stock, Expiring Soon, Prescriptions Pending, Today's Dispensed, Inventory Value), 5 tabs (All Medications, Prescription Queue, Stock Movements, Purchase Orders, Inventory Reports), rich table with stock status badges/expiry/filters, detail side drawer (batches table, movement timeline), dialogs (Add/Edit Medication, Receive Stock with batch details, Adjust Stock, Dispense from Prescription)
 - `src/types.ts` - Added `InventoryBatch`, `StockMovement`, `Prescription` interfaces with full pharmacy fields
 - `src/lib/firestore-helpers.ts` - Added `fetchInventoryBatches`, `createInventoryBatch`, `updateInventoryBatch`, `fetchStockMovements`, `createStockMovement`, `createMedication`, `updateMedication`, `deleteMedication`, `fetchAllPrescriptions`, `updatePrescription`
 - `src/pages/crm/billing-page.tsx` - Billing & Payments Command Center with KPI cards, tabs, filters, rich table, side drawer, payment dialog
-- `src/pages/crm/emr-page.tsx` - EMR page with VisitSummaryTab, mode detection, Quick Start Visit, PDF download, vitals form toggle, start time in header, service Complete button, resolveName fix
+- `src/pages/crm/emr-page.tsx` - EMR page with **15-step consultation workspace** (15-step stepper, clinical context panel, bottom action bar), VisitSummaryTab, mode detection, Quick Start Visit, PDF download, vitals form toggle, service Complete button, resolveName fix, handleFinishConsultation
 - `src/pages/crm/patient-profile.tsx` - Quick Start Visit, doctor selector
 - `src/pages/crm/appointment-details-page.tsx` - Service management, notes display
 - `src/pages/crm/admin-services.tsx` - Admin UI for service catalog, provider/resource management
@@ -294,10 +308,11 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `scripts/seed-service-catalog.ts` - Extended seed with provider/resource mapping, resources creation
 - `scripts/seed-emr-data.ts` - Comprehensive EMR seed data script
 - `scripts/migrate-pet-images-to-drive.ts` - Migration script for base64/Firebase images to Drive
+- `scripts/seed-pharmacy-data.ts` - Pharmacy seed data: 15 medications, 33 inventory batches, stock movements, 5 prescriptions
 - `public/_redirects` - Netlify SPA routing configuration
 
 ### ⚙️ Critical Context
-- EMR Page tabs (9): Visit Summary, Triage & Vitals, Clinical Notes, Orders & Services, Medications, Diagnostics, Billing (active only), History, Audit Trail
+- EMR Page: 15-step consultation workspace (Chief Complaint → Doctor Signature) replaces old 9-tab layout
 - `encounterServices` state fetches from `appointment_services` collection
 - Service storage in Edit Appointment: `Services: consultation, grooming` line in notes field
 - Start Appointment: Parses `Services:` from notes, creates `appointment_services` records

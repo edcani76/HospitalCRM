@@ -178,7 +178,7 @@ export default function PetProfile() {
         { id: 'overview', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
         { id: 'queue', label: 'Patient Queue', icon: <ClipboardList className="w-5 h-5" /> },
         { id: 'appointments', label: 'Schedules', icon: <Calendar className="w-5 h-5" /> },
-        { id: 'emr', label: 'Medical Records', icon: <Activity className="w-5 h-5" /> },
+        { id: 'emr', label: 'EMR & Medical Records', icon: <Activity className="w-5 h-5" /> },
         { id: 'billing', label: 'Billing', icon: <FileText className="w-5 h-5" /> },
         { id: 'inventory', label: 'Inventory', icon: <FileText className="w-5 h-5" /> },
         { id: 'users', label: 'User Management', icon: <Users className="w-5 h-5" /> },

@@ -73,7 +73,7 @@ export default function BillingPage() {
           fetchUsers()
         ]);
         setBills(invoicesData);
-        setPets(petsData);
+        setPets((petsData || []).filter(Boolean));
         setUsers(usersData);
       } catch (error) {
         console.error('Error loading billing data:', error);
@@ -428,7 +428,7 @@ export default function BillingPage() {
                       }}>
                         <SelectTrigger><SelectValue placeholder="Select pet" /></SelectTrigger>
                         <SelectContent>
-                          {pets.map(pet => (
+                          {pets.filter(Boolean).map(pet => (
                             <SelectItem key={pet.id} value={pet.id}>{pet.name} ({pet.species})</SelectItem>
                           ))}
                         </SelectContent>
