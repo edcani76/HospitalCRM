@@ -40,7 +40,8 @@ export default function Home() {
         <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[120px] -ml-72 -mb-72" />
         
         <div className="container mx-auto px-6 relative z-10 max-w-7xl">
-          <div className="max-w-4xl">
+          <div className="flex items-center gap-16">
+            <div className="max-w-4xl flex-1">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -49,7 +50,7 @@ export default function Home() {
               <ShieldCheck className="w-4 h-4" />
               Advanced Clinical Care
             </motion.div>
-            
+
             <motion.h1 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -89,6 +90,19 @@ export default function Home() {
                 </Link>
             </motion.div>
           </div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4 }}
+            className="hidden lg:block shrink-0"
+          >
+            <img
+              src="/cat_dog_hero.png"
+              alt="Cat and dog"
+              className="w-[420px] h-auto rounded-[2rem] shadow-2xl"
+            />
+          </motion.div>
+        </div>
         </div>
       </section>
 

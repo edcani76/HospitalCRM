@@ -78,6 +78,7 @@ export default function PatientProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [users, setUsers] = useState<{ [uid: string]: any }>({});
   const [isPhotoActionModalOpen, setIsPhotoActionModalOpen] = useState(false);
@@ -342,6 +343,7 @@ export default function PatientProfilePage() {
 
   const handleEditSubmit = async (formData: any) => {
     if (!patient) return;
+    setIsSaving(true);
 
     try {
       let imageUrl = patient.imageUrl || patient.photo || '';
@@ -410,6 +412,8 @@ export default function PatientProfilePage() {
     } catch (error) {
       console.error('Error updating patient:', error);
       alert('Failed to update patient. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1217,6 +1221,7 @@ export default function PatientProfilePage() {
         users={users}
         onSubmit={handleEditSubmit}
         onCancel={() => setIsEditModalOpen(false)}
+        isSubmitting={isSaving}
       />
 
       {/* Camera Capture Modal */}
