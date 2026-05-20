@@ -482,6 +482,7 @@ export default function EMRPage() {
   const [selectedEncounter, setSelectedEncounter] = useState<any>(null);
   const [mode, setMode] = useState<'active' | 'view' | 'medical-completed'>('view');
   const [scheduledAppointment, setScheduledAppointment] = useState<any>(null);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Service catalog
@@ -778,6 +779,7 @@ Mode: Walk-in`,
           !encounterData.some((enc: any) => enc.appointmentId === apt.id)
         );
         setScheduledAppointment(scheduled || null);
+        setAppointments(appointmentsData);
 
       } catch (error) {
         console.error('Error loading EMR data:', error);
@@ -1067,6 +1069,7 @@ Mode: Walk-in`,
   const persistPlanItems = async (items: any[]) => {
     if (!selectedEncounter?.id) return;
     try {
+      await clearCache(`clinical_notes_${selectedEncounter.id}`).catch(() => {});
       const existingNotes = await fetchClinicalNotes(selectedEncounter.id);
       if (existingNotes.length > 0) {
         const latest = existingNotes[existingNotes.length - 1];
@@ -1079,50 +1082,63 @@ Mode: Walk-in`,
     }
   };
 
-  const saveClinicalNotes = async () => {
+  const saveClinicalNotes = async (
+    customFormData?: any,
+    customChiefComplaint?: any,
+    customPlanItems?: any[]
+  ) => {
     if (!selectedEncounter?.id) return;
+    if (isSavingNotesRef.current) return;
+    isSavingNotesRef.current = true;
     setSavingNotes(true);
     try {
+      const activeFormData = customFormData || formData;
+      const activeChiefComplaint = customChiefComplaint || chiefComplaint;
+      const activePlanItems = customPlanItems || planItems;
+
       const userName = auth.currentUser?.displayName || auth.currentUser?.email || 'Unknown';
       const notesData = {
         encounterId: selectedEncounter.id,
         patientId: patientId,
-        chiefComplaint: chiefComplaint.reason || formData.chiefComplaint || '',
-        chiefComplaintDuration: chiefComplaint.duration || '',
-        chiefComplaintUrgency: chiefComplaint.urgency || 'Routine',
-        ownerStatement: chiefComplaint.ownerStatement || '',
-        subjective: formData.subjective || '',
-        objective: formData.objective || '',
-        assessment: formData.assessment || '',
-        plan: formData.plan || '',
-        diagnosis: formData.diagnosis || '',
-        diagnosisStatus: formData.diagnosisStatus || 'working',
-        differentials: formData.differentials || '',
-        severity: formData.severity || '',
-        prognosis: formData.prognosis || '',
-        clinicalImpression: formData.clinicalImpression || '',
-        problemList: formData.problemList || '',
-        appetite: formData.appetite || '',
-        waterIntake: formData.waterIntake || '',
-        urination: formData.urination || '',
-        stool: formData.stool || '',
-        vomiting: formData.vomiting || '',
-        coughing: formData.coughing || '',
-        activity: formData.activity || '',
-        currentMeds: formData.currentMeds || '',
-        pastHistory: formData.pastHistory || '',
-        followUpInstructions: formData.followUpInstructions || followUpInstructions || '',
-        followupType: formData.followupType || 'Recheck',
-        followUpDate: formData.followUpDate || followUpDate || '',
-        ownerInstructions: formData.ownerInstructions || ownerInstructions || '',
-        dietInstructions: formData.dietInstructions || '',
-        warningSigns: formData.warningSigns || '',
-        doctorNotes: formData.doctorNotes || '',
-        licenseNumber: formData.licenseNumber || '',
-        planItems: planItems,
+        chiefComplaint: activeChiefComplaint.reason || activeFormData.chiefComplaint || '',
+        chiefComplaintDuration: activeChiefComplaint.duration || '',
+        chiefComplaintUrgency: activeChiefComplaint.urgency || 'Routine',
+        ownerStatement: activeChiefComplaint.ownerStatement || '',
+        subjective: activeFormData.subjective || '',
+        objective: activeFormData.objective || '',
+        assessment: activeFormData.assessment || '',
+        plan: activeFormData.plan || '',
+        diagnosis: activeFormData.diagnosis || '',
+        diagnosisStatus: activeFormData.diagnosisStatus || 'working',
+        differentials: activeFormData.differentials || '',
+        severity: activeFormData.severity || '',
+        prognosis: activeFormData.prognosis || '',
+        clinicalImpression: activeFormData.clinicalImpression || '',
+        problemList: activeFormData.problemList || '',
+        appetite: activeFormData.appetite || '',
+        waterIntake: activeFormData.waterIntake || '',
+        urination: activeFormData.urination || '',
+        stool: activeFormData.stool || '',
+        vomiting: activeFormData.vomiting || '',
+        coughing: activeFormData.coughing || '',
+        activity: activeFormData.activity || '',
+        currentMeds: activeFormData.currentMeds || '',
+        pastHistory: activeFormData.pastHistory || '',
+        followUpInstructions: activeFormData.followUpInstructions || followUpInstructions || '',
+        followupType: activeFormData.followupType || 'Recheck',
+        followUpDate: activeFormData.followUpDate || followUpDate || '',
+        ownerInstructions: activeFormData.ownerInstructions || ownerInstructions || '',
+        dietInstructions: activeFormData.dietInstructions || '',
+        warningSigns: activeFormData.warningSigns || '',
+        doctorNotes: formData.doctorNotes || '', // Maintain any existing doctorNotes field
+        licenseNumber: activeFormData.licenseNumber || '',
+        planItems: activePlanItems,
         createdBy: userName,
         updatedAt: serverTimestamp()
       };
+
+      // Clear cache before checking to prevent stale cached query leading to duplicate record creation
+      await clearCache(`clinical_notes_${selectedEncounter.id}`).catch(() => {});
 
       // Check if a notes document already exists for this encounter
       const existingNotes = await fetchClinicalNotes(selectedEncounter.id);
@@ -1179,6 +1195,9 @@ Mode: Walk-in`,
       });
       await addAuditLog({ action: 'encounter_notes_updated', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: selectedEncounter?.id, patientId: patientId, details: '' });
 
+      // Clear cache after writing so any immediate subsequent queries read the newly written data
+      await clearCache(`clinical_notes_${selectedEncounter.id}`).catch(() => {});
+
       // Refresh clinical notes
       const updatedNotes = await fetchClinicalNotes(selectedEncounter.id);
       setClinicalNotes(updatedNotes.length > 0 ? updatedNotes[updatedNotes.length - 1] : null);
@@ -1188,6 +1207,7 @@ Mode: Walk-in`,
       alert('Error saving clinical notes. Please try again.');
     } finally {
       setSavingNotes(false);
+      isSavingNotesRef.current = false;
     }
   };
 
@@ -1745,6 +1765,14 @@ Mode: Walk-in`,
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const tabRefs = useRef<Record<string, boolean>>({});
 
+  const latestStateRef = useRef({ formData, chiefComplaint, planItems });
+  const isSavingNotesRef = useRef(false);
+  const skipUnmountSaveRef = useRef(false);
+
+  useEffect(() => {
+    latestStateRef.current = { formData, chiefComplaint, planItems };
+  }, [formData, chiefComplaint, planItems]);
+
   const steps = [
     { id: 'chief-complaint', label: 'Chief Complaint', icon: FileText },
     { id: 'subjective', label: 'Subjective', icon: ClipboardList },
@@ -1785,8 +1813,8 @@ Mode: Walk-in`,
     return false;
   };
 
-  const navigateToStep = (stepId: string) => {
-    if (!isReadOnly && selectedEncounter?.id) {
+  const navigateToStep = (stepId: string, skipSave = false) => {
+    if (!isReadOnly && selectedEncounter?.id && !skipSave) {
       saveClinicalNotes();
     }
     setActiveStep(stepId);
@@ -1801,8 +1829,9 @@ Mode: Walk-in`,
   const handleFinishConsultation = async () => {
     if (!selectedEncounter?.id) return;
     try {
-      await updateDoc(doc(db, 'encounters', selectedEncounter.id), { status: 'medical-completed', completedAt: serverTimestamp() });
+      skipUnmountSaveRef.current = true;
       await saveClinicalNotes();
+      await updateDoc(doc(db, 'encounters', selectedEncounter.id), { status: 'medical-completed', completedAt: serverTimestamp() });
       const billableServices = appointmentServices.filter((s: any) => s.billable !== false);
       if (billableServices.length > 0) {
         await generateInvoiceFromEncounter(selectedEncounter.id, billableServices, patientId || '', selectedEncounter.ownerId || patient?.ownerUid || '');
@@ -1827,12 +1856,18 @@ Mode: Walk-in`,
   const readOnlyMode = mode !== 'active';
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (!readOnlyMode && selectedEncounter?.id) saveClinicalNotes();
+      if (!readOnlyMode && selectedEncounter?.id && !skipUnmountSaveRef.current) {
+        const { formData: f, chiefComplaint: c, planItems: p } = latestStateRef.current;
+        saveClinicalNotes(f, c, p);
+      }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      if (!readOnlyMode && selectedEncounter?.id) saveClinicalNotes();
+      if (!readOnlyMode && selectedEncounter?.id && !skipUnmountSaveRef.current) {
+        const { formData: f, chiefComplaint: c, planItems: p } = latestStateRef.current;
+        saveClinicalNotes(f, c, p);
+      }
     };
   }, [readOnlyMode, selectedEncounter?.id]);
 
@@ -1904,19 +1939,36 @@ Mode: Walk-in`,
         }
       />
 
-      {selectedEncounter?.status === 'in-progress' && mode === 'active' && !scheduledAppointment?.id && (
-        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0" />
-          <p className="text-sm text-orange-800">
-            This encounter may have been orphaned.
-            {selectedEncounter?.startedAt?.toDate?.() && (
-              <span className="block text-xs text-orange-600 mt-1">
-                Started {format(selectedEncounter.startedAt.toDate(), 'MMM d, yyyy h:mm a')}
-              </span>
-            )}
-          </p>
-        </div>
-      )}
+      {(() => {
+        if (selectedEncounter?.status !== 'in-progress' || mode !== 'active') return null;
+        
+        // Find the appointment linked to this encounter
+        const linkedApt = selectedEncounter.appointmentId 
+          ? appointments.find((apt: any) => apt.id === selectedEncounter.appointmentId)
+          : null;
+          
+        // An encounter is orphaned if it has no linked appointment ID, OR 
+        // if it has a linked appointment ID but the appointment cannot be found or is cancelled.
+        const isOrphaned = selectedEncounter.appointmentId 
+          ? (!linkedApt || linkedApt.status === 'cancelled')
+          : true;
+
+        if (!isOrphaned) return null;
+
+        return (
+          <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0" />
+            <p className="text-sm text-orange-800">
+              This encounter may have been orphaned.
+              {selectedEncounter?.startedAt?.toDate?.() && (
+                <span className="block text-xs text-orange-600 mt-1">
+                  Started {format(selectedEncounter.startedAt.toDate(), 'MMM d, yyyy h:mm a')}
+                </span>
+              )}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Sticky Encounter Header */}
       <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm mb-6 -mx-6 px-6 py-3">
@@ -2088,7 +2140,16 @@ Mode: Walk-in`,
                 </div>
                 {mode === 'active' && (
                   <div className="mt-6 pt-6 border-t flex gap-2">
-                    <Button onClick={() => { saveClinicalNotes(); setFormData(p => ({...p, chiefComplaint: chiefComplaint.reason, subjective: chiefComplaint.reason + (chiefComplaint.duration ? ' (' + chiefComplaint.duration + ')' : '') + '\n' + chiefComplaint.ownerStatement})); navigateToStep('subjective'); }}>
+                    <Button onClick={async () => {
+                      const nextFormData = {
+                        ...formData,
+                        chiefComplaint: chiefComplaint.reason,
+                        subjective: chiefComplaint.reason + (chiefComplaint.duration ? ' (' + chiefComplaint.duration + ')' : '') + '\n' + chiefComplaint.ownerStatement
+                      };
+                      setFormData(nextFormData);
+                      await saveClinicalNotes(nextFormData, chiefComplaint);
+                      navigateToStep('subjective', true);
+                    }}>
                       <Check className="w-4 h-4 mr-1.5" />Save & Continue to Subjective
                     </Button>
                   </div>
@@ -2127,7 +2188,7 @@ Mode: Walk-in`,
                   )}
                   <div><Label>History of Present Illness</Label><Textarea value={formData.subjective || clinicalNotes?.subjective || ''} onChange={e => setFormData(p => ({...p, subjective: e.target.value}))} className="mt-1" rows={3} placeholder="Onset, progression, associated symptoms..." disabled={isReadOnly} /></div>
                   <div><Label>Past Medical History</Label><Textarea value={formData.pastHistory || ''} onChange={e => setFormData(p => ({...p, pastHistory: e.target.value}))} className="mt-1" rows={2} placeholder="Previous illnesses, surgeries, medications..." disabled={isReadOnly} /></div>
-                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={() => { saveClinicalNotes(); navigateToStep('vitals'); }}><Check className="w-4 h-4 mr-1.5" />Save & Continue to Vitals</Button></div>}
+                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={async () => { await saveClinicalNotes(); navigateToStep('vitals', true); }}><Check className="w-4 h-4 mr-1.5" />Save & Continue to Vitals</Button></div>}
                 </div>
               </div>
             )}
@@ -2161,7 +2222,7 @@ Mode: Walk-in`,
                     {vitalsEditMode && (<Button type="button" variant="outline" onClick={() => { const latest = triageVitals[triageVitals.length - 1]; setVitalsForm(latest || {}); setVitalsEditMode(false); }}>Cancel</Button>)}
                   </div>
                 </form>
-                {!isReadOnly && <div className="mt-6 pt-4 border-t flex gap-2"><Button onClick={() => navigateToStep('physical-exam')}><Check className="w-4 h-4 mr-1.5" />Continue to Physical Exam</Button></div>}
+                {!isReadOnly && <div className="mt-6 pt-4 border-t flex gap-2"><Button onClick={() => navigateToStep('physical-exam', true)}><Check className="w-4 h-4 mr-1.5" />Continue to Physical Exam</Button></div>}
               </div>
             )}
 
@@ -2217,7 +2278,22 @@ Mode: Walk-in`,
                     </div>
                   ))}
                 </div>
-                {!isReadOnly && <div className="mt-6 pt-4 border-t flex gap-2"><Button onClick={() => { setFormData(p => ({...p, objective: ['general','skin','eyes','ears','oral','cardio','respiratory','gi','gu','msk','neuro','lymph'].filter(s=>physicalExam[s]==='abnormal').map(s=>s+': '+examNotes[s]).join('\n')})); navigateToStep('assessment'); }}><Check className="w-4 h-4 mr-1.5" />Continue to Assessment</Button></div>}
+                {!isReadOnly && (
+                  <div className="mt-6 pt-4 border-t flex gap-2">
+                    <Button onClick={async () => {
+                      const systemTexts = ['general','skin','eyes','ears','oral','cardio','respiratory','gi','gu','msk','neuro','lymph']
+                        .filter(s => physicalExam[s] === 'abnormal')
+                        .map(s => `${s}: ${examNotes[s] || ''}`)
+                        .join('\n');
+                      const nextFormData = { ...formData, objective: systemTexts };
+                      setFormData(nextFormData);
+                      await saveClinicalNotes(nextFormData);
+                      navigateToStep('assessment', true);
+                    }}>
+                      <Check className="w-4 h-4 mr-1.5" />Continue to Assessment
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -2238,7 +2314,7 @@ Mode: Walk-in`,
                   </div>
                   <div><Label>Clinical Impression</Label><Textarea value={formData.clinicalImpression || ''} onChange={e => setFormData(p => ({...p, clinicalImpression: e.target.value}))} className="mt-1" rows={3} placeholder="Clinical findings are consistent with..." disabled={isReadOnly} /></div>
                   <div><Label>Problem List</Label><Textarea value={formData.problemList || ''} onChange={e => setFormData(p => ({...p, problemList: e.target.value}))} className="mt-1" rows={2} placeholder={'Line 1: Vomiting\nLine 2: Mild dehydration'} disabled={isReadOnly} /></div>
-                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={() => { saveClinicalNotes(); navigateToStep('plan'); }}><Check className="w-4 h-4 mr-1.5" />Save & Continue to Plan</Button></div>}
+                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={async () => { await saveClinicalNotes(); navigateToStep('plan', true); }}><Check className="w-4 h-4 mr-1.5" />Save & Continue to Plan</Button></div>}
                 </div>
               </div>
             )}
@@ -2445,7 +2521,7 @@ Mode: Walk-in`,
                 )}
 
                 {/* Save & Continue */}
-                {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={() => { saveClinicalNotes(); setActiveStep('prescriptions'); }}><Check className="w-4 h-4 mr-1.5" />Save & Continue</Button></div>}
+                {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={async () => { await saveClinicalNotes(); navigateToStep('prescriptions', true); }}><Check className="w-4 h-4 mr-1.5" />Save & Continue</Button></div>}
               </div>
             )}
 
@@ -2496,7 +2572,7 @@ Mode: Walk-in`,
                   </div>
                 )}
                 {!isReadOnly && <div className="mt-6 pt-4 border-t flex gap-2">
-                  <Button onClick={() => navigateToStep('labs')}><Check className="w-4 h-4 mr-1.5" />Continue to Labs</Button>
+                  <Button onClick={async () => { await saveClinicalNotes(); navigateToStep('labs', true); }}><Check className="w-4 h-4 mr-1.5" />Continue to Labs</Button>
                 </div>}
               </div>
             )}
@@ -2602,7 +2678,7 @@ Mode: Walk-in`,
                   </div>
                 )}
                 {!isReadOnly && <div className="mt-6 pt-4 border-t flex gap-2">
-                  <Button onClick={() => navigateToStep('procedures')}><Check className="w-4 h-4 mr-1.5" />Continue to Procedures</Button>
+                  <Button onClick={async () => { await saveClinicalNotes(); navigateToStep('procedures', true); }}><Check className="w-4 h-4 mr-1.5" />Continue to Procedures</Button>
                 </div>}
               </div>
             )}
@@ -2624,7 +2700,7 @@ Mode: Walk-in`,
                   <div><Label>Supplies Used</Label><Input value={procedureForm.supplies} onChange={e => setProcedureForm(p => ({...p, supplies: e.target.value}))} className="mt-1" placeholder="Bandage, antiseptic..." disabled={isReadOnly} /></div>
                   <div><Label>Notes</Label><Textarea value={procedureForm.notes} onChange={e => setProcedureForm(p => ({...p, notes: e.target.value}))} className="mt-1" rows={2} disabled={isReadOnly} /></div>
                   {!isReadOnly && <div className="flex gap-2 pt-4 border-t">
-                    <Button onClick={() => navigateToStep('admission')}><Check className="w-4 h-4 mr-1.5" />Continue to Admission</Button>
+                    <Button onClick={async () => { await saveClinicalNotes(); navigateToStep('admission', true); }}><Check className="w-4 h-4 mr-1.5" />Continue to Admission</Button>
                   </div>}
                 </div>
               </div>
@@ -2651,7 +2727,7 @@ Mode: Walk-in`,
                     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={admissionForm.consentRequired} onChange={e => setAdmissionForm(p => ({...p, consentRequired: e.target.checked}))} disabled={isReadOnly} />Consent Required</label>
                   </div>
                   {!isReadOnly && <div className="flex gap-2 pt-4 border-t">
-                    <Button onClick={() => navigateToStep('followup')}><Check className="w-4 h-4 mr-1.5" />Continue to Follow-Up</Button>
+                    <Button onClick={async () => { await saveClinicalNotes(); navigateToStep('followup', true); }}><Check className="w-4 h-4 mr-1.5" />Continue to Follow-Up</Button>
                   </div>}
                 </div>
               </div>
@@ -2670,7 +2746,7 @@ Mode: Walk-in`,
                     <div><Label>Due Date</Label><Input type="date" value={followUpDate} onChange={e => setFollowUpDate(e.target.value)} className="mt-1" disabled={isReadOnly} /></div>
                   </div>
                   <div><Label>Instructions</Label><Textarea value={followUpInstructions} onChange={e => setFollowUpInstructions(e.target.value)} className="mt-1" rows={2} disabled={isReadOnly} /></div>
-                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={() => navigateToStep('instructions')}><Check className="w-4 h-4 mr-1.5" />Continue to Owner Instructions</Button></div>}
+                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={async () => { await saveClinicalNotes(); navigateToStep('instructions', true); }}><Check className="w-4 h-4 mr-1.5" />Continue to Owner Instructions</Button></div>}
                 </div>
               </div>
             )}
@@ -2686,7 +2762,7 @@ Mode: Walk-in`,
                   <div><Label>Medication Instructions</Label><Textarea value={ownerInstructions} onChange={e => setOwnerInstructions(e.target.value)} className="mt-1" rows={2} placeholder="Give medication after meals..." disabled={isReadOnly} /></div>
                   <div><Label>Diet & Activity</Label><Textarea value={formData.dietInstructions || ''} onChange={e => setFormData(p => ({...p, dietInstructions: e.target.value}))} className="mt-1" rows={2} placeholder="Offer small frequent meals. Rest." disabled={isReadOnly} /></div>
                   <div><Label>Warning Signs</Label><Textarea value={formData.warningSigns || ''} onChange={e => setFormData(p => ({...p, warningSigns: e.target.value}))} className="mt-1" rows={2} placeholder="Return immediately if vomiting continues, becomes weak, or refuses water." disabled={isReadOnly} /></div>
-                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={() => navigateToStep('summary')}><Check className="w-4 h-4 mr-1.5" />Continue to Visit Summary</Button></div>}
+                  {!isReadOnly && <div className="flex gap-2 pt-4 border-t"><Button onClick={async () => { await saveClinicalNotes(); navigateToStep('summary', true); }}><Check className="w-4 h-4 mr-1.5" />Continue to Visit Summary</Button></div>}
                 </div>
               </div>
             )}
@@ -2737,14 +2813,14 @@ Mode: Walk-in`,
                           {done ? <Check className="w-3.5 h-3.5" /> : '!'}
                         </span>
                         <span className={cn('text-sm', done ? 'text-emerald-800' : 'text-red-800')}>{item.label}</span>
-                        {!done && <Button variant="outline" size="sm" className="ml-auto" onClick={() => navigateToStep(item.id)}>Go to {item.id}</Button>}
+                        {!done && <Button variant="outline" size="sm" className="ml-auto" onClick={() => navigateToStep(item.id, true)}>Go to {item.id}</Button>}
                       </div>
                     );
                   })}
                 </div>
                 {mode === 'active' && (
                   <div className="mt-6 pt-6 border-t flex gap-2">
-                    <Button variant="outline" onClick={() => navigateToStep('signature')}>Continue to Signing</Button>
+                    <Button variant="outline" onClick={async () => { await saveClinicalNotes(); navigateToStep('signature', true); }}>Continue to Signing</Button>
                     <Button onClick={() => setShowFinishDialog(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
                       <Check className="w-4 h-4 mr-1.5" />Finish with Missing Items
                     </Button>
@@ -2778,7 +2854,7 @@ Mode: Walk-in`,
                   </div>
                   {!isReadOnly && (
                     <div className="flex gap-2 pt-4 border-t">
-                      <Button variant="outline" onClick={() => navigateToStep('checklist')}><ChevronLeft className="w-4 h-4 mr-1.5" />Back to Checklist</Button>
+                      <Button variant="outline" onClick={() => navigateToStep('checklist', true)}><ChevronLeft className="w-4 h-4 mr-1.5" />Back to Checklist</Button>
                       <Button disabled={!formData.confirmSign || !formData.signature} onClick={() => { if (!formData.confirmSign || !formData.signature) return; handleFinishConsultation(); }} className="bg-blue-600 hover:bg-blue-700 text-white">
                         <Check className="w-4 h-4 mr-1.5" />Sign & Complete
                       </Button>
