@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { auth, db, doc, setDoc, serverTimestamp, collection, addDoc, getDocs, query, where } from '../firebase';
+import { auth, db, doc, setDoc, serverTimestamp, collection, addDoc, getDocs, query, where, orderBy } from '../firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Mail, Lock, Phone, Dog, ChevronRight, CheckCircle, Hospital, ArrowLeft, Eye, EyeOff, Stethoscope } from 'lucide-react';
@@ -16,6 +16,12 @@ export default function Signup() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isReturningGuest, setIsReturningGuest] = useState(false);
+  const [returningGuestId, setReturningGuestId] = useState<string | null>(null);
+  const [bookingHistory, setBookingHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [guestDetectionLoading, setGuestDetectionLoading] = useState(false);
   const navigate = useNavigate();
 
   // Step1: Owner Info
@@ -63,6 +69,26 @@ export default function Signup() {
           displayName: doc.data().displayName || 'Doctor'
         } as Doctor));
         setDoctors(docs);
+
+        // Pre-fill from pending booking when doctors load
+        const pending = sessionStorage.getItem('pendingBooking');
+        if (pending) {
+          try {
+            const data = JSON.parse(pending);
+            if (data.doctorUid && docs.some(d => d.uid === data.doctorUid)) {
+              const match = docs.find(d => d.uid === data.doctorUid);
+              setPetData(prev => ({ ...prev, selectedDoctorId: data.doctorUid, selectedDoctorName: match?.displayName || data.doctorName }));
+            } else if (data.doctorName) {
+              // Fallback: match by display name
+              const nameMatch = docs.find(d => d.displayName.toLowerCase().trim() === data.doctorName.toLowerCase().trim());
+              if (nameMatch) {
+                setPetData(prev => ({ ...prev, selectedDoctorId: nameMatch.uid, selectedDoctorName: nameMatch.displayName }));
+              } else {
+                setPetData(prev => ({ ...prev, selectedDoctorName: data.doctorName }));
+              }
+            }
+          } catch {}
+        }
       } catch (err) {
         console.error('Error fetching doctors:', err);
       }
@@ -70,13 +96,35 @@ export default function Signup() {
     fetchDoctors();
   }, []);
 
+  const pendingRestored = useRef(false);
+
+  // Restore pending booking fields on mount (doctorName, date, time) regardless of doctor list
+  useEffect(() => {
+    const pending = sessionStorage.getItem('pendingBooking');
+    if (pending) {
+      try {
+        const data = JSON.parse(pending);
+        if (data.doctorName && !petData.selectedDoctorId) {
+          setPetData(prev => ({ ...prev, selectedDoctorName: data.doctorName }));
+        }
+        if (data.date) setSelectedDate(data.date);
+        if (data.time) setSelectedTime(data.time);
+        if (data.date || data.time) pendingRestored.current = true;
+      } catch {}
+    }
+  }, []);
+
   // Fetch doctor availability when selected doctor changes
   useEffect(() => {
     if (!petData.selectedDoctorId) {
       setDoctorAvailability({});
       setAvailableDates([]);
-      setSelectedDate('');
-      setSelectedTime('');
+      // Don't clear date/time on initial mount if pendingBooking already set them
+      if (!pendingRestored.current) {
+        setSelectedDate('');
+        setSelectedTime('');
+      }
+      pendingRestored.current = false;
       return;
     }
 
@@ -110,6 +158,43 @@ export default function Signup() {
 
     fetchAvailability();
   }, [petData.selectedDoctorId]);
+
+  // Debounced returning guest detection — check if email belongs to an existing guest user
+  useEffect(() => {
+    if (!ownerData.email || !ownerData.email.includes('@')) {
+      setIsReturningGuest(false);
+      setReturningGuestId(null);
+      setBookingHistory([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setGuestDetectionLoading(true);
+      try {
+        const q = query(collection(db, 'users'), where('email', '==', ownerData.email.trim().toLowerCase()), where('isGuest', '==', true));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const guestId = snap.docs[0].id;
+          setIsReturningGuest(true);
+          setReturningGuestId(guestId);
+          setOwnerData(prev => ({ ...prev, createAccount: true }));
+          // Fetch booking history
+          setHistoryLoading(true);
+          const aptQuery = query(collection(db, 'appointments'), where('clientUid', '==', guestId), orderBy('createdAt', 'desc'));
+          const aptSnap = await getDocs(aptQuery);
+          const history = aptSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          setBookingHistory(history);
+          setHistoryLoading(false);
+        } else {
+          setIsReturningGuest(false);
+          setReturningGuestId(null);
+          setBookingHistory([]);
+        }
+      } catch {} finally {
+        setGuestDetectionLoading(false);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [ownerData.email]);
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,45 +249,92 @@ export default function Signup() {
     setError(null);
 
     try {
+      // Check if a guest user with this email already exists
+      const existingGuestQuery = query(collection(db, 'users'), where('email', '==', ownerData.email), where('isGuest', '==', true));
+      const existingGuestSnap = await getDocs(existingGuestQuery);
+      const existingGuest = existingGuestSnap.empty ? null : existingGuestSnap.docs[0];
+      const guestUserId = existingGuest?.id;
+
       // FULL ACCOUNT CREATION
       const userCredential = await createUserWithEmailAndPassword(auth, ownerData.email, ownerData.password);
       const user = userCredential.user;
 
       await updateProfile(user, { displayName: ownerData.name });
 
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        email: ownerData.email,
-        displayName: ownerData.name,
-        phone: fullPhone,
-        role: 'client',
-        createdAt: serverTimestamp()
-      });
+      if (existingGuest && guestUserId) {
+        // Migrate guest user to full account — update the existing doc in place
+        await setDoc(doc(db, 'users', guestUserId), {
+          uid: user.uid,
+          email: ownerData.email,
+          displayName: ownerData.name,
+          phone: fullPhone,
+          role: 'client',
+          isGuest: false,
+          upgradedAt: serverTimestamp(),
+          createdAt: existingGuest.data().createdAt || serverTimestamp()
+        });
 
-      // Check for duplicate pet name under same owner
+        // Migrate any existing pets from the guest user to the new auth UID
+        const guestPetsQuery = query(collection(db, 'pets'), where('ownerUid', '==', guestUserId));
+        const guestPetsSnap = await getDocs(guestPetsQuery);
+        const petMigrationPromises: Promise<any>[] = [];
+        guestPetsSnap.forEach(petDoc => {
+          petMigrationPromises.push(updateDoc(doc(db, 'pets', petDoc.id), { ownerUid: user.uid }));
+        });
+        await Promise.all(petMigrationPromises);
+
+        // Create a linking doc under the auth UID so lookups by uid work too
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          linkedTo: guestUserId,
+          email: ownerData.email,
+          displayName: ownerData.name,
+          phone: fullPhone,
+          role: 'client',
+          isMigratedGuest: true,
+          createdAt: serverTimestamp()
+        });
+      } else {
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          email: ownerData.email,
+          displayName: ownerData.name,
+          phone: fullPhone,
+          role: 'client',
+          createdAt: serverTimestamp()
+        });
+      }
+
+      // Check for duplicate pet name under final ownerUid
+      const effectiveOwnerUid = (existingGuest && guestUserId) ? user.uid : user.uid;
       const dupQuery = query(
         collection(db, 'pets'),
-        where('ownerUid', '==', user.uid),
+        where('ownerUid', '==', effectiveOwnerUid),
         where('name', '==', petData.name.trim())
       );
       const dupSnap = await getDocs(dupQuery);
       if (!dupSnap.empty) {
-        alert(`A pet named "${petData.name}" already exists under your account.`);
-        setLoading(false);
-        return;
+        if (existingGuest) {
+          alert(`Pet "${petData.name}" found from your previous visit — we'll use the existing record.`);
+        } else {
+          alert(`A pet named "${petData.name}" already exists under your account.`);
+          setLoading(false);
+          return;
+        }
+      } else {
+        await addDoc(collection(db, 'pets'), {
+          ownerUid: effectiveOwnerUid,
+          name: petData.name,
+          species: petData.species,
+          breed: petData.breed,
+          age: parseInt(petData.age) || 0,
+          createdAt: serverTimestamp()
+        });
       }
 
-      await addDoc(collection(db, 'pets'), {
-        ownerUid: user.uid,
-        name: petData.name,
-        species: petData.species,
-        breed: petData.breed,
-        age: parseInt(petData.age) || 0,
-        createdAt: serverTimestamp()
-      });
-
       setStep(4); // Success step - account created
-      setTimeout(() => navigate('/dashboard'), 3000);
+      const hasPending = !!sessionStorage.getItem('pendingBooking');
+      setTimeout(() => navigate(hasPending ? '/book-appointment' : '/dashboard'), 3000);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to create account");
@@ -215,44 +347,57 @@ export default function Signup() {
     setError(null);
 
     try {
-      console.log('Step 1: Creating guest user...');
-      // 1. Create a guest user record in users collection
-      const guestUserRef = await addDoc(collection(db, 'users'), {
-        email: ownerData.email,
-        displayName: ownerData.name,
-        phone: fullPhone,
-        role: 'client',
-        isGuest: true,
-        createdAt: serverTimestamp()
-      });
-      const guestUserId = guestUserRef.id;
-      console.log('Guest user created with ID:', guestUserId);
+      console.log('Step 1: Checking for existing guest...');
+      // Check if a guest user with this email already exists
+      const existingUserQuery = query(collection(db, 'users'), where('email', '==', ownerData.email), where('isGuest', '==', true));
+      const existingUserSnap = await getDocs(existingUserQuery);
 
-      console.log('Step 2: Creating pet record...');
-      // Check for duplicate pet name under same owner
-      const dupQuery = query(
+      let guestUserId: string;
+      let isReturning = false;
+
+      if (!existingUserSnap.empty) {
+        guestUserId = existingUserSnap.docs[0].id;
+        isReturning = true;
+        console.log('Returning guest found, reusing ID:', guestUserId);
+      } else {
+        console.log('Step 1: Creating new guest user...');
+        const guestUserRef = await addDoc(collection(db, 'users'), {
+          email: ownerData.email,
+          displayName: ownerData.name,
+          phone: fullPhone,
+          role: 'client',
+          isGuest: true,
+          createdAt: serverTimestamp()
+        });
+        guestUserId = guestUserRef.id;
+      }
+
+      console.log('Step 2: Checking for existing pet...');
+      // Check if this pet already exists under this guest user
+      const existingPetQuery = query(
         collection(db, 'pets'),
         where('ownerUid', '==', guestUserId),
         where('name', '==', petData.name.trim())
       );
-      const dupSnap = await getDocs(dupQuery);
-      if (!dupSnap.empty) {
-        alert(`A pet named "${petData.name}" already exists under your account.`);
-        setLoading(false);
-        return;
-      }
+      const existingPetSnap = await getDocs(existingPetQuery);
 
-      // 2. Create pet record linked to guest user
-      const petRef = await addDoc(collection(db, 'pets'), {
-        ownerUid: guestUserId,
-        name: petData.name,
-        species: petData.species,
-        breed: petData.breed,
-        age: parseInt(petData.age) || 0,
-        currentStatus: 'discharged',
-        createdAt: serverTimestamp()
-      });
-      const petId = petRef.id;
+      let petId: string;
+      if (!existingPetSnap.empty) {
+        petId = existingPetSnap.docs[0].id;
+        console.log('Existing pet found, reusing ID:', petId);
+      } else {
+        console.log('Step 2: Creating new pet record...');
+        const petRef = await addDoc(collection(db, 'pets'), {
+          ownerUid: guestUserId,
+          name: petData.name,
+          species: petData.species,
+          breed: petData.breed,
+          age: parseInt(petData.age) || 0,
+          currentStatus: 'active',
+          createdAt: serverTimestamp()
+        });
+        petId = petRef.id;
+      }
       console.log('Pet created with ID:', petId);
 
       console.log('Step 3: Creating appointment...');
@@ -283,9 +428,11 @@ export default function Signup() {
       };
 
       // Add selected doctor if any
-      if (petData.selectedDoctorId) {
-        appointmentData.doctorId = petData.selectedDoctorId;
+      if (petData.selectedDoctorName) {
         appointmentData.doctorName = petData.selectedDoctorName;
+        if (petData.selectedDoctorId) {
+          appointmentData.doctorId = petData.selectedDoctorId;
+        }
       }
 
       const appointmentRef = await addDoc(collection(db, 'appointments'), appointmentData);
@@ -306,7 +453,7 @@ export default function Signup() {
         petAge: parseInt(petData.age) || 0,
         status: 'scheduled',
         appointmentId: appointmentId,
-        notes: 'Quick booking - no account created',
+        notes: isReturning ? 'Repeat guest booking' : 'Quick booking - no account created',
         createdAt: serverTimestamp()
       };
 
@@ -330,8 +477,8 @@ export default function Signup() {
           userId: userDoc.id,
           userRole: userDoc.data().role,
           type: 'new_guest_booking',
-          title: 'New Portal Booking',
-          message: `${ownerData.name} booked for ${petData.name} (${petData.species}). Contact: ${fullPhone}${petData.selectedDoctorName ? ` - Preferred: Dr. ${petData.selectedDoctorName}` : ''}`,
+          title: isReturning ? 'Repeat Guest Booking' : 'New Portal Booking',
+          message: `${ownerData.name} ${isReturning ? 're-booked' : 'booked'} for ${petData.name} (${petData.species}). Contact: ${fullPhone}${petData.selectedDoctorName ? ` - Preferred: Dr. ${petData.selectedDoctorName}` : ''}`,
           appointmentId: appointmentId,
           read: false,
           createdAt: serverTimestamp()
@@ -345,8 +492,8 @@ export default function Signup() {
             userId: petData.selectedDoctorId,
             userRole: 'doctor',
             type: 'new_guest_booking',
-            title: 'New Portal Booking (Preferred)',
-            message: `${ownerData.name} requested you for ${petData.name} (${petData.species}). Contact: ${fullPhone}`,
+            title: isReturning ? 'Repeat Guest Booking (Preferred)' : 'New Portal Booking (Preferred)',
+            message: `${ownerData.name} ${isReturning ? 're-requested' : 'requested'} you for ${petData.name} (${petData.species}). Contact: ${fullPhone}`,
             appointmentId: appointmentId,
             read: false,
             createdAt: serverTimestamp()
@@ -408,6 +555,81 @@ export default function Signup() {
                   </div>
 
                   {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100">{error}</div>}
+
+                  {isReturningGuest && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                          <span className="text-lg">👋</span>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-amber-900">Welcome back!</h3>
+                          <p className="text-sm text-amber-700 mt-1">
+                            We remember you from a previous visit. Create an account to manage your bookings, 
+                            view visit history, and check in faster next time.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-100/50 rounded-xl px-3 py-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Account creation has been pre-selected for you below.</span>
+                      </div>
+
+                      {historyLoading ? (
+                        <div className="flex items-center gap-2 text-sm text-stone-500 py-2">
+                          <div className="w-4 h-4 border-2 border-stone-300 border-t-emerald-500 rounded-full animate-spin" />
+                          Loading your booking history...
+                        </div>
+                      ) : bookingHistory.length > 0 && (
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setShowHistory(!showHistory)}
+                            className="flex items-center gap-2 text-sm font-medium text-amber-800 hover:text-amber-900 transition-colors"
+                          >
+                            {showHistory ? 'Hide' : 'View'} your previous bookings ({bookingHistory.length})
+                            <ChevronRight className={`w-4 h-4 transition-transform ${showHistory ? 'rotate-90' : ''}`} />
+                          </button>
+
+                          {showHistory && (
+                            <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
+                              {bookingHistory.map((booking: any) => {
+                                const statusColor = 
+                                  booking.status === 'cancelled' ? 'text-red-600 bg-red-50 border-red-200' :
+                                  booking.status === 'completed' || booking.status === 'confirmed' ? 'text-emerald-600 bg-emerald-50 border-emerald-200' :
+                                  booking.status === 'unconfirmed' ? 'text-amber-600 bg-amber-50 border-amber-200' :
+                                  'text-stone-600 bg-stone-50 border-stone-200';
+                                return (
+                                  <div key={booking.id} className="bg-white border border-amber-200 rounded-xl p-3 flex items-center justify-between">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-semibold text-stone-800 truncate">
+                                        {booking.petName || 'Pet'} {booking.petSpecies && <span className="text-stone-400 font-normal">({booking.petSpecies})</span>}
+                                      </p>
+                                      <p className="text-xs text-stone-500">
+                                        {booking.date} at {booking.time}
+                                        {booking.doctorName && <> &middot; Dr. {booking.doctorName.replace(/^Dr\.\s*/i, '')}</>}
+                                      </p>
+                                    </div>
+                                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border shrink-0 ml-3 capitalize ${statusColor}`}>
+                                      {booking.status || 'scheduled'}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {guestDetectionLoading && (
+                    <div className="bg-stone-50 border border-stone-200 rounded-2xl p-3 flex items-center gap-2 text-sm text-stone-500">
+                      <div className="w-4 h-4 border-2 border-stone-300 border-t-emerald-500 rounded-full animate-spin" />
+                      Checking if you've visited before...
+                    </div>
+                  )}
 
                   <form onSubmit={handleNext} className="space-y-6">
                     <div className="grid md:grid-cols-2 gap-6">

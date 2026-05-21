@@ -201,7 +201,7 @@ async function seedDatabase() {
         weight: petData.weight,
         type: petData.type,
         imageUrl: petData.imageUrl,
-        currentStatus: 'discharged',
+        currentStatus: 'active',
         createdAt: new Date().toISOString()
       });
 

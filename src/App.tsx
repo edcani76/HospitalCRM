@@ -114,11 +114,9 @@ export default function App() {
           <Route 
             path="/book-appointment" 
             element={
-              <ProtectedRoute>
-                <Layout showFooter={false}>
-                  <BookAppointment />
-                </Layout>
-              </ProtectedRoute>
+              <Layout showFooter={true}>
+                <BookAppointment />
+              </Layout>
             } 
           />
           

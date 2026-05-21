@@ -174,7 +174,7 @@ export default function PatientsPage() {
         species: formData.species,
         breed: formData.breed,
         weight: formData.weight || 0,
-        currentStatus: 'discharged',
+        currentStatus: 'active',
         dateOfBirth: formData.dateOfBirth,
         gender: formData.gender,
         bloodType: formData.bloodType || 'Unknown',

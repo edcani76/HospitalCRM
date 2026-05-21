@@ -105,6 +105,25 @@ export default function BookAppointment() {
   }, [user]);
 
   useEffect(() => {
+    if (doctors.length === 0) return;
+    const pending = sessionStorage.getItem('pendingBooking');
+    if (pending) {
+      try {
+        const data = JSON.parse(pending);
+        sessionStorage.removeItem('pendingBooking');
+        if (data.doctorId) {
+          const idx = doctors.findIndex(d => d.id === data.doctorId);
+          if (idx >= 0) setDoctorIndex(idx);
+        }
+        if (data.date) setSelectedDate(new Date(data.date + 'T00:00:00'));
+        if (data.time) setSelectedTime(data.time);
+        if (data.notes) setNotes(data.notes);
+        setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 500);
+      } catch {}
+    }
+  }, [doctors]);
+
+  useEffect(() => {
     if (doctors.length > 0 && !loading) {
       const doctorId = searchParams.get('doctorId');
       if (doctorId) {
@@ -271,6 +290,19 @@ export default function BookAppointment() {
       setError("Please select a time slot.");
       return;
     }
+    if (!user) {
+      sessionStorage.setItem('pendingBooking', JSON.stringify({
+        doctorId: doctor?.id || doctors[doctorIndex]?.id || '',
+        doctorUid: doctor?.uid || '',
+        doctorName: doctor?.name || doctors[doctorIndex]?.name || '',
+        date: format(selectedDate, 'yyyy-MM-dd'),
+        time: selectedTime,
+        notes
+      }));
+      navigate('/login', { state: { from: { pathname: '/book-appointment' } } });
+      return;
+    }
+
     if (!selectedPetId) {
       setError("Please select a pet for this visit.");
       return;
@@ -284,7 +316,6 @@ export default function BookAppointment() {
     setError(null);
 
     try {
-      if (!user) throw new Error("User not authenticated");
 
       const selectedPet = pets.find(p => p.id === selectedPetId);
       const selectedServiceNames = serviceCatalog
@@ -558,76 +589,102 @@ export default function BookAppointment() {
               )}
             </div>
 
-            {/* Pet Selection */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="text-lg font-bold flex items-center gap-2">
-                  <PawPrint className="w-5 h-5 text-emerald-600" />
-                  Select Pet
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setIsPetDialogOpen(true)}
-                  className="text-sm font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Register New Pet
-                </button>
-              </div>
-              {pets.length === 0 ? (
-                <div className="bg-yellow-50 text-yellow-700 p-4 rounded-xl text-sm border border-yellow-200 flex items-center justify-between">
-                  <span>You don't have any registered pets yet.</span>
+            {/* Pet Selection — requires auth */}
+            {user ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-lg font-bold flex items-center gap-2">
+                    <PawPrint className="w-5 h-5 text-emerald-600" />
+                    Select Pet
+                  </label>
                   <button
                     type="button"
                     onClick={() => setIsPetDialogOpen(true)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-1"
+                    className="text-sm font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 transition-colors"
                   >
-                    <Plus className="w-3 h-3" />
-                    Register Pet
+                    <Plus className="w-4 h-4" />
+                    Register New Pet
                   </button>
                 </div>
-              ) : (
-                <div className="relative">
-                  <select 
-                    value={selectedPetId}
-                    onChange={(e) => setSelectedPetId(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 appearance-none focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-bold"
-                  >
-                    <option value="" disabled>Choose your pet...</option>
-                    {pets.map(pet => (
-                      <option key={pet.id} value={pet.id}>
-                        {pet.name} ({pet.species} - {pet.breed})
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <ArrowRight className="w-5 h-5 rotate-90" />
+                {pets.length === 0 ? (
+                  <div className="bg-yellow-50 text-yellow-700 p-4 rounded-xl text-sm border border-yellow-200 flex items-center justify-between">
+                    <span>You don't have any registered pets yet.</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsPetDialogOpen(true)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Register Pet
+                    </button>
                   </div>
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div className="relative">
+                    <select 
+                      value={selectedPetId}
+                      onChange={(e) => setSelectedPetId(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 appearance-none focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-bold"
+                    >
+                      <option value="" disabled>Choose your pet...</option>
+                      {pets.map(pet => (
+                        <option key={pet.id} value={pet.id}>
+                          {pet.name} ({pet.species} - {pet.breed})
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <ArrowRight className="w-5 h-5 rotate-90" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center space-y-3">
+                <AlertCircle className="w-8 h-8 text-amber-500 mx-auto" />
+                <p className="text-amber-700 font-medium">Sign in to select your pet and complete the booking</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sessionStorage.setItem('pendingBooking', JSON.stringify({
+                      doctorId: doctor?.id || doctors[doctorIndex]?.id || '',
+                      doctorUid: doctor?.uid || '',
+                      doctorName: doctor?.name || doctors[doctorIndex]?.name || '',
+                      date: format(selectedDate, 'yyyy-MM-dd'),
+                      time: selectedTime,
+                      notes
+                    }));
+                    navigate('/login', { state: { from: { pathname: '/book-appointment' } } });
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold transition-colors inline-flex items-center gap-2"
+                >
+                  Sign In to Continue <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             {/* Services Selection */}
-            <div className="space-y-4">
-              <label className="text-lg font-bold flex items-center gap-2">
-                <Stethoscope className="w-5 h-5 text-emerald-600" />
-                Select Services
-              </label>
-              <div className="bg-slate-50 border border-slate-100 rounded-xl p-6">
-                <ServiceSelector
-                  selectedServices={selectedServices}
-                  onChange={setSelectedServices}
-                  providerId={doctor?.id}
-                  requireConsultation={true}
-                  showPrice={false}
-                  hideCategories={['medication', 'supply']}
-                  categoryOrder={['consultation', 'vaccination', 'procedure', 'diagnostic', 'lab', 'grooming']}
-                />
+            {user && (
+              <div className="space-y-4">
+                <label className="text-lg font-bold flex items-center gap-2">
+                  <Stethoscope className="w-5 h-5 text-emerald-600" />
+                  Select Services
+                </label>
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-6">
+                  <ServiceSelector
+                    selectedServices={selectedServices}
+                    onChange={setSelectedServices}
+                    providerId={doctor?.id}
+                    requireConsultation={true}
+                    showPrice={false}
+                    hideCategories={['medication', 'supply']}
+                    categoryOrder={['consultation', 'vaccination', 'procedure', 'diagnostic', 'lab', 'grooming']}
+                  />
+                </div>
+                <p className="text-xs text-slate-400">
+                  Consultation is always included. Select additional services as needed.
+                </p>
               </div>
-              <p className="text-xs text-slate-400">
-                Consultation is always included. Select additional services as needed.
-              </p>
-            </div>
+            )}
 
             {/* Notes */}
             <div className="space-y-4">
@@ -650,8 +707,10 @@ export default function BookAppointment() {
             >
               {booking ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
+              ) : user ? (
                 <>Confirm Visit Request <ArrowRight className="w-5 h-5" /></>
+              ) : (
+                <>Sign In to Continue <ArrowRight className="w-5 h-5" /></>
               )}
             </button>
           </form>
