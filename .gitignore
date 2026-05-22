@@ -7,3 +7,4 @@ coverage/
 .env*
 !.env.example
 VetCRM April 26, 2026.txt
+vetcrm-b3742-firebase-adminsdk-*.json
