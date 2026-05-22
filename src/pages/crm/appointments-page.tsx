@@ -17,6 +17,8 @@ import { arrayUnion } from 'firebase/firestore';
 import { auth } from '../../firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { createNotification, notifyDoctor, notifyClient, getNotifications, markAsRead } from '../../lib/notifications';
+import { sendEmail } from '../../lib/email-service';
+import { appointmentConfirmed, appointmentCancelled } from '../../lib/email-templates';
 import { Appointment, Doctor, Pet, Notification } from '../../types';
 
 export default function AppointmentsPage() {
@@ -29,7 +31,7 @@ export default function AppointmentsPage() {
   const [selectedDoctor, setSelectedDoctor] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [pets, setPets] = useState<Pet[]>([]);
-  const [users, setUsers] = useState<{ [uid: string]: string }>({});
+  const [users, setUsers] = useState<{ [uid: string]: { displayName: string; isGuest?: boolean; isMigratedGuest?: boolean } }>({});
   const navigate = useNavigate();
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelAppointment, setCancelAppointment] = useState<Appointment | null>(null);
@@ -103,10 +105,14 @@ export default function AppointmentsPage() {
   const fetchUsers = async () => {
     try {
       const snapshot = await getDocs(collection(db, 'users'));
-      const userMap: { [uid: string]: string } = {};
+      const userMap: { [uid: string]: { displayName: string; isGuest?: boolean; isMigratedGuest?: boolean } } = {};
       snapshot.docs.forEach(doc => {
         const data = doc.data();
-        userMap[doc.id] = data.displayName || data.email || 'Unknown';
+        userMap[doc.id] = {
+          displayName: data.displayName || data.email || 'Unknown',
+          isGuest: data.isGuest || false,
+          isMigratedGuest: data.isMigratedGuest || false,
+        };
       });
       setUsers(userMap);
     } catch (error) {
@@ -143,7 +149,7 @@ export default function AppointmentsPage() {
         const term = searchTerm.toLowerCase();
         data = data.filter(apt => {
           const pet = pets.find(p => p.id === apt.petId);
-          const ownerName = pet ? (users[pet.ownerUid] || '') : '';
+          const ownerName = pet ? (users[pet.ownerUid]?.displayName || '') : '';
           return (
             apt.doctorName?.toLowerCase().includes(term) ||
             apt.petName?.toLowerCase().includes(term) ||
@@ -221,6 +227,27 @@ export default function AppointmentsPage() {
       // Get updated appointment details for notification
       const aptData = (await getDoc(doc(db, 'appointments', appointmentId))).data();
       if (aptData) {
+        // Fire-and-forget email notifications
+        if (aptData.clientUid && (newStatus === 'confirmed' || newStatus === 'cancelled')) {
+          const ownerSnap = await getDoc(doc(db, 'users', aptData.clientUid));
+          const ownerEmail = ownerSnap.exists() ? ownerSnap.data().email : null;
+          if (ownerEmail) {
+            if (newStatus === 'confirmed') {
+              sendEmail({
+                to: ownerEmail,
+                subject: `Appointment Confirmed - ${aptData.petName}`,
+                html: appointmentConfirmed(ownerSnap.data().displayName || 'Valued Client', aptData.petName || '', aptData.date || '', aptData.time || '', aptData.doctorName),
+              });
+            } else if (newStatus === 'cancelled') {
+              sendEmail({
+                to: ownerEmail,
+                subject: `Appointment Cancelled - ${aptData.petName}`,
+                html: appointmentCancelled(ownerSnap.data().displayName || 'Valued Client', aptData.petName || '', aptData.date || '', aptData.time || '', reason),
+              });
+            }
+          }
+        }
+
         if (newStatus === 'cancelled') {
           // Notify doctor
           await notifyDoctor(aptData.doctorId, 'appointment_cancelled', 'Appointment Cancelled', 
@@ -555,7 +582,11 @@ export default function AppointmentsPage() {
                                   <div className="space-y-1.5">
                                     {appts.map(apt => {
                                       const pet = pets.find(p => p.id === apt.petId);
-                                      const ownerName = pet ? (users[pet.ownerUid] || '') : '';
+                                      const ownerInfo = pet ? (users[pet.ownerUid] || null) : null;
+                                      const ownerName = ownerInfo?.displayName || '';
+                                      const isGuest = ownerInfo?.isGuest;
+                                      const isMigrated = ownerInfo?.isMigratedGuest;
+                                      const userBadge = isMigrated ? 'Migrated' : isGuest ? 'Guest' : null;
                                       return (
                                         <div
                                           key={apt.id}
@@ -571,7 +602,16 @@ export default function AppointmentsPage() {
                                           onClick={() => navigate(`/crm/appointments/${apt.id}`, { state: { from: '/crm/appointments' } })}
                                         >
                                           <p className="text-xs font-bold text-stone-800 truncate">{apt.petName}</p>
-                                          {ownerName && <p className="text-[10px] text-stone-500 truncate">({ownerName})</p>}
+                                          {ownerName && (
+                                            <p className="text-[10px] text-stone-500 truncate flex items-center gap-1">
+                                              ({ownerName})
+                                              {userBadge && (
+                                                <span className={`text-[8px] px-1 py-0.5 rounded font-medium ${isMigrated ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
+                                                  {userBadge}
+                                                </span>
+                                              )}
+                                            </p>
+                                          )}
                                           <div className="flex flex-wrap items-center gap-1 mt-1">
                                             {apt.mode === 'walk-in' && (
                                               <span className="text-[8px] px-1.5 py-0 bg-amber-100 text-amber-700 rounded">Walk-in</span>
@@ -651,7 +691,11 @@ export default function AppointmentsPage() {
                       <TableBody>
                         {appointments.map((appointment) => {
                           const pet = pets.find(p => p.id === appointment.petId);
-                          const ownerName = pet ? (users[pet.ownerUid] || '') : '';
+                          const ownerInfo = pet ? (users[pet.ownerUid] || null) : null;
+                          const ownerName = ownerInfo?.displayName || '';
+                          const isGuest = ownerInfo?.isGuest;
+                          const isMigrated = ownerInfo?.isMigratedGuest;
+                          const userBadge = isMigrated ? 'Migrated' : isGuest ? 'Guest' : null;
                           return (
                             <TableRow 
                               key={appointment.id}
@@ -680,7 +724,16 @@ export default function AppointmentsPage() {
                                   <span className="text-xs lg:text-sm text-emerald-600 font-medium">
                                     {appointment.petName}
                                   </span>
-                                  {ownerName && <span className="text-stone-500 text-xs">({ownerName})</span>}
+                                  {ownerName && (
+                                    <span className="text-stone-500 text-xs flex items-center gap-1">
+                                      ({ownerName})
+                                      {userBadge && (
+                                        <span className={`text-[8px] px-1 py-0.5 rounded font-medium ${isMigrated ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
+                                          {userBadge}
+                                        </span>
+                                      )}
+                                    </span>
+                                  )}
                                   {appointment.mode === 'walk-in' && (
                                     <Badge variant="outline" className="border-amber-400 text-amber-600 bg-amber-50 text-[10px]">
                                       <Footprints className="w-3 h-3 mr-0.5" />

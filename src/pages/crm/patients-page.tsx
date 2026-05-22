@@ -22,6 +22,7 @@ interface Patient {
   name: string;
   ownerUid: string;
   ownerName?: string;
+  ownerStatus?: 'registered' | 'guest' | 'migrated';
   species: string;
   breed: string;
   color?: string;
@@ -95,12 +96,19 @@ export default function PatientsPage() {
       setUsers(usersData);
 
       // Add owner names to patients
-      const patientsWithOwners = petsData.map(pet => ({
-        ...pet,
-        ownerName: usersData[pet.ownerUid]?.displayName || 'Unknown',
-        contact: usersData[pet.ownerUid]?.phoneNumber || '',
-        email: usersData[pet.ownerUid]?.email || '',
-      }));
+      const patientsWithOwners = petsData.map(pet => {
+        const owner = usersData[pet.ownerUid];
+        let ownerStatus: 'registered' | 'guest' | 'migrated' = 'registered';
+        if (owner?.isMigratedGuest) ownerStatus = 'migrated';
+        else if (owner?.isGuest) ownerStatus = 'guest';
+        return {
+          ...pet,
+          ownerName: owner?.displayName || 'Unknown',
+          ownerStatus,
+          contact: owner?.phoneNumber || '',
+          email: owner?.email || '',
+        };
+      });
 
       setPatients(patientsWithOwners);
 
@@ -432,7 +440,16 @@ export default function PatientsPage() {
                   <div className="space-y-3 pt-4 border-t border-gray-50">
                     <div className="flex items-center text-sm text-gray-500 gap-2">
                       <User className="w-4 h-4 opacity-50" />
-                      <span className="font-semibold text-gray-700 truncate">{patient.ownerName}</span>
+                      <span className="font-semibold text-gray-700 truncate flex items-center gap-1">
+                        {patient.ownerName}
+                        {patient.ownerStatus && patient.ownerStatus !== 'registered' && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                            patient.ownerStatus === 'migrated' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
+                          }`}>
+                            {patient.ownerStatus === 'migrated' ? 'Migrated' : 'Guest'}
+                          </span>
+                        )}
+                      </span>
                     </div>
                     <div className="flex items-center text-sm text-gray-500 gap-2">
                       <Phone className="w-4 h-4 opacity-50" />
@@ -485,7 +502,16 @@ export default function PatientsPage() {
                     <div className="flex items-center gap-8">
                       <div className="text-right hidden sm:block">
                         <p className="text-[10px] font-bold text-gray-400 uppercase">Owner</p>
-                        <p className="text-sm font-semibold text-gray-700">{patient.ownerName}</p>
+                        <p className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                          {patient.ownerName}
+                          {patient.ownerStatus && patient.ownerStatus !== 'registered' && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                              patient.ownerStatus === 'migrated' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
+                            }`}>
+                              {patient.ownerStatus === 'migrated' ? 'Migrated' : 'Guest'}
+                            </span>
+                          )}
+                        </p>
                       </div>
                       <div className="w-32 hidden md:block">
                          <p className="text-[10px] font-bold text-gray-400 uppercase">Status</p>

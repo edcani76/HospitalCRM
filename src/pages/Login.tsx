@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword, db, doc, getDoc, setDoc, serverTimestamp } from '../firebase';
+import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword, db, doc, getDoc, setDoc, serverTimestamp, sendPasswordResetEmail } from '../firebase';
 import { motion } from 'motion/react';
 import { LogIn, Mail, ShieldCheck, Hospital, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState(() => (location.state as any)?.email || '');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { user, loading: authLoading } = useAuth();
 
   React.useEffect(() => {
@@ -143,6 +143,7 @@ export default function Login() {
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
                 <input 
                   type="email" 
+                  autoComplete="off"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email Address" 
@@ -164,6 +165,31 @@ export default function Login() {
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-emerald-600 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              
+              <div className="text-right mt-2">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    if (email) {
+                      // Import sendPasswordResetEmail here to avoid circular deps if needed
+                      // Actually, it's already imported at the top
+                      sendPasswordResetEmail(auth, email)
+                        .then(() => {
+                          alert("Password reset email sent! Please check your inbox.");
+                        })
+                        .catch((err) => {
+                          console.error("Error sending reset email:", err);
+                          alert("Failed to send reset email. Please try again.");
+                        });
+                    } else {
+                      alert("Please enter your email first.");
+                    }
+                  }}
+                  className="text-sm text-emerald-500 hover:text-emerald-700"
+                >
+                  Forgot Password?
                 </button>
               </div>
             </div>

@@ -681,6 +681,22 @@ Mode: Walk-in`,
         'Appointment Reminder',
         `Reminder: You have an upcoming appointment for ${patient?.name} on ${scheduledAppointment.date} at ${scheduledAppointment.time}.`
       );
+      // Email reminder
+      if (owner?.email) {
+        const { sendEmail } = await import('../../lib/email-service');
+        const { appointmentReminder } = await import('../../lib/email-templates');
+        sendEmail({
+          to: owner.email,
+          subject: `Reminder: ${patient?.name}'s appointment ${scheduledAppointment.date}`,
+          html: appointmentReminder(
+            owner.displayName || 'Valued Client',
+            patient?.name || '',
+            scheduledAppointment.date || '',
+            scheduledAppointment.time || '',
+            scheduledAppointment.doctorName
+          ),
+        });
+      }
       alert('Reminder sent successfully!');
     } catch (error) {
       console.error('Error sending reminder:', error);

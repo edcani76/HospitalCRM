@@ -12,6 +12,8 @@ import PaymentTermsDialog from '../../components/ui/payment-terms-dialog';
 import { db, auth } from '../../firebase';
 import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion, addDoc, serverTimestamp, query, where } from '../../firebase';
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
+import { sendEmail } from '../../lib/email-service';
+import { appointmentConfirmed, appointmentCancelled } from '../../lib/email-templates';
 import { generateInvoiceFromEncounter, addAuditLog, fetchEncountersByAppointment } from '../../lib/firestore-helpers';
 import { format } from 'date-fns';
 import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft, Play, Plus, Activity } from 'lucide-react';
@@ -480,6 +482,15 @@ export default function AppointmentDetailsPage() {
           `Your appointment for ${appointment.petName} on ${appointment.date} at ${appointment.time} has been cancelled.`);
       }
 
+      // Email to customer
+      if (petOwner?.email) {
+        sendEmail({
+          to: petOwner.email,
+          subject: `Appointment Cancelled - ${appointment.petName}`,
+          html: appointmentCancelled(petOwner.displayName || 'Valued Client', appointment.petName || '', appointment.date || '', appointment.time || '', cancelReason),
+        });
+      }
+
       // Refresh data
       const updatedSnap = await getDoc(aptRef);
       if (updatedSnap.exists()) {
@@ -538,6 +549,15 @@ export default function AppointmentDetailsPage() {
       if (appointment.clientUid) {
         await notifyClient(appointment.clientUid, 'appointment_confirmed', 'Appointment Confirmed',
           `Your appointment for ${appointment.petName} on ${appointment.date} at ${appointment.time} has been confirmed.`);
+      }
+
+      // Email to customer
+      if (petOwner?.email) {
+        sendEmail({
+          to: petOwner.email,
+          subject: `Appointment Confirmed - ${appointment.petName}`,
+          html: appointmentConfirmed(petOwner.displayName || 'Valued Client', appointment.petName || '', appointment.date || '', appointment.time || '', appointment.doctorName),
+        });
       }
 
       // Refresh appointment data

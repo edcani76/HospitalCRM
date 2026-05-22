@@ -73,7 +73,12 @@ export default function BookAppointment() {
 
     const fetchPets = async () => {
       if (user) {
-        const q = query(collection(db, 'pets'), where('ownerUid', '==', user.uid));
+        const ownerUids = [user.uid];
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists() && userDoc.data()?.linkedTo) {
+          ownerUids.push(userDoc.data().linkedTo);
+        }
+        const q = query(collection(db, 'pets'), where('ownerUid', 'in', ownerUids));
         const snapshot = await getDocs(q);
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pet));
         setPets(data);
@@ -240,11 +245,16 @@ export default function BookAppointment() {
         imageUrl = result.downloadUrl || result.webViewLink;
       }
 
-      // Check for duplicate pet name under same owner
+      // Check for duplicate pet name under same owner (including linked guest)
       if (user) {
+        const dupOwnerUids = [user.uid];
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists() && userDoc.data()?.linkedTo) {
+          dupOwnerUids.push(userDoc.data().linkedTo);
+        }
         const dupQuery = query(
           collection(db, 'pets'),
-          where('ownerUid', '==', user.uid),
+          where('ownerUid', 'in', dupOwnerUids),
           where('name', '==', formData.name.trim())
         );
         const dupSnap = await getDocs(dupQuery);

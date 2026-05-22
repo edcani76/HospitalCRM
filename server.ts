@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import multer from "multer";
 import type { Multer } from "multer";
+import nodemailer from "nodemailer";
 
 dotenv.config();
 
@@ -15,6 +16,16 @@ const GOOGLE_CLIENT_ID = process.env.VITE_GOOGLE_CLIENT_ID || "";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 const GOOGLE_DRIVE_REFRESH_TOKEN = process.env.GOOGLE_DRIVE_REFRESH_TOKEN || "";
 const GOOGLE_DRIVE_FOLDER_ID = process.env.VITE_GOOGLE_DRIVE_FOLDER_ID || "";
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER || "",
+    pass: process.env.SMTP_PASS || "",
+  },
+});
 
 const storage = multer.memoryStorage();
 const upload: Multer = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
@@ -278,6 +289,31 @@ async function startServer() {
     } catch (error: any) {
       console.error("[GDrive] Server upload error:", error);
       res.status(500).json({ success: false, message: error.message || "Upload error" });
+    }
+  });
+
+  app.post("/api/send-email", async (req: express.Request, res: express.Response) => {
+    try {
+      const { to, subject, html } = req.body;
+      if (!to || !subject || !html) {
+        return res.status(400).json({ success: false, message: "Missing required fields: to, subject, html" });
+      }
+      const recipients = Array.isArray(to) ? to : [to];
+      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.warn("[Email] SMTP credentials not configured — skipping email");
+        return res.json({ success: false, message: "SMTP not configured" });
+      }
+      const info = await transporter.sendMail({
+        from: `"EdvirontMed" <${process.env.SMTP_USER}>`,
+        to: recipients,
+        subject,
+        html,
+      });
+      console.log("[Email] Sent:", subject, "to:", recipients.join(", "), "messageId:", info.messageId);
+      res.json({ success: true, messageId: info.messageId });
+    } catch (error: any) {
+      console.error("[Email] Error:", error);
+      res.status(500).json({ success: false, message: error.message || "Email send failed" });
     }
   });
 

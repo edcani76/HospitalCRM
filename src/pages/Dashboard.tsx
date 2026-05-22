@@ -146,23 +146,31 @@ export default function Dashboard() {
       setInvoices(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     });
 
-    // Listen to Pets
-    const qPets = query(
-      collection(db, 'pets'),
-      where('ownerUid', '==', user.uid)
-    );
-    const unsubPets = onSnapshot(qPets, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pet));
-      console.log('[Dashboard] Pets loaded:', data.map(p => ({ id: p.id, name: p.name, imageUrl: p.imageUrl })));
-      setPets(data);
-      setLoading(false);
-    });
+    // Listen to Pets — check linkedTo for migrated guest users
+    let unsubPets: (() => void) | null = null;
+    (async () => {
+      const ownerUids = [user.uid];
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists() && userDoc.data()?.linkedTo) {
+        ownerUids.push(userDoc.data().linkedTo);
+      }
+      const qPets = query(
+        collection(db, 'pets'),
+        where('ownerUid', 'in', ownerUids)
+      );
+      unsubPets = onSnapshot(qPets, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pet));
+        console.log('[Dashboard] Pets loaded:', data.map(p => ({ id: p.id, name: p.name, imageUrl: p.imageUrl })));
+        setPets(data);
+        setLoading(false);
+      });
+    })();
 
     return () => {
       unsubAppointments();
       unsubReports();
       unsubInvoices();
-      unsubPets();
+      if (unsubPets) unsubPets();
     };
   }, [user]);
 
@@ -351,11 +359,16 @@ export default function Dashboard() {
       }
 
       console.log('[Pet Submit] Saving to Firestore, imageUrl:', imageUrl);
-      // Check for duplicate pet name under same owner
+      // Check for duplicate pet name under same owner (including linked guest)
       if (user) {
+        const dupOwnerUids = [user.uid];
+        const userDocSnap = await getDoc(doc(db, 'users', user.uid));
+        if (userDocSnap.exists() && userDocSnap.data()?.linkedTo) {
+          dupOwnerUids.push(userDocSnap.data().linkedTo);
+        }
         const dupQuery = query(
           collection(db, 'pets'),
-          where('ownerUid', '==', user.uid),
+          where('ownerUid', 'in', dupOwnerUids),
           where('name', '==', formData.name.trim())
         );
         const dupSnap = await getDocs(dupQuery);
@@ -963,7 +976,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="flex flex-col items-center md:items-end gap-1">
-                        <p className="text-xl font-bold text-slate-900">₱{inv.amount.toFixed(2)}</p>
+                        <p className="text-xl font-bold text-slate-900">₱{(inv.amount ?? 0).toFixed(2)}</p>
                         <div className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-md text-[10px] font-semibold ${inv.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
                           <div className={`w-1.5 h-1.5 rounded-full ${inv.status === 'paid' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
                           {inv.status}

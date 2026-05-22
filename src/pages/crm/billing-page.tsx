@@ -13,7 +13,9 @@ import { SearchBar } from '../../components/ui/search-bar';
 import { Plus, Eye, FileText, X, Loader2, Search, Printer, MoreHorizontal, PhilippinePeso, Download, Send, Ban, RotateCcw } from 'lucide-react';
 import { fetchInvoices, fetchPets, fetchUsers, fetchInvoiceItems, fetchPayments, fetchEncounterById, recordPayment, addAuditLog } from '../../lib/firestore-helpers';
 import { clearCache } from '../../lib/offline-cache';
-import { collection, addDoc, serverTimestamp, updateDoc, doc, db, auth } from '../../firebase';
+import { sendEmail } from '../../lib/email-service';
+import { invoiceReceipt } from '../../lib/email-templates';
+import { collection, addDoc, serverTimestamp, updateDoc, doc, getDoc, db, auth } from '../../firebase';
 import { format, isPast, parseISO } from 'date-fns';
 import { InvoicePDF } from '../../components/invoice-pdf';
 import { pdf } from '@react-pdf/renderer';
@@ -316,6 +318,25 @@ export default function BillingPage() {
         userName: auth.currentUser?.displayName || undefined,
         details: `₱${payAmount} via ${payMethod}${payRef ? ' ref:' + payRef : ''}`,
       });
+      // Send receipt email
+      if (selectedBill.clientUid) {
+        const ownerSnap = await getDoc(doc(db, 'users', selectedBill.clientUid));
+        const ownerEmail = ownerSnap.exists() ? ownerSnap.data().email : null;
+        if (ownerEmail) {
+          sendEmail({
+            to: ownerEmail,
+            subject: `Payment Receipt - ${selectedBill.invoiceNo || 'Invoice'}`,
+            html: invoiceReceipt(
+              ownerSnap.data().displayName || 'Valued Client',
+              selectedBill.petName || '',
+              selectedBill.invoiceNo || '',
+              selectedBill.grandTotal || selectedBill.amount || 0,
+              'paid',
+              payAmount
+            ),
+          });
+        }
+      }
       setIsPayDialogOpen(false);
       setSelectedBill(null);
     } catch (err) {

@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { auth, db, doc, setDoc, serverTimestamp, collection, addDoc, getDocs, query, where, orderBy } from '../firebase';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth, db, doc, setDoc, getDoc, serverTimestamp, collection, addDoc, getDocs, query, where, orderBy } from '../firebase';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, updateProfile, fetchSignInMethodsForEmail } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
+import { sendEmail } from '../lib/email-service';
+import {
+  bookingConfirmation, newBookingAlert
+} from '../lib/email-templates';
 import { User, Mail, Lock, Phone, Dog, ChevronRight, CheckCircle, Hospital, ArrowLeft, Eye, EyeOff, Stethoscope } from 'lucide-react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
@@ -22,6 +26,21 @@ export default function Signup() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [guestDetectionLoading, setGuestDetectionLoading] = useState(false);
+  const [passwordResetSent, setPasswordResetSent] = useState(false);
+  const [existingPets, setExistingPets] = useState<any[]>([]);
+  const [selectedExistingPetId, setSelectedExistingPetId] = useState<string | null>(null);
+  const [existingPetsLoading, setExistingPetsLoading] = useState(false);
+  const [existingRegisteredUser, setExistingRegisteredUser] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(0);
+
+  const handlePasswordReset = async () => {
+    try {
+      await sendPasswordResetEmail(auth, ownerData.email);
+      setPasswordResetSent(true);
+    } catch {
+      setError("Failed to send reset email. Please try again.");
+    }
+  };
   const navigate = useNavigate();
 
   // Step1: Owner Info
@@ -159,6 +178,39 @@ export default function Signup() {
     fetchAvailability();
   }, [petData.selectedDoctorId]);
 
+  // Auto-redirect registered users to login page with countdown
+  useEffect(() => {
+    if (existingRegisteredUser) {
+      setRedirectCountdown(4);
+      const interval = setInterval(() => {
+        setRedirectCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            navigate('/login', { state: { email: ownerData.email } });
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setRedirectCountdown(0);
+    }
+  }, [existingRegisteredUser, navigate]);
+
+  // Fetch existing pets when entering Step 2 as a returning guest
+  useEffect(() => {
+    if (step === 2 && isReturningGuest && returningGuestId) {
+      setExistingPetsLoading(true);
+      getDocs(query(collection(db, 'pets'), where('ownerUid', '==', returningGuestId)))
+        .then(snap => {
+          setExistingPets(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        })
+        .catch(() => {})
+        .finally(() => setExistingPetsLoading(false));
+    }
+  }, [step, isReturningGuest, returningGuestId]);
+
   // Debounced returning guest detection — check if email belongs to an existing guest user
   useEffect(() => {
     if (!ownerData.email || !ownerData.email.includes('@')) {
@@ -170,11 +222,13 @@ export default function Signup() {
     const timer = setTimeout(async () => {
       setGuestDetectionLoading(true);
       try {
-        const q = query(collection(db, 'users'), where('email', '==', ownerData.email.trim().toLowerCase()), where('isGuest', '==', true));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          const guestId = snap.docs[0].id;
+        // First check: is this a guest user?
+        const guestQ = query(collection(db, 'users'), where('email', '==', ownerData.email.trim().toLowerCase()), where('isGuest', '==', true));
+        const guestSnap = await getDocs(guestQ);
+        if (!guestSnap.empty) {
+          const guestId = guestSnap.docs[0].id;
           setIsReturningGuest(true);
+          setExistingRegisteredUser(false);
           setReturningGuestId(guestId);
           setOwnerData(prev => ({ ...prev, createAccount: true }));
           // Fetch booking history
@@ -185,9 +239,44 @@ export default function Signup() {
           setBookingHistory(history);
           setHistoryLoading(false);
         } else {
-          setIsReturningGuest(false);
-          setReturningGuestId(null);
-          setBookingHistory([]);
+          // Second check: is this a registered (non-guest) user in Firestore?
+          const registeredQ = query(collection(db, 'users'), where('email', '==', ownerData.email.trim().toLowerCase()), where('isGuest', '==', false));
+          const registeredSnap = await getDocs(registeredQ);
+          let foundRegistered = false;
+          if (!registeredSnap.empty) {
+            foundRegistered = true;
+          } else {
+            // Also check if there's any user doc without isGuest field (legacy registered users)
+            const legacyQ = query(collection(db, 'users'), where('email', '==', ownerData.email.trim().toLowerCase()));
+            const legacySnap = await getDocs(legacyQ);
+            if (!legacySnap.empty && !legacySnap.docs[0].data().isGuest) {
+              foundRegistered = true;
+            }
+          }
+
+          // Third check: does a Firebase Auth account exist for this email (even without Firestore doc)?
+          if (!foundRegistered) {
+            try {
+              const signInMethods = await fetchSignInMethodsForEmail(auth, ownerData.email.trim().toLowerCase());
+              if (signInMethods.length > 0) {
+                foundRegistered = true;
+              }
+            } catch {
+              // fetchSignInMethodsForEmail can fail if Firebase config is incomplete; fall through
+            }
+          }
+
+          if (foundRegistered) {
+            setExistingRegisteredUser(true);
+            setIsReturningGuest(false);
+            setReturningGuestId(null);
+            setBookingHistory([]);
+          } else {
+            setExistingRegisteredUser(false);
+            setIsReturningGuest(false);
+            setReturningGuestId(null);
+            setBookingHistory([]);
+          }
         }
       } catch {} finally {
         setGuestDetectionLoading(false);
@@ -201,6 +290,10 @@ export default function Signup() {
     setError(null);
 
     if (step === 1) {
+      if (existingRegisteredUser) {
+        setError("This email is already registered. Please sign in instead.");
+        return;
+      }
       if (!ownerData.name || !ownerData.email || !ownerData.phoneDigits) {
         setError("Please fill in all required fields.");
         return;
@@ -250,19 +343,32 @@ export default function Signup() {
 
     try {
       // Check if a guest user with this email already exists
-      const existingGuestQuery = query(collection(db, 'users'), where('email', '==', ownerData.email), where('isGuest', '==', true));
+      const existingGuestQuery = query(collection(db, 'users'), where('email', '==', ownerData.email.trim().toLowerCase()), where('isGuest', '==', true));
       const existingGuestSnap = await getDocs(existingGuestQuery);
       const existingGuest = existingGuestSnap.empty ? null : existingGuestSnap.docs[0];
       const guestUserId = existingGuest?.id;
 
-      // FULL ACCOUNT CREATION
-      const userCredential = await createUserWithEmailAndPassword(auth, ownerData.email, ownerData.password);
+      // FULL ACCOUNT CREATION — try to create account, fallback to sign-in if email exists
+      let userCredential;
+      try {
+        userCredential = await createUserWithEmailAndPassword(auth, ownerData.email, ownerData.password);
+      } catch (createErr: any) {
+        if (createErr.code === 'auth/email-already-in-use') {
+          try {
+            userCredential = await signInWithEmailAndPassword(auth, ownerData.email, ownerData.password);
+          } catch {
+            throw new Error("This email is already registered but the password you entered is incorrect. Please try again.");
+          }
+        } else {
+          throw createErr;
+        }
+      }
       const user = userCredential.user;
 
       await updateProfile(user, { displayName: ownerData.name });
 
       if (existingGuest && guestUserId) {
-        // Migrate guest user to full account — update the existing doc in place
+        // Upgrade the guest user doc to a full account (in-place)
         await setDoc(doc(db, 'users', guestUserId), {
           uid: user.uid,
           email: ownerData.email,
@@ -274,16 +380,7 @@ export default function Signup() {
           createdAt: existingGuest.data().createdAt || serverTimestamp()
         });
 
-        // Migrate any existing pets from the guest user to the new auth UID
-        const guestPetsQuery = query(collection(db, 'pets'), where('ownerUid', '==', guestUserId));
-        const guestPetsSnap = await getDocs(guestPetsQuery);
-        const petMigrationPromises: Promise<any>[] = [];
-        guestPetsSnap.forEach(petDoc => {
-          petMigrationPromises.push(updateDoc(doc(db, 'pets', petDoc.id), { ownerUid: user.uid }));
-        });
-        await Promise.all(petMigrationPromises);
-
-        // Create a linking doc under the auth UID so lookups by uid work too
+        // Create a linking doc under the auth UID — queries will check both via linkedTo
         await setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
           linkedTo: guestUserId,
@@ -295,21 +392,26 @@ export default function Signup() {
           createdAt: serverTimestamp()
         });
       } else {
-        await setDoc(doc(db, 'users', user.uid), {
-          uid: user.uid,
-          email: ownerData.email,
-          displayName: ownerData.name,
-          phone: fullPhone,
-          role: 'client',
-          createdAt: serverTimestamp()
-        });
+        // Only create user doc if one doesn't already exist (protect against overwriting)
+        const existingDoc = await getDoc(doc(db, 'users', user.uid));
+        if (!existingDoc.exists()) {
+          await setDoc(doc(db, 'users', user.uid), {
+            uid: user.uid,
+            email: ownerData.email,
+            displayName: ownerData.name,
+            phone: fullPhone,
+            role: 'client',
+            createdAt: serverTimestamp()
+          });
+        }
       }
 
-      // Check for duplicate pet name under final ownerUid
-      const effectiveOwnerUid = (existingGuest && guestUserId) ? user.uid : user.uid;
+      // Check for duplicate pet name — search both auth UID and linked guest UID
+      const dupOwnerUids = [user.uid];
+      if (existingGuest && guestUserId) dupOwnerUids.push(guestUserId);
       const dupQuery = query(
         collection(db, 'pets'),
-        where('ownerUid', '==', effectiveOwnerUid),
+        where('ownerUid', 'in', dupOwnerUids),
         where('name', '==', petData.name.trim())
       );
       const dupSnap = await getDocs(dupQuery);
@@ -323,7 +425,7 @@ export default function Signup() {
         }
       } else {
         await addDoc(collection(db, 'pets'), {
-          ownerUid: effectiveOwnerUid,
+          ownerUid: user.uid,
           name: petData.name,
           species: petData.species,
           breed: petData.breed,
@@ -349,7 +451,7 @@ export default function Signup() {
     try {
       console.log('Step 1: Checking for existing guest...');
       // Check if a guest user with this email already exists
-      const existingUserQuery = query(collection(db, 'users'), where('email', '==', ownerData.email), where('isGuest', '==', true));
+      const existingUserQuery = query(collection(db, 'users'), where('email', '==', ownerData.email.trim().toLowerCase()), where('isGuest', '==', true));
       const existingUserSnap = await getDocs(existingUserQuery);
 
       let guestUserId: string;
@@ -504,6 +606,22 @@ export default function Signup() {
       await Promise.all(notificationPromises);
       console.log('Notifications sent');
 
+      // Send email notifications (fire-and-forget)
+      const emailSubject = isReturning ? 'Booking Confirmed (Returning Guest)' : 'Booking Confirmed';
+      sendEmail({
+        to: ownerData.email,
+        subject: emailSubject,
+        html: bookingConfirmation(ownerData.name, petData.name, selectedDate || '', selectedTime || '', petData.selectedDoctorName),
+      });
+      const staffEmails = usersSnapshot.docs.map(d => d.data().email).filter(Boolean);
+      if (staffEmails.length > 0) {
+        sendEmail({
+          to: staffEmails,
+          subject: `New Booking: ${ownerData.name} - ${petData.name}`,
+          html: newBookingAlert(ownerData.name, petData.name, petData.species, selectedDate || '', selectedTime || '', fullPhone, petData.selectedDoctorName),
+        });
+      }
+
       setStep(5); // Success step - lead created
     } catch (err: any) {
       console.error('Error in confirmBooking:', err);
@@ -631,6 +749,31 @@ export default function Signup() {
                     </div>
                   )}
 
+                  {existingRegisteredUser && (
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-5 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                          <span className="text-lg">⚠️</span>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-red-900">Account Already Exists</h3>
+                          <p className="text-sm text-red-700 mt-1">
+                            This email is already registered with a full account. Please sign in instead.
+                          </p>
+                          <p className="text-sm text-red-600 font-medium mt-2">
+                            Redirecting to Sign In in <span className="text-base">{redirectCountdown}</span> seconds...
+                          </p>
+                        </div>
+                      </div>
+                      <Link
+                        to="/login"
+                        className="block w-full text-center bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold text-sm transition-all"
+                      >
+                        Go to Sign In
+                      </Link>
+                    </div>
+                  )}
+
                   <form onSubmit={handleNext} className="space-y-6">
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-2">
@@ -678,7 +821,7 @@ export default function Signup() {
                           required
                           placeholder="john@example.com"
                           value={ownerData.email}
-                          onChange={(e) => setOwnerData({...ownerData, email: e.target.value})}
+                          onChange={(e) => setOwnerData({...ownerData, email: e.target.value.toLowerCase()})}
                           className="w-full pl-12 pr-4 py-4 bg-stone-50 border border-stone-100 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
                         />
                       </div>
@@ -746,9 +889,14 @@ export default function Signup() {
                     )}
                     <button 
                       type="submit"
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all"
+                      disabled={existingRegisteredUser}
+                      className={`w-full py-5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${
+                        existingRegisteredUser
+                          ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      }`}
                     >
-                      Continue to Pet Details <ChevronRight className="w-5 h-5" />
+                      {existingRegisteredUser ? 'Sign In Required' : 'Continue to Pet Details'} {!existingRegisteredUser && <ChevronRight className="w-5 h-5" />}
                     </button>
                     <p className="text-center text-sm text-stone-500">
                       Already have an account? <Link to="/login" className="text-emerald-600 font-bold">Sign In</Link>
@@ -776,11 +924,96 @@ export default function Signup() {
                     <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto">
                       <Dog className="w-8 h-8" />
                     </div>
-                    <h1 className="text-3xl font-bold">Tell us about your pet</h1>
-                    <p className="text-stone-500">{ownerData.createAccount ? 'Add your first patient to the profile.' : 'Tell us about your pet for the booking.'}</p>
+                    <h1 className="text-3xl font-bold">{ownerData.createAccount ? 'Create Your Account & Add a Pet' : 'Tell us about your pet'}</h1>
+                    <p className="text-stone-500">
+                      {ownerData.createAccount
+                        ? 'Your account will be created when you finish. Select an existing pet or register a new one.'
+                        : 'Tell us about your pet for the booking.'}
+                    </p>
                   </div>
 
-                  {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100">{error}</div>}
+                  {error && (
+                    <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100 space-y-2">
+                      <p>{error}</p>
+                      {error.includes('password you entered is incorrect') && !passwordResetSent && (
+                        <button type="button" onClick={handlePasswordReset} className="text-emerald-600 font-bold text-xs hover:underline">
+                          Forgot your password? Reset it here
+                        </button>
+                      )}
+                      {passwordResetSent && (
+                        <p className="text-emerald-600 font-medium text-xs">Password reset email sent! Check your inbox.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Existing pets for returning guest */}
+                  {ownerData.createAccount && isReturningGuest && (
+                    <div className="space-y-3">
+                      <h3 className="font-bold text-stone-700 text-sm flex items-center gap-2">
+                        <span>Your Existing Pets</span>
+                        {existingPetsLoading && <div className="w-4 h-4 border-2 border-stone-300 border-t-emerald-500 rounded-full animate-spin" />}
+                      </h3>
+                      {existingPetsLoading ? (
+                        <div className="flex items-center gap-2 text-sm text-stone-500 py-3">
+                          <div className="w-4 h-4 border-2 border-stone-300 border-t-emerald-500 rounded-full animate-spin" />
+                          Loading your pets...
+                        </div>
+                      ) : existingPets.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {existingPets.map(pet => (
+                            <button
+                              key={pet.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedExistingPetId(selectedExistingPetId === pet.id ? null : pet.id);
+                                if (selectedExistingPetId === pet.id) {
+                                  // Deselect — clear form
+                                  setPetData({ ...petData, name: '', species: 'Dog', breed: '', age: '' });
+                                } else {
+                                  // Select — populate form
+                                  setPetData({
+                                    ...petData,
+                                    name: pet.name || '',
+                                    species: pet.species || 'Dog',
+                                    breed: pet.breed || '',
+                                    age: pet.age?.toString() || '',
+                                  });
+                                }
+                              }}
+                              className={`text-left p-4 rounded-2xl border-2 transition-all ${
+                                selectedExistingPetId === pet.id
+                                  ? 'border-emerald-500 bg-emerald-50'
+                                  : 'border-stone-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/50'
+                              }`}
+                            >
+                              <p className="font-bold text-stone-800">{pet.name}</p>
+                              <p className="text-xs text-stone-500 mt-0.5">
+                                {pet.species}{pet.breed ? ` · ${pet.breed}` : ''}{pet.age ? ` · ${pet.age} yrs` : ''}
+                              </p>
+                              {selectedExistingPetId === pet.id && (
+                                <p className="text-[11px] text-emerald-600 font-medium mt-2 flex items-center gap-1">
+                                  <CheckCircle className="w-3 h-3" /> Selected — will reuse this record
+                                </p>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-stone-500">No previous pets found. You can register a new one below.</p>
+                      )}
+
+                      {existingPets.length > 0 && (
+                        <div className="relative py-2">
+                          <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-stone-200" />
+                          </div>
+                          <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-white px-3 text-stone-400 font-medium">Or register a new pet</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <form onSubmit={ownerData.createAccount ? handleSignup : proceedToConfirmation} className="space-y-6">
                     <div className="space-y-2">
@@ -1014,7 +1247,17 @@ export default function Signup() {
                   </div>
                   <div className="space-y-4">
                     <h1 className="text-4xl font-bold text-stone-900">Welcome to the Family!</h1>
-                    <p className="text-xl text-stone-500">Your profile and pet record have been created successfully.</p>
+                    <p className="text-xl text-stone-500">
+                      {isReturningGuest
+                        ? 'Your account is now linked to your previous visits. All your pets and bookings are available.'
+                        : 'Your profile and pet record have been created successfully.'}
+                    </p>
+                    {isReturningGuest && existingPets.length > 0 && (
+                      <div className="flex items-center justify-center gap-2 text-stone-600">
+                        <CheckCircle className="w-4 h-4 text-emerald-500" />
+                        <span className="text-sm font-medium">{existingPets.length} pet{existingPets.length !== 1 ? 's' : ''} linked to your account</span>
+                      </div>
+                    )}
                   </div>
                   <div className="p-8 bg-emerald-50 rounded-3xl border border-emerald-100 inline-block">
                     <p className="text-emerald-800 font-medium">Redirecting you to your dashboard...</p>
