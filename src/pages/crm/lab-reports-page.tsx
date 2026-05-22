@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/table';
 import { SearchBar } from '../../components/ui/search-bar';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '../../components/ui/drawer';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
 import {
   Plus, Eye, Loader2, MoreHorizontal, FlaskConical, Clock, CheckCircle, AlertTriangle,
   Syringe, FileText, X, Ban, Upload, Beaker, ScanLine,
@@ -894,6 +894,7 @@ export default function LabReportsPage() {
             <DrawerTitle>
               {selectedOrder?.testName || 'Lab Order Details'}
             </DrawerTitle>
+            <DrawerDescription className="sr-only">Lab order details and actions</DrawerDescription>
           </DrawerHeader>
           {selectedOrder && (
             <div className="space-y-5 pr-2 overflow-y-auto max-h-[calc(100vh-120px)]">
