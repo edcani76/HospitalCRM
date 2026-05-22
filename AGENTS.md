@@ -269,7 +269,11 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
     - Duplicate encounter prevention: guard in `startAppointment` queries existing encounter by `appointmentId`
     - Duplicate cleanup script (`scripts/remove-duplicate-encounters.ts`) run successfully — 1 duplicate found and removed
 
-37. **Pharmacy Operations Dashboard**
+36. **Pharmacy Operations Dashboard**
+
+37. **Documentation**
+    - `USERGUIDE.md` — comprehensive user guide covering all pages and workflows
+    - `TECHNICAL.md` — technical documentation with architecture, data models, API reference, and design decisions
 
 
 ### 📝 Recent Commits (branch: `codex/pr-1`)
@@ -278,6 +282,7 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 |--------|-------------|
 | `5000cf8` | Fix Dashboard pets loading 9×, add branded password reset flow |
 | `953a94c` | Add email notifications (SMTP/Nodemailer), password reset flow, returning guest improvements |
+| `1ddc95b` | Add Firebase Admin SDK for branded password reset, fix branding to EdvirontVet |
 | `78b9caf` | Fix DialogContent aria-describedby warning - add sr-only DialogDescription to invoice dialogs |
 | `9b42947` | Redesign Billing page as Billing & Payments Command Center with KPI cards, tabs, rich table, drawer, payment dialog |
 | `42c78ff` | Add Complete button for services in EMR, auto-generate draft invoice when all services completed |
@@ -292,6 +297,8 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - ✅ Lint: Clean (0 errors)
 - ✅ Build: Succeeds
 - ✅ Dev Server: Running at `http://0.0.0.0:3000`
+- ✅ Email: SMTP (Gmail App Password) working
+- ✅ Password Reset: Firebase Admin SDK + branded SMTP email
 
 ### 📂 Migration Scripts (Already Run)
 - `scripts/migrate-appointment-services.ts`: 12 appointments migrated from `Type:` to `Services:` format
