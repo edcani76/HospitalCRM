@@ -173,26 +173,23 @@ export default function Login() {
                 <button 
                   type="button" 
                   onClick={async () => {
-                    if (email) {
-                      const sent = await sendPasswordResetEmail(email);
-                      if (sent) {
-                        alert("Password reset email sent! Please check your inbox.");
-                        return;
-                      }
-                      firebaseSendReset(auth, email, {
-                        url: window.location.origin + '/login',
-                        handleCodeInApp: true,
-                      })
-                        .then(() => {
-                          alert("Password reset email sent! Please check your inbox.");
-                        })
-                        .catch((err) => {
-                          console.error("Error sending reset email:", err);
-                          alert("Failed to send reset email. Please try again.");
-                        });
-                    } else {
-                      alert("Please enter your email first.");
+                    if (!email) { alert("Please enter your email first."); return; }
+                    const sent = await sendPasswordResetEmail(email);
+                    if (sent) {
+                      alert("Password reset email sent! Please check your inbox.");
+                      return;
                     }
+                    firebaseSendReset(auth, email, {
+                      url: window.location.origin + '/reset-password',
+                      handleCodeInApp: true,
+                    })
+                      .then(() => {
+                        alert("Password reset email sent! Please check your inbox.");
+                      })
+                      .catch((err) => {
+                        console.error("Error sending reset email:", err);
+                        alert("Failed to send reset email. Please try again.");
+                      });
                   }}
                   className="text-sm text-emerald-500 hover:text-emerald-700"
                 >

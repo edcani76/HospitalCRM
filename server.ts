@@ -2,10 +2,12 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 import dotenv from "dotenv";
 import multer from "multer";
 import type { Multer } from "multer";
 import nodemailer from "nodemailer";
+import admin from "firebase-admin";
 
 dotenv.config();
 
@@ -16,6 +18,22 @@ const GOOGLE_CLIENT_ID = process.env.VITE_GOOGLE_CLIENT_ID || "";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 const GOOGLE_DRIVE_REFRESH_TOKEN = process.env.GOOGLE_DRIVE_REFRESH_TOKEN || "";
 const GOOGLE_DRIVE_FOLDER_ID = process.env.VITE_GOOGLE_DRIVE_FOLDER_ID || "";
+
+// Initialize Firebase Admin SDK if service account is configured
+try {
+  const saPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (saPath) {
+    const absPath = path.resolve(process.cwd(), saPath);
+    const raw = fs.readFileSync(absPath, "utf8");
+    const sa = JSON.parse(raw);
+    admin.initializeApp({ credential: admin.credential.cert(sa) });
+    console.log("[Admin] Firebase Admin SDK initialized ✅");
+  } else {
+    console.log("[Admin] GOOGLE_APPLICATION_CREDENTIALS not set, skipping Admin SDK");
+  }
+} catch (err) {
+  console.warn("[Admin] Firebase Admin SDK init failed:", err);
+}
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -299,47 +317,50 @@ async function startServer() {
         return res.status(400).json({ success: false, message: "Email is required" });
       }
 
-      // If SMTP is configured, send branded email via Nodemailer
-      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        const resetLink = `${process.env.FRONTEND_URL || `http://localhost:${PORT}`}/reset-password?email=${encodeURIComponent(email)}`;
-        const html = `<!DOCTYPE html>
+      // Use Admin SDK to generate a real Firebase reset link (no email sent by Firebase)
+      if (admin.apps.length > 0) {
+        const resetLink = await admin.auth().generatePasswordResetLink(email, {
+          url: `${process.env.FRONTEND_URL || `http://localhost:${PORT}`}/reset-password`,
+          handleCodeInApp: true,
+        });
+
+        // Send branded email via SMTP with the real reset link
+        if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+          const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f5f5f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
   <table role="presentation" style="width:100%;max-width:600px;margin:0 auto;padding:24px 16px">
     <tr><td style="background:#059669;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center">
-      <h1 style="color:#fff;margin:0;font-size:22px;font-weight:800">🐾 MediPaws Veterinary Clinic</h1>
+      <h1 style="color:#fff;margin:0;font-size:22px;font-weight:800">🐾 EdvirontVet Veterinary Clinic</h1>
       <p style="color:#a7f3d0;margin:4px 0 0;font-size:13px">Your Trusted Veterinary Partner</p>
     </td></tr>
     <tr><td style="background:#fff;padding:32px;border-left:1px solid #e7e5e4;border-right:1px solid #e7e5e4">
       <h2 style="font-size:18px;color:#1c1917;margin:0 0 16px">Password Reset Request</h2>
-      <p style="font-size:14px;color:#44403c;line-height:1.6;margin:0 0 20px">Hi, we received a request to reset your password for your MediPaws account associated with <strong>${email}</strong>.</p>
-      <p style="font-size:14px;color:#44403c;line-height:1.6;margin:0 0 20px">To reset your password, please visit our reset page and follow the instructions. If you did not request this, please ignore this email.</p>
+      <p style="font-size:14px;color:#44403c;line-height:1.6;margin:0 0 20px">Hi, we received a request to reset your password for your EdvirontVet account associated with <strong>${email}</strong>.</p>
+      <p style="font-size:14px;color:#44403c;line-height:1.6;margin:0 0 20px">Click the button below to reset your password. This link will expire in 1 hour.</p>
       <table role="presentation" style="margin:20px 0"><tr><td style="background:#059669;border-radius:12px;padding:0"><a href="${resetLink}" style="display:inline-block;padding:12px 28px;color:#fff;font-size:14px;font-weight:700;text-decoration:none;border-radius:12px">Reset Password</a></td></tr></table>
-      <p style="font-size:13px;color:#78716c;line-height:1.5;margin:0">For security, this request was made from our password reset page.</p>
+      <p style="font-size:13px;color:#78716c;line-height:1.5;margin:0">If you did not request this, please ignore this email. Your password will not be changed.</p>
     </td></tr>
     <tr><td style="background:#fafaf9;border-radius:0 0 16px 16px;border:1px solid #e7e5e4;border-top:none;padding:20px 32px;text-align:center">
-      <p style="margin:0 0 4px;font-size:12px;color:#a8a29e">MediPaws Veterinary Clinic &bull; Serving pets &amp; their families with care</p>
+      <p style="margin:0 0 4px;font-size:12px;color:#a8a29e">EdvirontVet Veterinary Clinic &bull; Serving pets &amp; their families with care</p>
       <p style="margin:0;font-size:11px;color:#d6d3d1">This is an automated message. Please do not reply to this email.</p>
     </td></tr>
   </table>
 </body>
 </html>`;
-        try {
           await transporter.sendMail({
-            from: `"MediPaws Veterinary Clinic" <${process.env.SMTP_USER}>`,
+              from: `"EdvirontVet" <${process.env.SMTP_USER}>`,
             to: email,
-            subject: "Password Reset - MediPaws Veterinary Clinic",
+            subject: "Reset Your Password - EdvirontVet",
             html,
           });
-          console.log("[Email] Password reset sent via SMTP to:", email);
+          console.log("[Email] Branded password reset sent via SMTP to:", email);
           return res.json({ success: true, method: "smtp" });
-        } catch (smtpErr) {
-          console.warn("[Email] SMTP send failed, falling back to Firebase:", smtpErr);
         }
       }
 
-      // Fallback: client should use Firebase's sendPasswordResetEmail
+      // Fallback: client uses Firebase sendPasswordResetEmail
       res.json({ success: false, method: "firebase", message: "Use Firebase sendPasswordResetEmail on the client" });
     } catch (error: any) {
       console.error("[Email] Password reset error:", error);
@@ -359,7 +380,7 @@ async function startServer() {
         return res.json({ success: false, message: "SMTP not configured" });
       }
       const info = await transporter.sendMail({
-        from: `"EdvirontMed" <${process.env.SMTP_USER}>`,
+        from: `"EdvirontVet" <${process.env.SMTP_USER}>`,
         to: recipients,
         subject,
         html,

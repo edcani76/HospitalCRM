@@ -41,7 +41,7 @@ export default function Signup() {
         return;
       }
       await firebasePasswordReset(auth, ownerData.email, {
-        url: window.location.origin + '/login',
+        url: window.location.origin + '/reset-password',
         handleCodeInApp: true,
       });
       setPasswordResetSent(true);

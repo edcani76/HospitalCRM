@@ -1,4 +1,4 @@
-const BRAND = 'MediPaws Veterinary Clinic';
+const BRAND = 'EdvirontVet Veterinary Clinic';
 const BRAND_EMERALD = '#059669';
 const BRAND_AMBER = '#d97706';
 

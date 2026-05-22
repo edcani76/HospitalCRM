@@ -276,6 +276,8 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 
 | Commit | Description |
 |--------|-------------|
+| `5000cf8` | Fix Dashboard pets loading 9×, add branded password reset flow |
+| `953a94c` | Add email notifications (SMTP/Nodemailer), password reset flow, returning guest improvements |
 | `78b9caf` | Fix DialogContent aria-describedby warning - add sr-only DialogDescription to invoice dialogs |
 | `9b42947` | Redesign Billing page as Billing & Payments Command Center with KPI cards, tabs, rich table, drawer, payment dialog |
 | `42c78ff` | Add Complete button for services in EMR, auto-generate draft invoice when all services completed |
@@ -315,8 +317,8 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `src/pages/crm/patient-profile.tsx` - Quick Start Visit, doctor selector
 - `src/pages/crm/appointment-details-page.tsx` - Service management, notes display
 - `src/pages/crm/admin-services.tsx` - Admin UI for service catalog, provider/resource management
-- `src/pages/BookAppointment.tsx` - Doctor carousel, dynamic availability, service selection
-- `src/pages/Dashboard.tsx` - My Appointments page, appointment management, pet age formatting, profile photo editing, data privacy & T&Cs consent with timestamps
+- `src/pages/BookAppointment.tsx` - Doctor carousel, dynamic availability, service selection, linkedTo pet queries
+- `src/pages/Dashboard.tsx` - My Appointments page, appointment management, pet age formatting, profile photo editing, data privacy & T&Cs consent with timestamps, linkedTo pet fallback, getDocs instead of onSnapshot for pets
 - `src/pages/PetProfile.tsx` - Enhanced clinical details, breadcrumb navigation
 - `src/components/DashboardLayout.tsx` - Sidebar/layout with mobile/desktop state management, breadcrumb integration, notification bell
 - `src/components/crm-layout.tsx` - CRM portal layout with mobile sidebar, sidebar toggle
@@ -326,18 +328,25 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `src/components/ui/breadcrumb.tsx` - New breadcrumb component with onClick support
 - `src/components/ui/calendar.tsx` - Enhanced calendar with minDate and disabledDays support
 - `src/components/ui/page-header.tsx` - Page header with back button support
-- `server.ts` - Express API for Drive uploads, OAuth, token refresh
+- `server.ts` - Express API for Drive uploads, OAuth, token refresh, SMTP email sending, password reset endpoint
+- `src/lib/email-service.ts` - Client-side proxy for SMTP email sending, password reset via server
+- `src/lib/email-templates.ts` - HTML email templates for booking, confirmation, cancellation, reminder, invoice, password reset
 - `src/lib/google-drive.ts` - Client-side proxy for Drive uploads
 - `src/lib/firestore-helpers.ts` - `fetchServicesForProvider`, `fetchAllResources`, service catalog helpers
 - `src/lib/storage.ts` - Google Drive wrapper (removed Firebase Storage)
 - `src/lib/file-upload.ts` - Google Drive upload helper
 - `src/types.ts` - Pet type extended, ServiceCatalogItem, Resource, notification types
-- `src/pages/Login.tsx` - Client redirect defaults to `/dashboard`
+- `src/pages/Login.tsx` - Client redirect defaults to `/dashboard`, Forgot Password with SMTP-first fallback to Firebase, actionCodeSettings with handleCodeInApp
+- `src/pages/ResetPassword.tsx` - **NEW** Branded password reset page with oobCode verification, password form, expired link handler, manual email entry
 - `scripts/seed-service-catalog.ts` - Extended seed with provider/resource mapping, resources creation
 - `scripts/seed-emr-data.ts` - Comprehensive EMR seed data script
 - `scripts/migrate-pet-images-to-drive.ts` - Migration script for base64/Firebase images to Drive
 - `scripts/seed-pharmacy-data.ts` - Pharmacy seed data: 15 medications, 33 inventory batches, stock movements, 5 prescriptions
 - `public/_redirects` - Netlify SPA routing configuration
+- `src/pages/Signup.tsx` - Returning guest detection with `fetchSignInMethodsForEmail`, existing pets display, linkedTo fallback, registered user guard with auto-redirect, email normalization, SMTP-first password reset
+- `src/pages/ResetPassword.tsx` - Branded password reset page with oobCode verify/confirm flow, expired link handler, manual email entry
+- `src/pages/crm/appointments-page.tsx` - Guest/Migrated user badges next to owner names
+- `src/pages/crm/patients-page.tsx` - Guest/Migrated user badges next to owner names
 
 ### ⚙️ Critical Context
 - EMR Page: 15-step consultation workspace (Chief Complaint → Doctor Signature) replaces old 9-tab layout
@@ -356,3 +365,4 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - Calendar component disables days by checking `day < startOfToday()` or custom `disabledDays` set
 - Bell notification dropdown renders `Notification` objects from `getNotifications` and calls `markAsRead` on click
 - "ThemeContext invalid hook call" error in console is caused by MetaMask SES lockdown removing `Proxy` – disable MetaMask for localhost or use production build
+- Password reset: client tries SMTP via `/api/send-password-reset` first, falls back to Firebase's `sendPasswordResetEmail` with `handleCodeInApp:true`; branded ResetPassword page handles oobCode with verify/confirm flow
