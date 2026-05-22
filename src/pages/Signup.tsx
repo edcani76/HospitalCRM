@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { auth, db, doc, setDoc, getDoc, serverTimestamp, collection, addDoc, getDocs, query, where, orderBy } from '../firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, updateProfile, fetchSignInMethodsForEmail } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail as firebasePasswordReset, updateProfile, fetchSignInMethodsForEmail } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
-import { sendEmail } from '../lib/email-service';
+import { sendEmail, sendPasswordResetEmail as serverPasswordReset } from '../lib/email-service';
 import {
   bookingConfirmation, newBookingAlert
 } from '../lib/email-templates';
@@ -35,7 +35,15 @@ export default function Signup() {
 
   const handlePasswordReset = async () => {
     try {
-      await sendPasswordResetEmail(auth, ownerData.email);
+      const sent = await serverPasswordReset(ownerData.email);
+      if (sent) {
+        setPasswordResetSent(true);
+        return;
+      }
+      await firebasePasswordReset(auth, ownerData.email, {
+        url: window.location.origin + '/login',
+        handleCodeInApp: true,
+      });
       setPasswordResetSent(true);
     } catch {
       setError("Failed to send reset email. Please try again.");

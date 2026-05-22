@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, User as FirebaseUser } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, confirmPasswordReset, verifyPasswordResetCode, User as FirebaseUser } from 'firebase/auth';
 import { initializeFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, where, onSnapshot, serverTimestamp, Timestamp, getDocFromServer, arrayUnion, orderBy, limit } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -80,6 +80,6 @@ testConnection();
 
 export {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, where, onSnapshot, serverTimestamp, Timestamp, arrayUnion, orderBy, limit,
-  signInWithPopup, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, GoogleAuthProvider,
+  signInWithPopup, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, confirmPasswordReset, verifyPasswordResetCode, GoogleAuthProvider,
 };
 export type { FirebaseUser };

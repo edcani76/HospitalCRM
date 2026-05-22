@@ -107,6 +107,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!user || !user.uid) return;
+    let mounted = true;
 
     // Listen to Appointments
     const qAppointments = query(
@@ -146,8 +147,7 @@ export default function Dashboard() {
       setInvoices(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     });
 
-    // Listen to Pets — check linkedTo for migrated guest users
-    let unsubPets: (() => void) | null = null;
+    // Fetch Pets — check linkedTo for migrated guest users
     (async () => {
       const ownerUids = [user.uid];
       const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -158,19 +158,18 @@ export default function Dashboard() {
         collection(db, 'pets'),
         where('ownerUid', 'in', ownerUids)
       );
-      unsubPets = onSnapshot(qPets, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pet));
-        console.log('[Dashboard] Pets loaded:', data.map(p => ({ id: p.id, name: p.name, imageUrl: p.imageUrl })));
-        setPets(data);
-        setLoading(false);
-      });
+      const snapshot = await getDocs(qPets);
+      if (!mounted) return;
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pet));
+      setPets(data);
+      setLoading(false);
     })();
 
     return () => {
       unsubAppointments();
       unsubReports();
       unsubInvoices();
-      if (unsubPets) unsubPets();
+      mounted = false;
     };
   }, [user]);
 

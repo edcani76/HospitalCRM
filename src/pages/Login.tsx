@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword, db, doc, getDoc, setDoc, serverTimestamp, sendPasswordResetEmail } from '../firebase';
+import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword, db, doc, getDoc, setDoc, serverTimestamp, sendPasswordResetEmail as firebaseSendReset } from '../firebase';
+import { sendPasswordResetEmail } from '../lib/email-service';
 import { motion } from 'motion/react';
 import { LogIn, Mail, ShieldCheck, Hospital, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -171,11 +172,17 @@ export default function Login() {
               <div className="text-right mt-2">
                 <button 
                   type="button" 
-                  onClick={() => {
+                  onClick={async () => {
                     if (email) {
-                      // Import sendPasswordResetEmail here to avoid circular deps if needed
-                      // Actually, it's already imported at the top
-                      sendPasswordResetEmail(auth, email)
+                      const sent = await sendPasswordResetEmail(email);
+                      if (sent) {
+                        alert("Password reset email sent! Please check your inbox.");
+                        return;
+                      }
+                      firebaseSendReset(auth, email, {
+                        url: window.location.origin + '/login',
+                        handleCodeInApp: true,
+                      })
                         .then(() => {
                           alert("Password reset email sent! Please check your inbox.");
                         })

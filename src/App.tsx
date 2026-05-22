@@ -8,6 +8,7 @@ import Doctors from './pages/Doctors';
 import Departments from './pages/Departments';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import BookAppointment from './pages/BookAppointment';
 import OwnerProfile from './pages/OwnerProfile';
@@ -98,6 +99,7 @@ export default function App() {
           <Route path="/departments" element={<Layout showFooter={true}><Departments /></Layout>} />
           <Route path="/login" element={<Layout showFooter={true}><Login /></Layout>} />
           <Route path="/signup" element={<Layout showFooter={true}><Signup /></Layout>} />
+          <Route path="/reset-password" element={<Layout showFooter={true}><ResetPassword /></Layout>} />
 
           {/* Patient Portal / User Pages (with Header, NO Footer) */}
           <Route 
