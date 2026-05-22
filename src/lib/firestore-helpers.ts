@@ -444,6 +444,28 @@ export async function fetchLabOrders(encounterId: string) {
   return fetchWithCache(`lab_orders_${encounterId}`, queryFn);
 }
 
+// Fetch ALL lab orders (for Lab & Diagnostics dashboard)
+export async function fetchAllLabOrders() {
+  const queryFn = async () => {
+    const q = query(collection(db, 'lab_orders'), orderBy('orderedAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+  return fetchWithCache('lab_orders_all', queryFn);
+}
+
+// Update lab order status with timestamps
+export async function updateLabOrderStatus(labId: string, status: string, extra?: any) {
+  const ref = doc(db, 'lab_orders', labId);
+  const now = serverTimestamp();
+  const updates: any = { status, updatedAt: now, ...extra };
+  if (status === 'in-progress') updates.startedAt = now;
+  if (status === 'completed') updates.completedAt = now;
+  if (status === 'sample-collected') updates.sampleCollectedAt = now;
+  if (status === 'cancelled') updates.cancelledAt = now;
+  await updateDoc(ref, updates);
+}
+
 // Prescriptions
 export async function fetchPrescriptions(encounterId: string) {
   const queryFn = async () => {

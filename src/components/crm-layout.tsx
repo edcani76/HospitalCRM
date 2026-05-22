@@ -216,7 +216,7 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
         roles: ['admin', 'pharmacist'],
       },
       {
-        name: 'Lab Reports',
+        name: 'Lab & Diagnostics',
         path: '/crm/lab-reports',
         icon: FlaskConical,
         roles: ['admin', 'doctor', 'lab'],
@@ -400,7 +400,7 @@ const getBreadcrumbs = (): CRMBreadcrumb[] => {
       'emr': 'EMR & Medical Records',
       'billing': 'Billing',
       'pharmacy': 'Pharmacy',
-      'lab-reports': 'Lab Reports',
+      'lab-reports': 'Lab & Diagnostics',
       'analytics': 'Analytics',
       'audit': 'Audit Trail',
       'security': 'Security',
