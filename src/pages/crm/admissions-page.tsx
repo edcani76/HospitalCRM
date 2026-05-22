@@ -5,7 +5,7 @@ import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
@@ -446,12 +446,12 @@ export default function AdmissionsPage() {
       </div>
 
       {/* Admit Patient Dialog */}
-      <Dialog open={isAdmitDialogOpen} onOpenChange={setIsAdmitDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Admit Patient</DialogTitle>
-            <DialogDescription>Create a new patient admission record</DialogDescription>
-          </DialogHeader>
+      <Drawer open={isAdmitDialogOpen} onOpenChange={setIsAdmitDialogOpen}>
+        <DrawerContent className="">
+          <DrawerHeader>
+            <DrawerTitle>Admit Patient</DrawerTitle>
+            <DrawerDescription>Create a new patient admission record</DrawerDescription>
+          </DrawerHeader>
           
           <div className="space-y-4 max-h-[60vh] overflow-y-auto py-2">
             <div className="space-y-2">
@@ -535,7 +535,7 @@ export default function AdmissionsPage() {
             </div>
           </div>
 
-          <DialogFooter>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
             <Button variant="outline" onClick={() => setIsAdmitDialogOpen(false)}>
               Cancel
             </Button>
@@ -556,19 +556,19 @@ export default function AdmissionsPage() {
                 </>
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {/* Discharge Patient Dialog */}
-      <Dialog open={isDischargeDialogOpen} onOpenChange={setIsDischargeDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Discharge Patient</DialogTitle>
-            <DialogDescription>
+      <Drawer open={isDischargeDialogOpen} onOpenChange={setIsDischargeDialogOpen}>
+        <DrawerContent className="">
+          <DrawerHeader>
+            <DrawerTitle>Discharge Patient</DrawerTitle>
+            <DrawerDescription>
               Discharge {selectedAdmission?.petName} after {selectedAdmission && getStayDuration(selectedAdmission.checkInDate)} days
-            </DialogDescription>
-          </DialogHeader>
+            </DrawerDescription>
+          </DrawerHeader>
           
           <div className="space-y-4 max-h-[60vh] overflow-y-auto py-2">
             <div className="space-y-2">
@@ -660,7 +660,7 @@ export default function AdmissionsPage() {
             </div>
           </div>
 
-          <DialogFooter>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
             <Button variant="outline" onClick={() => {
               setIsDischargeDialogOpen(false);
               setSelectedAdmission(null);
@@ -685,9 +685,9 @@ export default function AdmissionsPage() {
                 </>
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

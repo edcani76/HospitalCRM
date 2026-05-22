@@ -36,7 +36,7 @@ const DrawerContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          `fixed top-0 z-50 h-full max-w-lg border-l-0 bg-white p-6 shadow-[0_0_40px_rgba(0,0,0,0.08),4px_0_24px_rgba(0,0,0,0.06)] duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 ${sideClasses} ${roundedClass}`,
+          `fixed top-0 bottom-0 z-50 h-full max-w-2xl border-l-0 bg-white p-6 shadow-[0_0_40px_rgba(0,0,0,0.08),4px_0_24px_rgba(0,0,0,0.06)] duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 flex flex-col ${sideClasses} ${roundedClass}`,
           className
         )}
         {...props}

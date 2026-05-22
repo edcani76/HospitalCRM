@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
@@ -434,12 +434,12 @@ export default function BillingPage() {
               <p className="text-muted-foreground">Manage invoices, payments, outstanding balances, refunds, and owner billing history.</p>
             </div>
             <div className="flex gap-2">
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <Drawer open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <Button onClick={() => setIsAddDialogOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" /> Create Invoice
                 </Button>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader><DialogTitle>Create New Invoice</DialogTitle><DialogDescription className="sr-only">Fill in the invoice details</DialogDescription></DialogHeader>
+                <DrawerContent className="">
+                  <DrawerHeader><DrawerTitle>Create New Invoice</DrawerTitle><DrawerDescription className="sr-only">Fill in the invoice details</DrawerDescription></DrawerHeader>
                   <div className="space-y-4 py-4">
                     <div>
                       <Label>Pet</Label>
@@ -522,8 +522,8 @@ export default function BillingPage() {
                     </div>
                     <Button onClick={handleSubmit} className="w-full">Create Invoice</Button>
                   </div>
-                </DialogContent>
-              </Dialog>
+                </DrawerContent>
+              </Drawer>
             </div>
           </div>
 
@@ -730,14 +730,14 @@ export default function BillingPage() {
           </Card>
 
           {/* View Drawer */}
-          <Dialog open={isViewDrawerOpen} onOpenChange={setIsViewDrawerOpen}>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
+          <Drawer open={isViewDrawerOpen} onOpenChange={setIsViewDrawerOpen}>
+            <DrawerContent className="overflow-y-auto">
+              <DrawerHeader>
+                <DrawerTitle>
                   Invoice {selectedBill ? getInvoiceNo(selectedBill) : ''}
-                </DialogTitle>
-                <DialogDescription className="sr-only">Invoice details and actions</DialogDescription>
-              </DialogHeader>
+                </DrawerTitle>
+                <DrawerDescription className="sr-only">Invoice details and actions</DrawerDescription>
+              </DrawerHeader>
               {selectedBill && (
                 <div className="space-y-6">
                   {/* Summary */}
@@ -865,18 +865,18 @@ export default function BillingPage() {
                   </div>
                 </div>
               )}
-            </DialogContent>
-          </Dialog>
+            </DrawerContent>
+          </Drawer>
 
           {/* Pay Dialog */}
-          <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Record Payment</DialogTitle>
-                <DialogDescription>
+          <Drawer open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
+            <DrawerContent className="">
+              <DrawerHeader>
+                <DrawerTitle>Record Payment</DrawerTitle>
+                <DrawerDescription>
                   {selectedBill && `Invoice ${getInvoiceNo(selectedBill)} — ${selectedBill.petName}`}
-                </DialogDescription>
-              </DialogHeader>
+                </DrawerDescription>
+              </DrawerHeader>
               {selectedBill && (
                 <div className="space-y-4 py-2">
                   <div className="flex justify-between text-sm">
@@ -916,8 +916,8 @@ export default function BillingPage() {
                   </Button>
                 </div>
               )}
-            </DialogContent>
-          </Dialog>
+            </DrawerContent>
+          </Drawer>
         </>
       )}
     </div>

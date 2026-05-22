@@ -7,7 +7,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Badge } from '../../components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '../../components/ui/drawer';
 import { fetchServiceCatalog, fetchAllResources, addServiceToCatalog, updateServiceCatalog, updateServiceProviders, addResource, updateResourceStatus, addAuditLog } from '../../lib/firestore-helpers';
 import { db, auth, collection, getDocs, doc, updateDoc } from '../../firebase';
 import { Plus, Search, Edit2, Trash2, Eye, EyeOff, Filter, Package, Settings, Save, X } from 'lucide-react';
@@ -328,11 +328,11 @@ export default function AdminServicesPage() {
       )}
 
       {/* Service Dialog */}
-      <Dialog open={showServiceDialog} onOpenChange={setShowServiceDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingService ? 'Edit Service' : 'Add Service'}</DialogTitle>
-          </DialogHeader>
+      <Drawer open={showServiceDialog} onOpenChange={setShowServiceDialog}>
+        <DrawerContent className="overflow-y-auto">
+          <DrawerHeader>
+            <DrawerTitle>{editingService ? 'Edit Service' : 'Add Service'}</DrawerTitle>
+          </DrawerHeader>
           <div className="grid grid-cols-2 gap-4 py-4">
             <div>
               <Label>Code</Label>
@@ -429,19 +429,19 @@ export default function AdminServicesPage() {
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <div>
             <Button variant="outline" onClick={() => setShowServiceDialog(false)}><X className="w-4 h-4 mr-2" /> Cancel</Button>
             <Button onClick={saveService}><Save className="w-4 h-4 mr-2" /> Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {/* Resource Dialog */}
-      <Dialog open={showResourceDialog} onOpenChange={setShowResourceDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingResource ? 'Edit Resource' : 'Add Resource'}</DialogTitle>
-          </DialogHeader>
+      <Drawer open={showResourceDialog} onOpenChange={setShowResourceDialog}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>{editingResource ? 'Edit Resource' : 'Add Resource'}</DrawerTitle>
+          </DrawerHeader>
           <div className="space-y-4 py-4">
             <div>
               <Label>Name</Label>
@@ -475,12 +475,12 @@ export default function AdminServicesPage() {
               <Textarea value={resourceForm.description} onChange={e => setResourceForm({ ...resourceForm, description: e.target.value })} rows={2} />
             </div>
           </div>
-          <DialogFooter>
+          <div>
             <Button variant="outline" onClick={() => setShowResourceDialog(false)}><X className="w-4 h-4 mr-2" /> Cancel</Button>
             <Button onClick={saveResource}><Save className="w-4 h-4 mr-2" /> Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </>
   );
 }

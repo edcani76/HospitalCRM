@@ -15,7 +15,7 @@ import { db, collection, getDocs, doc, getDoc } from '../../firebase';
 import { updateDocument } from '../../lib/firestore-helpers';
 import { arrayUnion } from 'firebase/firestore';
 import { auth } from '../../firebase';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+
 import { createNotification, notifyDoctor, notifyClient, getNotifications, markAsRead } from '../../lib/notifications';
 import { sendEmail } from '../../lib/email-service';
 import { appointmentConfirmed, appointmentCancelled } from '../../lib/email-templates';
@@ -33,9 +33,7 @@ export default function AppointmentsPage() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [users, setUsers] = useState<{ [uid: string]: { displayName: string; isGuest?: boolean; isMigratedGuest?: boolean } }>({});
   const navigate = useNavigate();
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [cancelAppointment, setCancelAppointment] = useState<Appointment | null>(null);
-  const [cancelReason, setCancelReason] = useState('');
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [boardView, setBoardView] = useState(() => {
     const saved = localStorage.getItem('appointments-board-view');

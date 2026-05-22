@@ -12,7 +12,6 @@ import { format } from 'date-fns';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../../components/ui/dialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
 import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
@@ -3035,24 +3034,24 @@ Mode: Walk-in`,
       />
 
       {/* Cancel / Void / Refund Dialog */}
-      <Dialog open={!!cancelItemId} onOpenChange={v => { if (!v) setCancelItemId(null); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+      <Drawer open={!!cancelItemId} onOpenChange={v => { if (!v) setCancelItemId(null); }}>
+        <DrawerContent className="">
+          <DrawerHeader>
             {cancelTier === 'amendment' ? (
-              <DialogTitle className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-stone-500" />Amendment Required</DialogTitle>
+              <DrawerTitle className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-stone-500" />Amendment Required</DrawerTitle>
             ) : cancelTier === 'refund' ? (
-              <DialogTitle className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-orange-500" />Refund / Credit Required</DialogTitle>
+              <DrawerTitle className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-orange-500" />Refund / Credit Required</DrawerTitle>
             ) : (
-              <DialogTitle className="flex items-center gap-2"><AlertTriangle className={cn('w-4 h-4', cancelTier === 'void' || cancelTier === 'void-charge' ? 'text-red-600' : 'text-amber-500')} />{cancelTier === 'void' || cancelTier === 'void-charge' ? 'Void Treatment' : 'Cancel Treatment'}</DialogTitle>
+              <DrawerTitle className="flex items-center gap-2"><AlertTriangle className={cn('w-4 h-4', cancelTier === 'void' || cancelTier === 'void-charge' ? 'text-red-600' : 'text-amber-500')} />{cancelTier === 'void' || cancelTier === 'void-charge' ? 'Void Treatment' : 'Cancel Treatment'}</DrawerTitle>
             )}
-            <DialogDescription>
+            <DrawerDescription>
               {cancelTier === 'amendment' ? 'The medical record is locked. Submit an amendment instead.' :
                cancelTier === 'refund' ? 'This item has been paid. A refund or credit note must be issued.' :
                cancelTier === 'void-charge' ? 'This treatment was administered and billed. Voiding will reverse the charge.' :
                cancelTier === 'void' ? 'This treatment was administered. Voiding reverses all linked effects.' :
                'Planned treatment — mark as cancelled, no side effects.'}
-            </DialogDescription>
-          </DialogHeader>
+            </DrawerDescription>
+          </DrawerHeader>
           {cancelItemId && (() => {
             const ci = planItems.find(p => p.id === cancelItemId);
             if (!ci) return null;
@@ -3156,7 +3155,7 @@ Mode: Walk-in`,
                   </>
                 )}
 
-                <DialogFooter className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-2">
                   <Button variant="outline" onClick={() => setCancelItemId(null)}>Back</Button>
                   {cancelTier === 'amendment' ? (
                     <Button onClick={() => { alert('Amendment workflow — coming soon. Please contact a supervisor to modify this record.'); setCancelItemId(null); }} className="bg-stone-600 hover:bg-stone-700 text-white">Request Amendment</Button>
@@ -3206,12 +3205,12 @@ Mode: Walk-in`,
                       {cancelLoading ? <><Loader2 className="w-3 h-3 animate-spin mr-1" />Processing...</> : cancelTier === 'cancel' ? 'Confirm Cancel' : 'Confirm Void'}
                     </Button>
                   )}
-                </DialogFooter>
+                </div>
               </div>
             );
           })()}
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
 
     </div>
   );
@@ -3241,7 +3240,7 @@ function TreatmentDrawer({ open, onOpenChange, onSave, encounterId, patientId, p
   }, [initialData]);
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-w-lg">
+      <DrawerContent className="">
         <DrawerHeader><DrawerTitle className="flex items-center gap-2"><Activity className="w-4 h-4 text-blue-600" />{initialData ? 'Edit Treatment' : 'Add Treatment'}</DrawerTitle><DrawerDescription>{initialData ? 'Modify treatment details' : 'Record an in-clinic treatment or procedure'}</DrawerDescription></DrawerHeader>
         <div className="space-y-3 py-2">
           <div><Label>Treatment</Label><Input value={tf.name} onChange={e => setTf(p => ({...p, name: e.target.value}))} placeholder="e.g., Cerenia injection" /></div>
@@ -3303,7 +3302,7 @@ function PrescriptionDrawer({ open, onOpenChange, onSave, encounterId, patientId
   const [saving, setSaving] = React.useState(false);
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-w-lg">
+      <DrawerContent className="">
         <DrawerHeader><DrawerTitle className="flex items-center gap-2"><Pill className="w-4 h-4 text-purple-600" />Add Prescription</DrawerTitle><DrawerDescription>Order take-home medication</DrawerDescription></DrawerHeader>
         <div className="space-y-3 py-2">
           <div className="grid grid-cols-2 gap-3">
@@ -3371,7 +3370,7 @@ function ProcedureDrawer({ open, onOpenChange, onSave, encounterId, patientId, p
   const [saving, setSaving] = React.useState(false);
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-w-lg">
+      <DrawerContent className="">
         <DrawerHeader><DrawerTitle className="flex items-center gap-2"><ClipboardList className="w-4 h-4 text-emerald-600" />Add Procedure</DrawerTitle><DrawerDescription>Record an in-clinic or recommended procedure</DrawerDescription></DrawerHeader>
         <div className="space-y-3 py-2">
           <div><Label>Procedure</Label><Input value={prf.name} onChange={e => setPrf(p => ({...p, name: e.target.value}))} placeholder="e.g., Wound cleaning" /></div>
@@ -3418,7 +3417,7 @@ function AdmissionDrawer({ open, onOpenChange, onSave, encounterId, patientId, p
   const [saving, setSaving] = React.useState(false);
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-w-lg">
+      <DrawerContent className="">
         <DrawerHeader><DrawerTitle className="flex items-center gap-2"><Heart className="w-4 h-4 text-rose-600" />Recommend Admission</DrawerTitle><DrawerDescription>Recommend hospitalization or confinement</DrawerDescription></DrawerHeader>
         <div className="space-y-3 py-2">
           <div><Label>Admission Type</Label><select value={af.type} onChange={e => setAf(p => ({...p, type: e.target.value}))} className="flex h-10 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"><option>Medical confinement</option><option>Surgical admission</option><option>Isolation</option><option>ICU monitoring</option></select></div>
@@ -3467,7 +3466,7 @@ function FollowUpModal({ open, onOpenChange, onSave, encounterId, patientId, pat
   const [saving, setSaving] = React.useState(false);
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-w-md">
+      <DrawerContent className="">
         <DrawerHeader><DrawerTitle className="flex items-center gap-2"><Calendar className="w-4 h-4 text-cyan-600" />Add Follow-Up</DrawerTitle><DrawerDescription>Schedule a follow-up or recheck</DrawerDescription></DrawerHeader>
         <div className="space-y-3 py-2">
           <div className="grid grid-cols-2 gap-3">
@@ -3512,7 +3511,7 @@ function OwnerInstructionsEditor({ open, onOpenChange, onSave, onInstructionsCha
   const [saving, setSaving] = React.useState(false);
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-w-lg">
+      <DrawerContent className="">
         <DrawerHeader><DrawerTitle className="flex items-center gap-2"><FileText className="w-4 h-4 text-stone-600" />Owner Instructions</DrawerTitle><DrawerDescription>Home care and follow-up instructions for the owner</DrawerDescription></DrawerHeader>
         <div className="space-y-3 py-2">
           <div><Label>Medication Instructions</Label><Textarea value={oi.medicationInstructions} onChange={e => setOi(p => ({...p, medicationInstructions: e.target.value}))} rows={1} placeholder="Give medicine before meals" /></div>
@@ -3552,7 +3551,7 @@ function InventoryMovementDrawer({ data, onClose, encounterId }: { data: { item:
   const { item, movement } = data;
   return (
     <Drawer open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DrawerContent className="max-w-lg">
+      <DrawerContent className="">
         <DrawerHeader>
           <DrawerTitle className="flex items-center gap-2">
             <Box className="w-4 h-4 text-amber-600" />Inventory Movement

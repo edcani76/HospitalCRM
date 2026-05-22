@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
@@ -500,12 +500,12 @@ export default function PharmacyPage() {
               <p className="text-muted-foreground">Manage medications, inventory batches, prescriptions, and dispensing.</p>
             </div>
             <div className="flex gap-2">
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <Drawer open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <Button onClick={() => { resetMedForm(); setIsAddDialogOpen(true); }}>
                   <Plus className="w-4 h-4 mr-2" /> Add Medication
                 </Button>
-                <DialogContent className="max-w-lg">
-                  <DialogHeader><DialogTitle>Add New Medication</DialogTitle><DialogDescription className="sr-only">Fill in medication details</DialogDescription></DialogHeader>
+                <DrawerContent className="">
+                  <DrawerHeader><DrawerTitle>Add New Medication</DrawerTitle><DrawerDescription className="sr-only">Fill in medication details</DrawerDescription></DrawerHeader>
                   <div className="space-y-4 py-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="col-span-2">
@@ -564,8 +564,8 @@ export default function PharmacyPage() {
                       {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Adding...</> : 'Add Medication'}
                     </Button>
                   </div>
-                </DialogContent>
-              </Dialog>
+                </DrawerContent>
+              </Drawer>
             </div>
           </div>
 
@@ -939,14 +939,14 @@ export default function PharmacyPage() {
           )}
 
           {/* ==================== DETAIL SIDE DRAWER ==================== */}
-          <Dialog open={isViewDrawerOpen} onOpenChange={setIsViewDrawerOpen}>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
+          <Drawer open={isViewDrawerOpen} onOpenChange={setIsViewDrawerOpen}>
+            <DrawerContent className="overflow-y-auto">
+              <DrawerHeader>
+                <DrawerTitle>
                   {selectedMedication ? selectedMedication.name : ''}
-                </DialogTitle>
-                <DialogDescription className="sr-only">Medication details and inventory information</DialogDescription>
-              </DialogHeader>
+                </DrawerTitle>
+                <DrawerDescription className="sr-only">Medication details and inventory information</DrawerDescription>
+              </DrawerHeader>
               {selectedMedication && (
                 <div className="space-y-6">
                   {/* Summary */}
@@ -1086,13 +1086,13 @@ export default function PharmacyPage() {
                   </div>
                 </div>
               )}
-            </DialogContent>
-          </Dialog>
+            </DrawerContent>
+          </Drawer>
 
           {/* ==================== EDIT MEDICATION DIALOG ==================== */}
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="max-w-lg">
-              <DialogHeader><DialogTitle>Edit Medication</DialogTitle><DialogDescription className="sr-only">Edit medication details</DialogDescription></DialogHeader>
+          <Drawer open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DrawerContent className="">
+              <DrawerHeader><DrawerTitle>Edit Medication</DrawerTitle><DrawerDescription className="sr-only">Edit medication details</DrawerDescription></DrawerHeader>
               <div className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
@@ -1151,18 +1151,18 @@ export default function PharmacyPage() {
                   {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</> : 'Save Changes'}
                 </Button>
               </div>
-            </DialogContent>
-          </Dialog>
+            </DrawerContent>
+          </Drawer>
 
           {/* ==================== STOCK RECEIVING DIALOG ==================== */}
-          <Dialog open={isReceiveDialogOpen} onOpenChange={setIsReceiveDialogOpen}>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Receive Stock</DialogTitle>
-                <DialogDescription>
+          <Drawer open={isReceiveDialogOpen} onOpenChange={setIsReceiveDialogOpen}>
+            <DrawerContent className="">
+              <DrawerHeader>
+                <DrawerTitle>Receive Stock</DrawerTitle>
+                <DrawerDescription>
                   {selectedMedication ? `Adding inventory for ${selectedMedication.name}` : ''}
-                </DialogDescription>
-              </DialogHeader>
+                </DrawerDescription>
+              </DrawerHeader>
               {selectedMedication && (
                 <div className="space-y-4 py-2">
                   <div className="p-3 bg-muted/30 rounded-lg">
@@ -1215,18 +1215,18 @@ export default function PharmacyPage() {
                   </Button>
                 </div>
               )}
-            </DialogContent>
-          </Dialog>
+            </DrawerContent>
+          </Drawer>
 
           {/* ==================== STOCK ADJUSTMENT DIALOG ==================== */}
-          <Dialog open={isAdjustDialogOpen} onOpenChange={setIsAdjustDialogOpen}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Adjust Stock</DialogTitle>
-                <DialogDescription>
+          <Drawer open={isAdjustDialogOpen} onOpenChange={setIsAdjustDialogOpen}>
+            <DrawerContent className="">
+              <DrawerHeader>
+                <DrawerTitle>Adjust Stock</DrawerTitle>
+                <DrawerDescription>
                   {selectedMedication ? `Adjusting inventory for ${selectedMedication.name}` : ''}
-                </DialogDescription>
-              </DialogHeader>
+                </DrawerDescription>
+              </DrawerHeader>
               {selectedMedication && (
                 <div className="space-y-4 py-2">
                   <div className="p-3 bg-muted/30 rounded-lg">
@@ -1265,18 +1265,18 @@ export default function PharmacyPage() {
                   </Button>
                 </div>
               )}
-            </DialogContent>
-          </Dialog>
+            </DrawerContent>
+          </Drawer>
 
           {/* ==================== DISPENSE FROM PRESCRIPTION DIALOG ==================== */}
-          <Dialog open={isDispenseDialogOpen} onOpenChange={setIsDispenseDialogOpen}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Dispense Prescription</DialogTitle>
-                <DialogDescription>
+          <Drawer open={isDispenseDialogOpen} onOpenChange={setIsDispenseDialogOpen}>
+            <DrawerContent className="">
+              <DrawerHeader>
+                <DrawerTitle>Dispense Prescription</DrawerTitle>
+                <DrawerDescription>
                   {selectedPrescription?.petName ? `For: ${selectedPrescription.petName}` : ''}
-                </DialogDescription>
-              </DialogHeader>
+                </DrawerDescription>
+              </DrawerHeader>
               {selectedPrescription && (
                 <div className="space-y-4 py-2">
                   <div className="p-3 bg-muted/30 rounded-lg space-y-2">
@@ -1314,8 +1314,8 @@ export default function PharmacyPage() {
                   </div>
                 </div>
               )}
-            </DialogContent>
-          </Dialog>
+            </DrawerContent>
+          </Drawer>
         </>
       )}
     </div>

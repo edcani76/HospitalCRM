@@ -192,7 +192,7 @@ export function OrderLabModal({ open, onOpenChange, encounter, patient, owner, d
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-w-2xl overflow-y-auto">
+      <DrawerContent className="overflow-y-auto">
         <DrawerHeader>
           <DrawerTitle className="flex items-center gap-2 text-lg">
             <FlaskConical className="w-5 h-5 text-purple-600" />

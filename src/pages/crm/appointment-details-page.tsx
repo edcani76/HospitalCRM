@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Textarea } from '../../components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
 import PaymentTermsDialog from '../../components/ui/payment-terms-dialog';
 import { db, auth } from '../../firebase';
 import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion, addDoc, serverTimestamp, query, where } from '../../firebase';
@@ -1479,14 +1479,14 @@ className={`text-white font-bold shadow-lg ${invoiceStatus === 'paid' ? 'bg-emer
       </div>
 
       {/* Service Selector Dialog */}
-      <Dialog open={showServiceSelector} onOpenChange={setShowServiceSelector}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Add Service</DialogTitle>
-            <DialogDescription>
+      <Drawer open={showServiceSelector} onOpenChange={setShowServiceSelector}>
+        <DrawerContent className="">
+          <DrawerHeader>
+            <DrawerTitle>Add Service</DrawerTitle>
+            <DrawerDescription>
               Select a service to add to this appointment. Services are saved to the appointment notes.
-            </DialogDescription>
-          </DialogHeader>
+            </DrawerDescription>
+          </DrawerHeader>
           <div className="py-4">
             {/* Department Tabs */}
             <div className="flex gap-2 mb-4">
@@ -1538,24 +1538,24 @@ className={`text-white font-bold shadow-lg ${invoiceStatus === 'paid' ? 'bg-emer
               ))}
             </div>
           </div>
-          <DialogFooter>
+          <div>
             <Button variant="outline" onClick={() => setShowServiceSelector(false)}>
               Cancel
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {/* Cancel Dialog */}
-      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancel Appointment</DialogTitle>
-            <DialogDescription>
+      <Drawer open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Cancel Appointment</DrawerTitle>
+            <DrawerDescription>
               Are you sure you want to cancel this appointment for {appointment.petName}?
               This action will notify the doctor and client.
-            </DialogDescription>
-          </DialogHeader>
+            </DrawerDescription>
+          </DrawerHeader>
           <div className="py-4">
             <label className="text-sm font-medium">Reason for cancellation</label>
             <Textarea
@@ -1566,7 +1566,7 @@ className={`text-white font-bold shadow-lg ${invoiceStatus === 'paid' ? 'bg-emer
               placeholder="Enter reason for cancellation..."
             />
           </div>
-          <DialogFooter>
+          <div>
             <Button variant="outline" onClick={() => { setShowCancelDialog(false); setCancelReason(''); }}>
               Back
             </Button>
@@ -1577,9 +1577,9 @@ className={`text-white font-bold shadow-lg ${invoiceStatus === 'paid' ? 'bg-emer
             >
               {saving ? 'Cancelling...' : 'Confirm Cancel'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/table';
 import { SearchBar } from '../../components/ui/search-bar';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
 import {
   Plus, Eye, Loader2, MoreHorizontal, FlaskConical, Clock, CheckCircle, AlertTriangle,
   Syringe, FileText, X, Ban, Upload, Beaker, ScanLine,
@@ -889,7 +888,7 @@ export default function LabReportsPage() {
 
       {/* Detail Drawer */}
       <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-        <DrawerContent className="max-w-lg">
+        <DrawerContent className="">
           <DrawerHeader>
             <DrawerTitle>
               {selectedOrder?.testName || 'Lab Order Details'}
@@ -1083,12 +1082,12 @@ export default function LabReportsPage() {
       </Drawer>
 
       {/* New Lab Order Dialog */}
-      <Dialog open={isNewOrderOpen} onOpenChange={setIsNewOrderOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>New Lab Order</DialogTitle>
-            <DialogDescription>Create a new diagnostic test order</DialogDescription>
-          </DialogHeader>
+      <Drawer open={isNewOrderOpen} onOpenChange={setIsNewOrderOpen}>
+        <DrawerContent className="overflow-y-auto">
+          <DrawerHeader>
+            <DrawerTitle>New Lab Order</DrawerTitle>
+            <DrawerDescription>Create a new diagnostic test order</DrawerDescription>
+          </DrawerHeader>
           <div className="space-y-4 py-2">
             <div>
               <Label>Patient *</Label>
@@ -1167,24 +1166,24 @@ export default function LabReportsPage() {
               <Textarea value={newOrderForm.notes} onChange={(e) => setNewOrderForm({ ...newOrderForm, notes: e.target.value })} placeholder="Optional notes" />
             </div>
           </div>
-          <DialogFooter>
+          <div className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => setIsNewOrderOpen(false)}>Cancel</Button>
             <Button onClick={createNewOrder} disabled={saving || !newOrderForm.patientId || !newOrderForm.testName}>
               {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="w-4 h-4 mr-2" /> Create Order</>}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {/* Sample Collection Dialog */}
-      <Dialog open={isSampleDialogOpen} onOpenChange={setIsSampleDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Record Sample Collection</DialogTitle>
-            <DialogDescription>
+      <Drawer open={isSampleDialogOpen} onOpenChange={setIsSampleDialogOpen}>
+        <DrawerContent className="">
+          <DrawerHeader>
+            <DrawerTitle>Record Sample Collection</DrawerTitle>
+            <DrawerDescription>
               {selectedOrder?.petName} — {selectedOrder?.testName}
-            </DialogDescription>
-          </DialogHeader>
+            </DrawerDescription>
+          </DrawerHeader>
           <div className="space-y-4 py-2">
             <div>
               <Label>Sample Type</Label>
@@ -1221,24 +1220,24 @@ export default function LabReportsPage() {
               <Textarea value={sampleForm.notes} onChange={(e) => setSampleForm({ ...sampleForm, notes: e.target.value })} placeholder="Optional" />
             </div>
           </div>
-          <DialogFooter>
+          <div className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => setIsSampleDialogOpen(false)}>Cancel</Button>
             <Button onClick={submitSampleCollection} disabled={saving || !sampleForm.sampleType}>
               {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</> : <><Syringe className="w-4 h-4 mr-2" /> Record Collection</>}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {/* Result Entry Dialog */}
-      <Dialog open={isResultDialogOpen} onOpenChange={setIsResultDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Enter Test Result</DialogTitle>
-            <DialogDescription>
+      <Drawer open={isResultDialogOpen} onOpenChange={setIsResultDialogOpen}>
+        <DrawerContent className="">
+          <DrawerHeader>
+            <DrawerTitle>Enter Test Result</DrawerTitle>
+            <DrawerDescription>
               {selectedOrder?.petName} — {selectedOrder?.testName}
-            </DialogDescription>
-          </DialogHeader>
+            </DrawerDescription>
+          </DrawerHeader>
           <div className="space-y-4 py-2">
             <div>
               <Label>Result Status</Label>
@@ -1267,14 +1266,14 @@ export default function LabReportsPage() {
               </div>
             )}
           </div>
-          <DialogFooter>
+          <div className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => setIsResultDialogOpen(false)}>Cancel</Button>
             <Button onClick={submitResult} disabled={savingResult}>
               {savingResult ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</> : <><FileText className="w-4 h-4 mr-2" /> Submit Result</>}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

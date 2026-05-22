@@ -11,7 +11,7 @@ import { Input } from '../../components/ui/input';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
 import { db, auth, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from '../../firebase';
 import { uploadToGoogleDrive } from '../../lib/google-drive';
 import { addAuditLog } from '../../lib/firestore-helpers';
@@ -583,19 +583,19 @@ export default function PatientsPage() {
       />
 
       {/* Delete Confirmation Modal */}
-      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <DialogContent className="max-w-md rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-red-600 flex items-center gap-2">
+      <Drawer open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DrawerContent className="">
+          <DrawerHeader>
+            <DrawerTitle className="text-2xl font-bold text-red-600 flex items-center gap-2">
               <Trash2 className="w-6 h-6" />
               Confirm Deletion
-            </DialogTitle>
-            <DialogDescription className="text-base pt-2">
+            </DrawerTitle>
+            <DrawerDescription className="text-base pt-2">
               Are you sure you want to delete <span className="font-bold text-gray-900">{deletingPatient?.name}</span>? 
               This action will permanently remove all medical records and history for this patient.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="pt-6 flex gap-3">
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="pt-6 flex gap-3">
             <Button type="button" variant="ghost" onClick={() => setIsDeleteModalOpen(false)} className="rounded-xl h-12 px-6 font-bold flex-1">Cancel</Button>
             <Button 
               type="button" 
@@ -604,9 +604,9 @@ export default function PatientsPage() {
             >
               Delete Patient
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

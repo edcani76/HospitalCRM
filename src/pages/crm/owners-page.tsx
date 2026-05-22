@@ -26,13 +26,12 @@ import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from '../../components/ui/dialog';
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription
+} from '../../components/ui/drawer';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -492,12 +491,12 @@ export default function OwnersPage() {
       )}
 
       {/* Add Owner Modal */}
-      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="max-w-2xl rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Register New Client</DialogTitle>
-            <DialogDescription>Add a new pet owner to the hospital database.</DialogDescription>
-          </DialogHeader>
+      <Drawer open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <DrawerContent className="">
+          <DrawerHeader>
+            <DrawerTitle className="text-2xl font-bold">Register New Client</DrawerTitle>
+            <DrawerDescription>Add a new pet owner to the hospital database.</DrawerDescription>
+          </DrawerHeader>
           <form onSubmit={handleAddOwner} className="space-y-6 py-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
@@ -525,20 +524,20 @@ export default function OwnersPage() {
                 <Input id="address" name="address" required className="rounded-xl border-gray-100 bg-gray-50 focus:bg-white h-12" />
               </div>
             </div>
-            <DialogFooter className="pt-4 flex gap-3">
+            <div className="pt-4 flex gap-3">
               <Button type="button" variant="ghost" onClick={() => setIsAddModalOpen(false)} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
               <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-emerald-100 flex-1">Register Client</Button>
-            </DialogFooter>
+            </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
       {/* Edit Owner Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-2xl rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Edit Client Information</DialogTitle>
-            <DialogDescription>Update contact details for {editingOwner ? getOwnerName(editingOwner) : ''}.</DialogDescription>
-          </DialogHeader>
+      <Drawer open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DrawerContent className="">
+          <DrawerHeader>
+            <DrawerTitle className="text-2xl font-bold">Edit Client Information</DrawerTitle>
+            <DrawerDescription>Update contact details for {editingOwner ? getOwnerName(editingOwner) : ''}.</DrawerDescription>
+          </DrawerHeader>
           <form onSubmit={handleUpdateOwner} className="space-y-6 py-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
@@ -602,28 +601,28 @@ export default function OwnersPage() {
                 />
               </div>
             </div>
-            <DialogFooter className="pt-4 flex gap-3">
+            <div className="pt-4 flex gap-3">
               <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
               <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12 px-8 font-bold shadow-lg shadow-emerald-100 flex-1">Save Changes</Button>
-            </DialogFooter>
+            </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
 
       {/* Delete Confirmation Modal */}
-      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <DialogContent className="max-w-md rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-red-600 flex items-center gap-2">
+      <Drawer open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DrawerContent className="">
+          <DrawerHeader>
+            <DrawerTitle className="text-2xl font-bold text-red-600 flex items-center gap-2">
               <Trash2 className="w-6 h-6" />
               Confirm Deletion
-            </DialogTitle>
-            <DialogDescription className="text-base pt-2">
+            </DrawerTitle>
+            <DrawerDescription className="text-base pt-2">
               Are you sure you want to delete <span className="font-bold text-gray-900">{deletingOwner?.name}</span>? 
               This action cannot be undone and will remove all associated pet records.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="pt-6 flex gap-3">
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="pt-6 flex gap-3">
             <Button type="button" variant="ghost" onClick={() => setIsDeleteModalOpen(false)} className="rounded-xl h-12 px-6 font-bold flex-1">Cancel</Button>
             <Button 
               type="button" 
@@ -632,9 +631,9 @@ export default function OwnersPage() {
             >
               Delete Permanently
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

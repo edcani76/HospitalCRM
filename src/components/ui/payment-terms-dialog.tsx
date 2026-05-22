@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './dialog'
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from './drawer'
 import { Button } from './button'
 import { Input } from './input'
 import { Label } from './label'
@@ -29,14 +29,14 @@ export default function PaymentTermsDialog({ open, onClose, onConfirm }: Payment
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Payment Terms</DialogTitle>
-          <DialogDescription>
+    <Drawer open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DrawerContent className="">
+        <DrawerHeader>
+          <DrawerTitle>Payment Terms</DrawerTitle>
+          <DrawerDescription>
             Set the due date for this invoice. This determines when payment is expected.
-          </DialogDescription>
-        </DialogHeader>
+          </DrawerDescription>
+        </DrawerHeader>
         <div className="space-y-3 py-4">
           <p className="text-sm font-medium text-stone-700">Due Date</p>
           <div className="grid grid-cols-2 gap-2">
@@ -89,13 +89,13 @@ export default function PaymentTermsDialog({ open, onClose, onConfirm }: Payment
             )}
           </div>
         </div>
-        <DialogFooter className="gap-2">
+        <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleConfirm} className="bg-emerald-600 hover:bg-emerald-700 text-white">
             Confirm
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </DrawerContent>
+    </Drawer>
   )
 }

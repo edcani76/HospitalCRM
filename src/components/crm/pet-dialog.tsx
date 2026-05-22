@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog'
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer'
 import { Button } from '../../components/ui/button'
 import { Label } from '../../components/ui/label'
 import { Input } from '../../components/ui/input'
@@ -430,14 +430,14 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
   const currentBreeds = selectedSpecies ? (BREEDS_BY_SPECIES[selectedSpecies] || []) : []
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl rounded-3xl max-h-[90vh] flex flex-col">
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="">
         {showCamera ? (
           <div className="py-4">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <DialogTitle className="text-xl font-bold">Take Photo</DialogTitle>
-                <DialogDescription className="text-sm">Position your pet in the frame and tap capture</DialogDescription>
+                <DrawerTitle className="text-xl font-bold">Take Photo</DrawerTitle>
+                <DrawerDescription className="text-sm">Position your pet in the frame and tap capture</DrawerDescription>
               </div>
               <button
                 type="button"
@@ -477,16 +477,14 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
           </div>
         ) : (
           <>
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="text-2xl font-bold">
-            {mode === 'add' ? 'Register New Patient' : 'Edit Patient Record'}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === 'add'
-              ? 'Fill out the profile for a new animal and its primary owner.'
-              : `Update the clinical profile for ${pet?.name}.`}
-          </DialogDescription>
-        </DialogHeader>
+        <DrawerHeader className="flex-shrink-0">
+          <DrawerTitle className="text-2xl font-bold">
+            {mode === 'edit' ? 'Edit Patient Record' : 'Register New Patient'}
+          </DrawerTitle>
+          <DrawerDescription>
+            {mode === 'edit' ? 'Update pet information and health records' : 'Register a new pet patient in the system'}
+          </DrawerDescription>
+        </DrawerHeader>
         <div className="flex-1 overflow-y-auto pr-2">
           <form onSubmit={handleSubmit} className="space-y-6 py-4">
             {/* Pet Information */}
@@ -848,7 +846,7 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
               </div>
             )}
 
-            <DialogFooter className="pt-6 flex flex-col gap-4 border-t border-gray-50">
+            <div className="pt-6 flex flex-col gap-4 border-t border-gray-50">
               {mode === 'add' && (
                 <div className="space-y-3">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Consent Required</p>
@@ -898,12 +896,12 @@ export default function PetDialog({ open, onOpenChange, mode, pet, users = {}, o
                   )}
                 </Button>
               </div>
-            </DialogFooter>
+            </div>
           </form>
-        </div>
+          </div>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+      </DrawerContent>
+    </Drawer>
   )
 }

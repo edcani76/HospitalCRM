@@ -39,7 +39,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/ca
 import { PageHeader } from '../../components/ui/page-header';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
 import { db, auth, collection, getDocs, getDoc, addDoc, updateDoc, doc, query, where, serverTimestamp } from '../../firebase';
 import PetDialog from '../../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../../lib/google-drive';
@@ -1225,13 +1225,13 @@ export default function PatientProfilePage() {
       />
 
       {/* Camera Capture Modal */}
-      <Dialog open={isCameraModalOpen} onOpenChange={(open) => {
+      <Drawer open={isCameraModalOpen} onOpenChange={(open) => {
         setIsCameraModalOpen(open);
         if (!open) stopCamera();
       }}>
-        <DialogContent className="max-w-xl rounded-xl p-0 overflow-hidden bg-black">
-          <DialogTitle className="sr-only">Camera Capture</DialogTitle>
-          <DialogDescription className="sr-only">Capture a photo using your camera</DialogDescription>
+        <DrawerContent className="max-w-xl p-0 overflow-hidden bg-black">
+          <DrawerTitle className="sr-only">Camera Capture</DrawerTitle>
+          <DrawerDescription className="sr-only">Capture a photo using your camera</DrawerDescription>
           <div className="relative aspect-video bg-gray-900 flex items-center justify-center">
             <video 
               ref={videoRef} 
@@ -1278,13 +1278,13 @@ export default function PatientProfilePage() {
               <div className="w-14"></div> {/* Spacer for symmetry */}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
       {/* Lightbox Modal */}
-      <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none flex items-center justify-center">
-          <DialogTitle className="sr-only">Patient Photo</DialogTitle>
-          <DialogDescription className="sr-only">Full size view of patient photo</DialogDescription>
+      <Drawer open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
+        <DrawerContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none flex items-center justify-center">
+          <DrawerTitle className="sr-only">Patient Photo</DrawerTitle>
+          <DrawerDescription className="sr-only">Full size view of patient photo</DrawerDescription>
           <div className="relative group">
             {patient.photo || patient.imageUrl ? (
               <img 
@@ -1306,19 +1306,19 @@ export default function PatientProfilePage() {
               <X className="w-5 h-5" />
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
       
       {/* Doctor Selector Dialog for Quick Start Visit */}
-      <Dialog open={showDoctorDialog} onOpenChange={setShowDoctorDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Select Doctor for Quick Start</DialogTitle>
-            <DialogDescription>
+      <Drawer open={showDoctorDialog} onOpenChange={setShowDoctorDialog}>
+        <DrawerContent className="">
+          <DrawerHeader>
+            <DrawerTitle>Select Doctor for Quick Start</DrawerTitle>
+            <DrawerDescription>
               Choose a doctor who is scheduled to be on-duty at this time. 
               Quick Start is for walk-in/emergency visits.
-            </DialogDescription>
-          </DialogHeader>
+            </DrawerDescription>
+          </DrawerHeader>
           <div className="py-4">
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {availableDoctors.length === 0 ? (
@@ -1351,7 +1351,7 @@ export default function PatientProfilePage() {
               )}
             </div>
           </div>
-          <DialogFooter>
+          <div>
             <Button variant="outline" onClick={() => setShowDoctorDialog(false)}>Cancel</Button>
             <Button 
               className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -1367,17 +1367,17 @@ export default function PatientProfilePage() {
                 'Confirm Quick Start'
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </DrawerContent>
+      </Drawer>
       
       {/* Quick Photo Update Modal */}
-      <Dialog open={isPhotoActionModalOpen} onOpenChange={setIsPhotoActionModalOpen}>
-        <DialogContent className="max-w-md rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Update Patient Photo</DialogTitle>
-            <DialogDescription>Capture a new photo or upload an image file for {patient.name}.</DialogDescription>
-          </DialogHeader>
+      <Drawer open={isPhotoActionModalOpen} onOpenChange={setIsPhotoActionModalOpen}>
+        <DrawerContent className="">
+          <DrawerHeader>
+            <DrawerTitle className="text-2xl font-bold">Update Patient Photo</DrawerTitle>
+            <DrawerDescription>Capture a new photo or upload an image file for {patient.name}.</DrawerDescription>
+          </DrawerHeader>
           <div className="space-y-6 py-4">
             <div className="flex flex-col items-center gap-6">
               <div className="w-48 h-48 rounded-xl overflow-hidden bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center relative">
@@ -1426,7 +1426,7 @@ export default function PatientProfilePage() {
               </div>
             </div>
           </div>
-          <DialogFooter className="pt-4 flex gap-3 border-t border-gray-50">
+          <div className="pt-4 flex gap-3 border-t border-gray-50">
             <Button variant="ghost" onClick={() => setIsPhotoActionModalOpen(false)} className="rounded-xl h-12 px-6 font-bold">Cancel</Button>
             <Button 
               disabled={!tempPhoto || tempPhoto === (patient.photo || patient.imageUrl)}
@@ -1436,9 +1436,9 @@ export default function PatientProfilePage() {
               <Check className="w-4 h-4 mr-2" />
               Update Photo
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </DrawerContent>
+      </Drawer>
 
     </div>
   );
