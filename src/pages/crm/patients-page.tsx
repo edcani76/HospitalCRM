@@ -158,7 +158,7 @@ export default function PatientsPage() {
       const matchesSearch = patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            (patient.ownerName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                            (patient.patientId || '').toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesLetter = selectedLetter ? patient.name.startsWith(selectedLetter) : true;
+      const matchesLetter = selectedLetter ? patient.name.toUpperCase().startsWith(selectedLetter) : true;
       return matchesSearch && matchesLetter;
     });
   }, [patients, searchQuery, selectedLetter]);
@@ -348,7 +348,7 @@ export default function PatientsPage() {
           All
         </button>
         {alphabet.map((letter) => {
-          const count = patients.filter(p => p.name.startsWith(letter)).length;
+          const count = patients.filter(p => p.name.toUpperCase().startsWith(letter)).length;
           return (
             <button
               key={letter}

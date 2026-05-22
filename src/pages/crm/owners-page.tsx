@@ -158,7 +158,7 @@ export default function OwnersPage() {
       const matchesSearch = fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            (owner.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                            (owner.id || '').toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesLetter = selectedLetter ? (owner.lastName || fullName).startsWith(selectedLetter) : true;
+      const matchesLetter = selectedLetter ? (owner.lastName || fullName).toUpperCase().startsWith(selectedLetter) : true;
       return matchesSearch && matchesLetter;
     });
   }, [owners, searchQuery, selectedLetter]);
@@ -292,7 +292,7 @@ export default function OwnersPage() {
           All
         </button>
         {alphabet.map((letter) => {
-          const count = owners.filter(o => (o.lastName || o.displayName || o.name).startsWith(letter)).length;
+          const count = owners.filter(o => (o.lastName || o.displayName || o.name).toUpperCase().startsWith(letter)).length;
           return (
             <button
               key={letter}
