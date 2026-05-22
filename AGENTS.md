@@ -1,9 +1,9 @@
 # MyHospital PR1 - Agent Progress
 
 ## Goal
-Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix timestamp display, add full service management to Edit Appointment matching Create Appointment, build Visit Summary tab, modernize portal dashboard UI/UX, integrate Google Drive via server proxy, build unified service catalog with provider-resource mapping, rebuild customer booking with doctor carousel and dynamic availability, and enhance patient records with full clinical details.
+Implement EMR mode detection, Quick Start Visit, service management, Visit Summary tab, Google Drive integration, customer booking revamp, Lab & Diagnostics Operations Dashboard, convert all CRM modals to Drawer side panels for consistency, and enhance patient records with full clinical details.
 
-## Current Status (2026-05-13)
+## Current Status (2026-05-23)
 
 ### ✅ Completed Features
 
@@ -218,6 +218,11 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
     - Friendly empty state with Create Invoice button
 
 31. **Pharmacy Operations Dashboard**
+    - KPI cards: Total Products, Low Stock, Expiring Soon, Prescriptions Pending, Today's Dispensed, Inventory Value
+    - 5 tabs: All Medications, Prescription Queue, Stock Movements, Purchase Orders, Inventory Reports
+    - Rich table with stock status badges, expiry tracking, filters
+    - Detail side drawer with batches table and movement timeline
+    - Dialogs: Add/Edit Medication, Receive Stock, Adjust Stock, Dispense from Prescription
 
 32. **EMR 15-Step Consultation Workspace**
     - Restructured EMR Details page into full 3-column layout: stepper sidebar, main content, clinical context panel
@@ -269,11 +274,34 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
     - Duplicate encounter prevention: guard in `startAppointment` queries existing encounter by `appointmentId`
     - Duplicate cleanup script (`scripts/remove-duplicate-encounters.ts`) run successfully — 1 duplicate found and removed
 
-36. **Pharmacy Operations Dashboard**
-
 37. **Documentation**
     - `USERGUIDE.md` — comprehensive user guide covering all pages and workflows
     - `TECHNICAL.md` — technical documentation with architecture, data models, API reference, and design decisions
+
+38. **Lab & Diagnostics Operations Dashboard**
+    - Complete dashboard overhaul of `src/pages/crm/lab-reports-page.tsx`
+    - 7 KPI cards: Total Orders, Awaiting Collection, In Progress, Completed, Critical, External Labs, Pending Billing
+    - Alert banner for critical results, urgent STAT orders, overdue collections
+    - Search bar + 4 filters (status, category, priority, date range)
+    - 7 workflow tabs: Orders, Sample Collection, In Progress, Results & Reports, Critical Results, External Labs, Analytics
+    - Rich table with 11 color-coded status badges (Ordered, Collected, In Progress, Reviewed, etc.)
+    - Detail side drawer with full order timeline
+    - Dialogs: New Lab Order (reuses OrderLabModal), Sample Collection (barcode/specimen ID), Result Entry (results, unit, ref range, notes)
+    - Billing integration, EMR navigation links, audit logging on every status change
+    - Sidebar renamed "Lab Reports" → "Lab & Diagnostics" in `crm-layout.tsx`
+    - Added `fetchAllLabOrders()` and `updateLabOrderStatus()` to `firestore-helpers.ts`
+
+39. **Dialog → Drawer Conversion (Consistency)**
+    - Converted all ~30 Dialog modals to Drawer side panels across 13 files
+    - PetDialog, PaymentTermsDialog, billing drawers, pharmacy drawers, EMR plan builder drawers, lab drawers, patient/owner management drawers, admission drawers, appointment details, admin services
+    - Drawer component (`src/components/ui/drawer.tsx`): added `bottom-0`, `flex flex-col`, `h-full` for full-page height
+    - Consistent default width: `max-w-2xl` (removed per-page width overrides)
+    - Removed conflicting `max-h-[80vh]` / `max-h-[90vh]` constraints
+    - Fixed `aria-describedby` warning via `sr-only DrawerDescription`
+    - Fixed missing `</form>` tag in PetDialog, cleaned dead Dialog imports in appointments-page
+
+40. **Case-Sensitive Letter Index Fix**
+    - Patient and owner letter indexes now use `.toUpperCase().startsWith()` so names entered in lowercase appear under correct letter
 
 
 ### 📝 Recent Commits (branch: `codex/pr-1`)
@@ -292,6 +320,7 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 | `6d17aeb` | Show Walk-in badge on appointments, auto-flag orphaned multi-day encounters |
 | `c569b6e` | Add admissions module, role-based appointment completion, search bars, and in-progress indicators |
 | `927d655` | Add role-based restrictions for appointment confirmation and start |
+| `f3885cf` | Convert all Dialog modals to Drawer side panels, standardize height and width |
 
 ### 🔧 Build Status
 - ✅ Lint: Clean (0 errors)
@@ -304,6 +333,7 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `scripts/migrate-appointment-services.ts`: 12 appointments migrated from `Type:` to `Services:` format
 - `scripts/migrate-encounters-startedAt.ts`: Encounters already have `startedAt`
 - `scripts/seed-pharmacy-data.ts`: Created 15 medications, 33 inventory batches, stock movements, 5 prescriptions
+- `scripts/remove-duplicate-encounters.ts`: 1 duplicate found and removed
 
 ### 🚀 Next Steps
 1. Test all 7 Plan Builder modals end-to-end — verify plan items persist after reload, navigation buttons work, Owner Instructions populate Visit Summary
@@ -354,6 +384,8 @@ Implement EMR mode detection, Quick Start Visit (EMR + Patient Profile), fix tim
 - `src/pages/ResetPassword.tsx` - Branded password reset page with oobCode verify/confirm flow, expired link handler, manual email entry
 - `src/pages/crm/appointments-page.tsx` - Guest/Migrated user badges next to owner names
 - `src/pages/crm/patients-page.tsx` - Guest/Migrated user badges next to owner names
+- `src/pages/crm/lab-reports-page.tsx` - Lab & Diagnostics Operations Dashboard: 7 KPI cards, alert banner, 7 workflow tabs, detail drawer, audit logging
+- `src/components/ui/drawer.tsx` - Updated with bottom-0, flex flex-col, h-full, consistent max-w-2xl default
 
 ### ⚙️ Critical Context
 - EMR Page: 15-step consultation workspace (Chief Complaint → Doctor Signature) replaces old 9-tab layout

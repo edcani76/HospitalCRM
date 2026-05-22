@@ -32,7 +32,7 @@ Complete guide for using the EdvirontVet Veterinary Clinic Management System.
    - [3.11 EMR (Electronic Medical Records)](#311-emr-electronic-medical-records)
    - [3.12 Billing & Payments](#312-billing--payments)
    - [3.13 Pharmacy Operations](#313-pharmacy-operations)
-   - [3.14 Lab Reports](#314-lab-reports)
+    - [3.14 Lab & Diagnostics](#314-lab--diagnostics)
    - [3.15 Admissions](#315-admissions)
    - [3.16 Analytics](#316-analytics)
    - [3.17 Audit Log](#317-audit-log)
@@ -61,7 +61,7 @@ Complete guide for using the EdvirontVet Veterinary Clinic Management System.
 | `admin` | CRM Portal | Full system access — manage staff, services, billing, all modules |
 | `doctor` | CRM Portal | EMR consultations, prescribe, view appointments, manage patients |
 | `staff` | CRM Portal | Manage appointments, patients, owners, billing |
-| `lab` | CRM Portal | Lab Reports page |
+| `lab` | CRM Portal | Lab & Diagnostics page |
 | `pharmacist` | CRM Portal | Pharmacy operations, manage inventory, dispense prescriptions |
 
 > See `USERS.md` for test/demo login credentials.
@@ -571,9 +571,17 @@ Plan items persisted as `clinicalNotes.planItems` array. Each item renders as a 
 - `stock_movements` collection: Audit trail for all stock changes
 - `prescriptions` collection: Patient prescriptions
 
-### 3.14 Lab Reports
+### 3.14 Lab & Diagnostics
 
-List of pending and completed lab reports with search.
+Complete Lab & Diagnostics Operations Dashboard:
+- **7 KPI cards**: Total Orders, Awaiting Collection, In Progress, Completed, Critical, External Labs, Pending Billing
+- **Alert banner** for critical results, urgent STAT orders, overdue collections
+- **7 workflow tabs**: Orders, Sample Collection, In Progress, Results & Reports, Critical Results, External Labs, Analytics
+- **Rich table** with 11 color-coded status badges and full search/filter support
+- **Detail drawer** with order timeline, patient info, and results
+- **Sample Collection** dialog with barcode and specimen ID tracking
+- **Result Entry** dialog with result, unit, reference range, and notes
+- Direct links to EMR encounters and billing integration
 
 ### 3.15 Admissions
 
