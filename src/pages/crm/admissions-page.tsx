@@ -854,7 +854,7 @@ export default function AdmissionsPage() {
                   }}
                 >
                   <Plus className="w-5 h-5 mr-2" />
-                  + Admit Patient
+                  Admit Patient
                 </Button>
               </div>
             )
