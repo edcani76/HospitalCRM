@@ -687,6 +687,24 @@ export async function fetchUsers(role?: string) {
   return fetchWithCache(role ? `users_role_${role}` : 'users', queryFn);
 }
 
+// Create test user if missing
+export async function createTestUserIfMissing(email: string, displayName: string): Promise<string> {
+  const q = query(collection(db, 'users'), where('email', '==', email));
+  const snap = await getDocs(q);
+  if (!snap.empty) {
+    const doc = snap.docs[0];
+    return doc.id;
+  }
+  const ref = await addDoc(collection(db, 'users'), {
+    email,
+    displayName,
+    role: 'client',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  return ref.id;
+}
+
 // ==================== Pharmacy: Inventory Batches ====================
 
 export async function fetchInventoryBatches(medicationId?: string) {

@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, doc, setDoc, collection, addDoc, query, where, getDocs, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import * as fs from 'fs';
+import { createTestUserIfMissing, updateDocument } from '../src/lib/firestore-helpers';
 import * as path from 'path';
 import dotenv from 'dotenv';
 
@@ -145,6 +146,10 @@ async function seedEndToEndData() {
 
   await signIn();
 
+  // Ensure test users exist
+  const testUser1 = await createTestUserIfMissing('ecanicula@gmail.com', 'Ecanicula User');
+  const testUser2 = await createTestUserIfMissing('edcani@rocketmail.com', 'Edcani User');
+
   // Clear EMR-related collections
   console.log('🧹 Clearing EMR collections...');
   await clearCollection('encounters');
@@ -172,6 +177,15 @@ async function seedEndToEndData() {
   petsSnap.forEach(d => { pets[d.id] = { id: d.id, ...d.data() }; });
   const petsByName: Record<string, any> = {};
   Object.values(pets).forEach(p => { petsByName[p.name] = p; });
+
+  // Distribute pets between test users
+  const petIds = Object.keys(pets);
+  for (let i = 0; i < petIds.length; i++) {
+    const ownerUid = i % 2 === 0 ? testUser1 : testUser2;
+    const petId = petIds[i];
+    await updateDocument('pets', petId, { ownerUid });
+    pets[petId].ownerUid = ownerUid; // update local copy
+  }
 
   const doctorsSnap = await getDocs(collection(db, 'doctors'));
   const doctors: any[] = [];
