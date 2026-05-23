@@ -163,7 +163,7 @@ export async function fetchPets(ownerUid?: string) {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   };
-  return fetchWithCache('pets', queryFn);
+  return fetchWithCache(ownerUid ? `pets_owner_${ownerUid}` : 'pets', queryFn);
 }
 
 export async function fetchPetById(petId: string) {
@@ -684,7 +684,7 @@ export async function fetchUsers(role?: string) {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   };
-  return fetchWithCache('users', queryFn);
+  return fetchWithCache(role ? `users_role_${role}` : 'users', queryFn);
 }
 
 // ==================== Pharmacy: Inventory Batches ====================
