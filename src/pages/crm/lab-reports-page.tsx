@@ -705,6 +705,7 @@ export default function LabReportsPage() {
           </button>
         ))}
       </div>
+      </div>
 
       {/* Main Content - Orders Table */}
       <Card>
