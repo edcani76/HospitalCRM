@@ -493,156 +493,155 @@ export default function PharmacyPage() {
         </div>
       ) : (
         <>
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div>
-              <h1 className="text-3xl font-bold">Pharmacy</h1>
-              <p className="text-muted-foreground">Manage medications, inventory batches, prescriptions, and dispensing.</p>
-            </div>
-            <div className="flex gap-2">
-              <Drawer open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <Button 
-                  onClick={() => { resetMedForm(); setIsAddDialogOpen(true); }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
-                >
-                  <Plus className="w-5 h-5 mr-2" /> Add Medication
-                </Button>
-                <DrawerContent className="">
-                  <DrawerHeader><DrawerTitle>Add New Medication</DrawerTitle><DrawerDescription className="sr-only">Fill in medication details</DrawerDescription></DrawerHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="col-span-2">
-                        <Label>Medication Name *</Label>
-                        <Input value={medForm.name} onChange={e => setMedForm({ ...medForm, name: e.target.value })} placeholder="e.g. Amoxicillin 500mg" />
+          {/* Sticky Header Section */}
+          <div className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur-md pt-4 pb-4 -mt-4 px-4 -mx-4 md:pt-6 md:-mt-6 md:px-6 md:-mx-6 lg:pt-8 lg:-mt-8 lg:px-8 lg:-mx-8 border-b border-gray-200/50 mb-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div>
+                <h1 className="text-3xl font-bold">Pharmacy</h1>
+                <p className="text-muted-foreground">Manage medications, inventory batches, prescriptions, and dispensing.</p>
+              </div>
+              <div className="flex gap-2">
+                <Drawer open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                  <Button 
+                    onClick={() => { resetMedForm(); setIsAddDialogOpen(true); }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
+                  >
+                    <Plus className="w-5 h-5 mr-2" /> Add Medication
+                  </Button>
+                  <DrawerContent className="">
+                    <DrawerHeader><DrawerTitle>Add New Medication</DrawerTitle><DrawerDescription className="sr-only">Fill in medication details</DrawerDescription></DrawerHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                          <Label>Medication Name *</Label>
+                          <Input value={medForm.name} onChange={e => setMedForm({ ...medForm, name: e.target.value })} placeholder="e.g. Amoxicillin 500mg" />
+                        </div>
+                        <div>
+                          <Label>Category</Label>
+                          <Select value={medForm.category} onValueChange={v => setMedForm({ ...medForm, category: v })}>
+                            <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                            <SelectContent>
+                              {MEDICATION_CATEGORIES.map(cat => (
+                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Unit</Label>
+                          <Select value={medForm.unit} onValueChange={v => setMedForm({ ...medForm, unit: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pieces">Pieces</SelectItem>
+                              <SelectItem value="tablets">Tablets</SelectItem>
+                              <SelectItem value="capsules">Capsules</SelectItem>
+                              <SelectItem value="ml">ml</SelectItem>
+                              <SelectItem value="mg">mg</SelectItem>
+                              <SelectItem value="vial">Vial</SelectItem>
+                              <SelectItem value="tube">Tube</SelectItem>
+                              <SelectItem value="bottle">Bottle</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Selling Price (₱)</Label>
+                          <Input type="number" value={medForm.price || ''} onChange={e => setMedForm({ ...medForm, price: parseFloat(e.target.value) || 0 })} min={0} />
+                        </div>
+                        <div>
+                          <Label>Cost Price (₱)</Label>
+                          <Input type="number" value={medForm.costPrice || ''} onChange={e => setMedForm({ ...medForm, costPrice: parseFloat(e.target.value) || 0 })} min={0} />
+                        </div>
+                        <div>
+                          <Label>Low Stock Alert (Min Stock)</Label>
+                          <Input type="number" value={medForm.minStock || ''} onChange={e => setMedForm({ ...medForm, minStock: parseInt(e.target.value) || 0 })} min={0} />
+                        </div>
+                        <div>
+                          <Label>Reorder Point</Label>
+                          <Input type="number" value={medForm.reorderPoint || ''} onChange={e => setMedForm({ ...medForm, reorderPoint: parseInt(e.target.value) || 0 })} min={0} />
+                        </div>
+                        <div className="col-span-2">
+                          <Label>Description</Label>
+                          <Textarea value={medForm.description} onChange={e => setMedForm({ ...medForm, description: e.target.value })} placeholder="Optional description, usage notes..." />
+                        </div>
                       </div>
-                      <div>
-                        <Label>Category</Label>
-                        <Select value={medForm.category} onValueChange={v => setMedForm({ ...medForm, category: v })}>
-                          <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                          <SelectContent>
-                            {MEDICATION_CATEGORIES.map(cat => (
-                              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Unit</Label>
-                        <Select value={medForm.unit} onValueChange={v => setMedForm({ ...medForm, unit: v })}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pieces">Pieces</SelectItem>
-                            <SelectItem value="tablets">Tablets</SelectItem>
-                            <SelectItem value="capsules">Capsules</SelectItem>
-                            <SelectItem value="ml">ml</SelectItem>
-                            <SelectItem value="mg">mg</SelectItem>
-                            <SelectItem value="vial">Vial</SelectItem>
-                            <SelectItem value="tube">Tube</SelectItem>
-                            <SelectItem value="bottle">Bottle</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Selling Price (₱)</Label>
-                        <Input type="number" value={medForm.price || ''} onChange={e => setMedForm({ ...medForm, price: parseFloat(e.target.value) || 0 })} min={0} />
-                      </div>
-                      <div>
-                        <Label>Cost Price (₱)</Label>
-                        <Input type="number" value={medForm.costPrice || ''} onChange={e => setMedForm({ ...medForm, costPrice: parseFloat(e.target.value) || 0 })} min={0} />
-                      </div>
-                      <div>
-                        <Label>Low Stock Alert (Min Stock)</Label>
-                        <Input type="number" value={medForm.minStock || ''} onChange={e => setMedForm({ ...medForm, minStock: parseInt(e.target.value) || 0 })} min={0} />
-                      </div>
-                      <div>
-                        <Label>Reorder Point</Label>
-                        <Input type="number" value={medForm.reorderPoint || ''} onChange={e => setMedForm({ ...medForm, reorderPoint: parseInt(e.target.value) || 0 })} min={0} />
-                      </div>
-                      <div className="col-span-2">
-                        <Label>Description</Label>
-                        <Textarea value={medForm.description} onChange={e => setMedForm({ ...medForm, description: e.target.value })} placeholder="Optional description, usage notes..." />
-                      </div>
+                      <Button onClick={handleAddMedication} className="w-full" disabled={saving}>
+                        {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Adding...</> : 'Add Medication'}
+                      </Button>
                     </div>
-                    <Button onClick={handleAddMedication} className="w-full" disabled={saving}>
-                      {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Adding...</> : 'Add Medication'}
-                    </Button>
-                  </div>
-                </DrawerContent>
-              </Drawer>
+                  </DrawerContent>
+                </Drawer>
+              </div>
             </div>
-          </div>
 
-          {/* KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('all')}>
-              <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Total Products</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-xl font-bold">{medications.length}</p>
-                <p className="text-xs text-muted-foreground">{filteredMedications.length} active items</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setActiveTab('all'); setStockFilter('low_stock'); }}>
-              <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Low Stock Items</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-xl font-bold text-orange-600">{lowStockCount}</p>
-                <p className="text-xs text-muted-foreground">{outOfStockCount} out of stock</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Expiring Soon</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-xl font-bold text-red-600">{getExpiringSoonCount()}</p>
-                <p className="text-xs text-muted-foreground">Items expiring in 30 days</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('prescriptions')}>
-              <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Prescriptions Pending</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-xl font-bold text-blue-600">{pendingPrescriptions.length}</p>
-                <p className="text-xs text-muted-foreground">Awaiting dispensing</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Today's Dispensed</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-xl font-bold text-emerald-600">{getTodayDispensed()}</p>
-                <p className="text-xs text-muted-foreground">Units dispensed today</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Inventory Value</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-xl font-bold">₱{getTotalStockValue().toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">At cost price</p>
-              </CardContent>
-            </Card>
-          </div>
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('all')}>
+                <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Total Products</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold">{medications.length}</p>
+                  <p className="text-xs text-muted-foreground">{filteredMedications.length} active items</p>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setActiveTab('all'); setStockFilter('low_stock'); }}>
+                <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Low Stock Items</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold text-orange-600">{lowStockCount}</p>
+                  <p className="text-xs text-muted-foreground">{outOfStockCount} out of stock</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Expiring Soon</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold text-red-600">{getExpiringSoonCount()}</p>
+                  <p className="text-xs text-muted-foreground">Items expiring in 30 days</p>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('prescriptions')}>
+                <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Prescriptions Pending</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold text-blue-600">{pendingPrescriptions.length}</p>
+                  <p className="text-xs text-muted-foreground">Awaiting dispensing</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Today's Dispensed</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold text-emerald-600">{getTodayDispensed()}</p>
+                  <p className="text-xs text-muted-foreground">Units dispensed today</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Inventory Value</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold">₱{getTotalStockValue().toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">At cost price</p>
+                </CardContent>
+              </Card>
+            </div>
 
-          {/* Tabs */}
-          <div className="flex gap-1 mb-4 border-b overflow-x-auto">
-            {tabs.map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => { setActiveTab(tab.key); setSearchQuery(''); setCategoryFilter('all'); setStockFilter('all'); }}
-                className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                  activeTab === tab.key
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {tab.label}
-                {tab.count > 0 && (
-                  <span className="ml-2 text-xs bg-muted px-2 py-0.5 rounded-full">{tab.count}</span>
-                )}
-              </button>
-            ))}
-          </div>
+            {/* Tabs */}
+            <div className="flex gap-1 mb-2 border-b overflow-x-auto">
+              {tabs.map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => { setActiveTab(tab.key); setSearchQuery(''); setCategoryFilter('all'); setStockFilter('all'); }}
+                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                    activeTab === tab.key
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span className="ml-2 text-xs bg-muted px-2 py-0.5 rounded-full">{tab.count}</span>
+                  )}
+                </button>
+              ))}
+            </div>
 
-          {/* ==================== ALL MEDICATIONS TAB ==================== */}
-          {activeTab === 'all' && (
-            <>
-              {/* Search + Filters */}
-              <div className="flex flex-col sm:flex-row gap-3 mb-4">
+            {activeTab === 'all' && (
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <div className="flex-1">
                   <SearchBar
                     value={searchQuery}
@@ -671,7 +670,12 @@ export default function PharmacyPage() {
                   </SelectContent>
                 </Select>
               </div>
+            )}
+          </div>
 
+          {/* ==================== ALL MEDICATIONS TAB ==================== */}
+          {activeTab === 'all' && (
+            <>
               {/* Medication Table */}
               <Card>
                 <CardContent className="p-0 overflow-x-auto">

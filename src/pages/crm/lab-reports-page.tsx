@@ -542,142 +542,144 @@ export default function LabReportsPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-        <div>
-          <h1 className="text-3xl font-bold">Lab & Diagnostics</h1>
-          <p className="text-muted-foreground">Manage lab orders, samples, diagnostic results, reports, and billing</p>
+      {/* Sticky Header Section */}
+      <div className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur-md pt-4 pb-4 -mt-4 px-4 -mx-4 md:pt-6 md:-mt-6 md:px-6 md:-mx-6 lg:pt-8 lg:-mt-8 lg:px-8 lg:-mx-8 border-b border-gray-200/50 mb-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <div>
+            <h1 className="text-3xl font-bold">Lab & Diagnostics</h1>
+            <p className="text-muted-foreground">Manage lab orders, samples, diagnostic results, reports, and billing</p>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => setIsNewOrderOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
+            >
+              <Plus className="w-5 h-5 mr-2" /> New Lab Order
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline"><Upload className="w-4 h-4 mr-2" /> Upload</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => {}}>Upload Result File</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {}}>Upload External Report</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {}}>Bulk Upload</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            onClick={() => setIsNewOrderOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
-          >
-            <Plus className="w-5 h-5 mr-2" /> New Lab Order
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline"><Upload className="w-4 h-4 mr-2" /> Upload</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => {}}>Upload Result File</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>Upload External Report</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>Bulk Upload</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
 
-      {/* Alert Banner */}
-      {alerts.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 mb-4 bg-gradient-to-r from-stone-50 to-amber-50 border border-amber-200 rounded-xl text-sm">
-          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-          {alerts.map((alert, i) => (
+        {/* Alert Banner */}
+        {alerts.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 px-4 py-3 mb-4 bg-gradient-to-r from-stone-50 to-amber-50 border border-amber-200 rounded-xl text-sm">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            {alerts.map((alert, i) => (
+              <button
+                key={i}
+                onClick={() => { if (alert.tab) setActiveTab(alert.tab); if (alert.filter) setStatusFilter(alert.filter); }}
+                className={`font-medium ${alert.color} hover:underline cursor-pointer`}
+              >
+                {alert.count} {alert.label}
+              </button>
+            ))}
+            {alerts.length > 1 && <span className="text-muted-foreground">— click to view</span>}
+          </div>
+        )}
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
+          {[
+            { label: 'Pending Orders', value: kpis.pendingOrders, icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', tab: 'orders' as TabType },
+            { label: 'Awaiting Sample', value: kpis.awaitingSample, icon: Syringe, color: 'text-amber-600', bg: 'bg-amber-50', tab: 'sample-collection' as TabType },
+            { label: 'In Progress', value: kpis.inProgress, icon: Loader2, color: 'text-cyan-600', bg: 'bg-cyan-50', tab: 'in-progress' as TabType },
+            { label: 'Ready for Review', value: kpis.readyForReview, icon: FileText, color: 'text-purple-600', bg: 'bg-purple-50', tab: 'results' as TabType },
+            { label: 'Completed', value: kpis.completed, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', tab: 'results' as TabType },
+            { label: 'Critical Results', value: kpis.criticalResults, icon: AlertTriangle, color: 'text-rose-600', bg: 'bg-rose-50', tab: 'critical' as TabType },
+            { label: 'Unbilled', value: kpis.notBilled, icon: PhilippinePeso, color: 'text-sky-600', bg: 'bg-sky-50' },
+          ].map((kpi, i) => (
             <button
               key={i}
-              onClick={() => { if (alert.tab) setActiveTab(alert.tab); if (alert.filter) setStatusFilter(alert.filter); }}
-              className={`font-medium ${alert.color} hover:underline cursor-pointer`}
+              onClick={() => { if (kpi.tab) setActiveTab(kpi.tab); }}
+              className="text-left"
             >
-              {alert.count} {alert.label}
+              <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-medium text-muted-foreground">{kpi.label}</p>
+                    <div className={`p-1.5 rounded-lg ${kpi.bg}`}>
+                      <kpi.icon className={`w-3.5 h-3.5 ${kpi.color}`} />
+                    </div>
+                  </div>
+                  <p className={`text-xl font-bold ${kpi.color}`}>{kpi.value}</p>
+                </CardContent>
+              </Card>
             </button>
           ))}
-          {alerts.length > 1 && <span className="text-muted-foreground">— click to view</span>}
         </div>
-      )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
-        {[
-          { label: 'Pending Orders', value: kpis.pendingOrders, icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', tab: 'orders' as TabType },
-          { label: 'Awaiting Sample', value: kpis.awaitingSample, icon: Syringe, color: 'text-amber-600', bg: 'bg-amber-50', tab: 'sample-collection' as TabType },
-          { label: 'In Progress', value: kpis.inProgress, icon: Loader2, color: 'text-cyan-600', bg: 'bg-cyan-50', tab: 'in-progress' as TabType },
-          { label: 'Ready for Review', value: kpis.readyForReview, icon: FileText, color: 'text-purple-600', bg: 'bg-purple-50', tab: 'results' as TabType },
-          { label: 'Completed', value: kpis.completed, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', tab: 'results' as TabType },
-          { label: 'Critical Results', value: kpis.criticalResults, icon: AlertTriangle, color: 'text-rose-600', bg: 'bg-rose-50', tab: 'critical' as TabType },
-          { label: 'Unbilled', value: kpis.notBilled, icon: PhilippinePeso, color: 'text-sky-600', bg: 'bg-sky-50' },
-        ].map((kpi, i) => (
-          <button
-            key={i}
-            onClick={() => { if (kpi.tab) setActiveTab(kpi.tab); }}
-            className="text-left"
-          >
-            <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-medium text-muted-foreground">{kpi.label}</p>
-                  <div className={`p-1.5 rounded-lg ${kpi.bg}`}>
-                    <kpi.icon className={`w-3.5 h-3.5 ${kpi.color}`} />
-                  </div>
-                </div>
-                <p className={`text-xl font-bold ${kpi.color}`}>{kpi.value}</p>
-              </CardContent>
-            </Card>
-          </button>
-        ))}
-      </div>
-
-      {/* Search & Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <div className="flex-1">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search by pet, owner, test name, order ID..."
-            color="indigo"
-          />
+        {/* Search & Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+          <div className="flex-1">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search by pet, owner, test name, order ID..."
+              color="indigo"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                  <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={testTypeFilter} onValueChange={setTestTypeFilter}>
+              <SelectTrigger className="w-32"><SelectValue placeholder="Test Type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="Laboratory">Laboratory</SelectItem>
+                <SelectItem value="Imaging">Imaging</SelectItem>
+                <SelectItem value="External Lab">External Lab</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger className="w-28"><SelectValue placeholder="Priority" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priorities</SelectItem>
+                <SelectItem value="Routine">Routine</SelectItem>
+                <SelectItem value="Urgent">Urgent</SelectItem>
+                <SelectItem value="STAT">STAT</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={billingFilter} onValueChange={setBillingFilter}>
+              <SelectTrigger className="w-28"><SelectValue placeholder="Billing" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Billing</SelectItem>
+                <SelectItem value="not-billed">Not Billed</SelectItem>
+                <SelectItem value="sent">Sent to Billing</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-28"><SelectValue placeholder="Date" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Time</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="week">This Week</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-                <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={testTypeFilter} onValueChange={setTestTypeFilter}>
-            <SelectTrigger className="w-32"><SelectValue placeholder="Test Type" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="Laboratory">Laboratory</SelectItem>
-              <SelectItem value="Imaging">Imaging</SelectItem>
-              <SelectItem value="External Lab">External Lab</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger className="w-28"><SelectValue placeholder="Priority" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Priorities</SelectItem>
-              <SelectItem value="Routine">Routine</SelectItem>
-              <SelectItem value="Urgent">Urgent</SelectItem>
-              <SelectItem value="STAT">STAT</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={billingFilter} onValueChange={setBillingFilter}>
-            <SelectTrigger className="w-28"><SelectValue placeholder="Billing" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Billing</SelectItem>
-              <SelectItem value="not-billed">Not Billed</SelectItem>
-              <SelectItem value="sent">Sent to Billing</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-28"><SelectValue placeholder="Date" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Time</SelectItem>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="week">This Week</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1 mb-4 border-b border-stone-200">
-        {[
-          { key: 'orders' as TabType, label: 'Orders', count: tabCounts.orders },
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-1 border-b border-stone-200">
+          {[
+            { key: 'orders' as TabType, label: 'Orders', count: tabCounts.orders },
           { key: 'sample-collection' as TabType, label: 'Sample Collection', count: tabCounts['sample-collection'] },
           { key: 'in-progress' as TabType, label: 'In Progress', count: tabCounts['in-progress'] },
           { key: 'results' as TabType, label: 'Results & Reports', count: tabCounts.results },

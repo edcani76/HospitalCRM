@@ -428,218 +428,221 @@ export default function BillingPage() {
         </div>
       ) : (
         <>
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div>
-              <h1 className="text-3xl font-bold">Billing & Payments</h1>
-              <p className="text-muted-foreground">Manage invoices, payments, outstanding balances, refunds, and owner billing history.</p>
-            </div>
-            <div className="flex gap-2">
-              <Drawer open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <Button 
-                  onClick={() => setIsAddDialogOpen(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
-                >
-                  <Plus className="w-5 h-5 mr-2" /> Create Invoice
-                </Button>
-                <DrawerContent className="">
-                  <DrawerHeader><DrawerTitle>Create New Invoice</DrawerTitle><DrawerDescription className="sr-only">Fill in the invoice details</DrawerDescription></DrawerHeader>
-                  <div className="space-y-4 py-4">
-                    <div>
-                      <Label>Pet</Label>
-                      <Select value={formData.petId} onValueChange={(v) => {
-                        const pet = pets.find(p => p.id === v);
-                        setFormData({ ...formData, petId: v, clientUid: pet?.ownerUid || '' });
-                      }}>
-                        <SelectTrigger><SelectValue placeholder="Select pet" /></SelectTrigger>
-                        <SelectContent>
-                          {pets.filter(Boolean).map(pet => (
-                            <SelectItem key={pet.id} value={pet.id}>{pet.name} ({pet.species})</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Description</Label>
-                      <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Invoice description (optional)" />
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label>Line Items</Label>
-                        <AddButton text="Add Item" onClick={addFormItem} />
-                      <div className="space-y-2">
-                      </div>
-                        {formItems.map((item, idx) => (
-                          <div key={idx} className="flex gap-2 items-start">
-                            <Input
-                              placeholder="Service name"
-                              value={item.name}
-                              onChange={(e) => updateFormItem(idx, 'name', e.target.value)}
-                              className="flex-1"
-                            />
-                            <Input
-                              type="number"
-                              placeholder="Qty"
-                              value={item.qty || ''}
-                              onChange={(e) => updateFormItem(idx, 'qty', e.target.value)}
-                              className="w-16"
-                              min="1"
-                            />
-                            <Input
-                              type="number"
-                              placeholder="Price"
-                              value={item.price || ''}
-                              onChange={(e) => updateFormItem(idx, 'price', e.target.value)}
-                              className="w-24"
-                              min="0"
-                            />
-                            <span className="text-sm font-medium pt-2 w-20 text-right">₱{(item.qty * item.price).toLocaleString()}</span>
-                            {formItems.length > 1 && (
-                              <Button type="button" variant="ghost" size="sm" onClick={() => removeFormItem(idx)} className="text-red-500">
-                                <X className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex justify-end mt-2 text-sm font-bold">
-                        Total: ₱{formTotal.toLocaleString()}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+          {/* Sticky Header Section */}
+          <div className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur-md pt-4 pb-4 -mt-4 px-4 -mx-4 md:pt-6 md:-mt-6 md:px-6 md:-mx-6 lg:pt-8 lg:-mt-8 lg:px-8 lg:-mx-8 border-b border-gray-200/50 mb-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div>
+                <h1 className="text-3xl font-bold">Billing & Payments</h1>
+                <p className="text-muted-foreground">Manage invoices, payments, outstanding balances, refunds, and owner billing history.</p>
+              </div>
+              <div className="flex gap-2">
+                <Drawer open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                  <Button 
+                    onClick={() => setIsAddDialogOpen(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
+                  >
+                    <Plus className="w-5 h-5 mr-2" /> Create Invoice
+                  </Button>
+                  <DrawerContent className="">
+                    <DrawerHeader><DrawerTitle>Create New Invoice</DrawerTitle><DrawerDescription className="sr-only">Fill in the invoice details</DrawerDescription></DrawerHeader>
+                    <div className="space-y-4 py-4">
                       <div>
-                        <Label>Due Date</Label>
-                        <Input type="date" value={formData.dueDate} onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} />
+                        <Label>Pet</Label>
+                        <Select value={formData.petId} onValueChange={(v) => {
+                          const pet = pets.find(p => p.id === v);
+                          setFormData({ ...formData, petId: v, clientUid: pet?.ownerUid || '' });
+                        }}>
+                          <SelectTrigger><SelectValue placeholder="Select pet" /></SelectTrigger>
+                          <SelectContent>
+                            {pets.filter(Boolean).map(pet => (
+                              <SelectItem key={pet.id} value={pet.id}>{pet.name} ({pet.species})</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
+                      <div>
+                        <Label>Description</Label>
+                        <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Invoice description (optional)" />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label>Line Items</Label>
+                          <AddButton text="Add Item" onClick={addFormItem} />
+                        </div>
+                        <div className="space-y-2">
+                          {formItems.map((item, idx) => (
+                            <div key={idx} className="flex gap-2 items-start">
+                              <Input
+                                placeholder="Service name"
+                                value={item.name}
+                                onChange={(e) => updateFormItem(idx, 'name', e.target.value)}
+                                className="flex-1"
+                              />
+                              <Input
+                                type="number"
+                                placeholder="Qty"
+                                value={item.qty || ''}
+                                onChange={(e) => updateFormItem(idx, 'qty', e.target.value)}
+                                className="w-16"
+                                min="1"
+                              />
+                              <Input
+                                type="number"
+                                placeholder="Price"
+                                value={item.price || ''}
+                                onChange={(e) => updateFormItem(idx, 'price', e.target.value)}
+                                className="w-24"
+                                min="0"
+                              />
+                              <span className="text-sm font-medium pt-2 w-20 text-right">₱{(item.qty * item.price).toLocaleString()}</span>
+                              {formItems.length > 1 && (
+                                <Button type="button" variant="ghost" size="sm" onClick={() => removeFormItem(idx)} className="text-red-500">
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex justify-end mt-2 text-sm font-bold">
+                          Total: ₱{formTotal.toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Due Date</Label>
+                          <Input type="date" value={formData.dueDate} onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} />
+                        </div>
+                      </div>
+                      <div>
+                        <Label>Status</Label>
+                        <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="paid">Paid</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button onClick={handleSubmit} className="w-full">Create Invoice</Button>
                     </div>
-                    <div>
-                      <Label>Status</Label>
-                      <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="paid">Paid</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button onClick={handleSubmit} className="w-full">Create Invoice</Button>
-                  </div>
-                </DrawerContent>
-              </Drawer>
+                  </DrawerContent>
+                </Drawer>
+              </div>
             </div>
-          </div>
 
-          {/* KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('all')}>
-              <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Total Billed</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-xl font-bold">₱{totalBilled.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">{filteredBills.length} invoices</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('paid')}>
-              <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Collected</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-xl font-bold text-green-600">₱{totalCollected.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">{paidCount} fully paid</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('unpaid')}>
-              <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Outstanding</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-xl font-bold text-orange-600">₱{totalOutstanding.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">{unpaidCount + partialCount} unpaid or partial</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('overdue')}>
-              <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Overdue</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-xl font-bold text-red-700">₱{totalOverdue.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">{overdueBills.length} past due</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Today's Collections</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-xl font-bold text-emerald-600">₱{invoicePayments.filter(p => {
-                  const d = p.paidAt?.toDate?.() || p.createdAt?.toDate?.();
-                  return d && format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-                }).reduce((s, p) => s + (p.amount || 0), 0).toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Payments today</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('pending')}>
-              <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Pending Billing</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-xl font-bold text-blue-600">{pendingBills.length}</p>
-                <p className="text-xs text-muted-foreground">Draft invoices</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-1 mb-4 border-b overflow-x-auto">
-            {tabs.map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                  activeTab === tab.key
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {tab.label}
-                {tab.count > 0 && (
-                  <span className="ml-2 text-xs bg-muted px-2 py-0.5 rounded-full">{tab.count}</span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Search + Filters */}
-          <div className="flex flex-col sm:flex-row gap-3 mb-4">
-            <div className="flex-1">
-              <SearchBar
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder="Search invoice, owner, pet, OR number..."
-                color="emerald"
-              />
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('all')}>
+                <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Total Billed</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold">₱{totalBilled.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">{filteredBills.length} invoices</p>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('paid')}>
+                <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Collected</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold text-green-600">₱{totalCollected.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">{paidCount} fully paid</p>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('unpaid')}>
+                <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Outstanding</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold text-orange-600">₱{totalOutstanding.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">{unpaidCount + partialCount} unpaid or partial</p>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('overdue')}>
+                <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Overdue</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold text-red-700">₱{totalOverdue.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">{overdueBills.length} past due</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Today's Collections</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold text-emerald-600">₱{invoicePayments.filter(p => {
+                    const d = p.paidAt?.toDate?.() || p.createdAt?.toDate?.();
+                    return d && format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                  }).reduce((s, p) => s + (p.amount || 0), 0).toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Payments today</p>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('pending')}>
+                <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Pending Billing</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold text-blue-600">{pendingBills.length}</p>
+                  <p className="text-xs text-muted-foreground">Draft invoices</p>
+                </CardContent>
+              </Card>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="unpaid">Unpaid</SelectItem>
-                <SelectItem value="partial">Partially Paid</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={sourceFilter} onValueChange={setSourceFilter}>
-              <SelectTrigger className="w-36"><SelectValue placeholder="Source" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sources</SelectItem>
-                <SelectItem value="consultation">Consultation</SelectItem>
-                <SelectItem value="admission">Admission</SelectItem>
-                <SelectItem value="grooming">Grooming</SelectItem>
-                <SelectItem value="laboratory">Laboratory</SelectItem>
-                <SelectItem value="pharmacy">Pharmacy</SelectItem>
-                <SelectItem value="manual">Manual</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-36"><SelectValue placeholder="Date" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-              </SelectContent>
-            </Select>
+
+            {/* Tabs */}
+            <div className="flex gap-1 mb-4 border-b overflow-x-auto">
+              {tabs.map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                    activeTab === tab.key
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span className="ml-2 text-xs bg-muted px-2 py-0.5 rounded-full">{tab.count}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Search + Filters */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-2">
+              <div className="flex-1">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search invoice, owner, pet, OR number..."
+                  color="emerald"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                  <SelectItem value="partial">Partially Paid</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="w-36"><SelectValue placeholder="Source" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  <SelectItem value="consultation">Consultation</SelectItem>
+                  <SelectItem value="admission">Admission</SelectItem>
+                  <SelectItem value="grooming">Grooming</SelectItem>
+                  <SelectItem value="laboratory">Laboratory</SelectItem>
+                  <SelectItem value="pharmacy">Pharmacy</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={dateFilter} onValueChange={setDateFilter}>
+                <SelectTrigger className="w-36"><SelectValue placeholder="Date" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="month">This Month</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Invoice Table */}

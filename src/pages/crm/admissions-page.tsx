@@ -255,102 +255,107 @@ export default function AdmissionsPage() {
 
   return (
     <div className="max-w-7xl mx-auto pb-12">
-      <PageHeader 
-        title="Admissions" 
-        subtitle="Manage patient admissions and confinements"
-        actions={
-          (user?.role === 'admin' || user?.role === 'staff' || user?.role === 'doctor') && (
-            <Button 
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
-              onClick={() => setIsAdmitDialogOpen(true)}
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Admit Patient
-            </Button>
-          )
-        }
-      />
-
-      {/* Search Bar */}
-      <div className="mb-6">
-        <SearchBar
-          value={searchTerm}
-          onChange={setSearchTerm}
-          placeholder="Search by pet name, owner, or reason..."
-          color="emerald"
+      {/* Sticky Header Section */}
+      <div className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur-md pt-4 pb-4 -mt-4 px-4 -mx-4 md:pt-6 md:-mt-6 md:px-6 md:-mx-6 lg:pt-8 lg:-mt-8 lg:px-8 lg:-mx-8 border-b border-gray-200/50 mb-6">
+        <PageHeader 
+          title="Admissions" 
+          subtitle="Manage patient admissions and confinements"
+          actions={
+            (user?.role === 'admin' || user?.role === 'staff' || user?.role === 'doctor') && (
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
+                onClick={() => setIsAdmitDialogOpen(true)}
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Admit Patient
+              </Button>
+            )
+          }
         />
-      </div>
 
-      {/* Status Filter Tabs */}
-      <div className="flex gap-2 mb-6">
-        <Button
-          variant={statusFilter === 'all' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setStatusFilter('all')}
-        >
-          All
-        </Button>
-        <Button
-          variant={statusFilter === 'admitted' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setStatusFilter('admitted')}
-        >
-          Admitted
-        </Button>
-        <Button
-          variant={statusFilter === 'discharged' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setStatusFilter('discharged')}
-        >
-          Discharged
-        </Button>
-      </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <Bed className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{admissions.filter(a => a.status === 'admitted').length}</p>
+                  <p className="text-sm text-gray-500">Currently Admitted</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{admissions.filter(a => a.status === 'discharged').length}</p>
+                  <p className="text-sm text-gray-500">Total Discharged</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">
+                    {admissions.filter(a => a.status === 'admitted').length > 0 
+                      ? Math.max(...admissions.filter(a => a.status === 'admitted').map(a => getStayDuration(a.checkInDate)))
+                      : 0}
+                  </p>
+                  <p className="text-sm text-gray-500">Longest Stay (days)</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Bed className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{admissions.filter(a => a.status === 'admitted').length}</p>
-                <p className="text-sm text-gray-500">Currently Admitted</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{admissions.filter(a => a.status === 'discharged').length}</p>
-                <p className="text-sm text-gray-500">Total Discharged</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                <Clock className="w-6 h-6 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {admissions.filter(a => a.status === 'admitted').length > 0 
-                    ? Math.max(...admissions.filter(a => a.status === 'admitted').map(a => getStayDuration(a.checkInDate)))
-                    : 0}
-                </p>
-                <p className="text-sm text-gray-500">Longest Stay (days)</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col sm:flex-row gap-4 mb-2">
+          {/* Status Filter Tabs */}
+          <div className="flex gap-2">
+            <Button
+              variant={statusFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter('all')}
+            >
+              All
+            </Button>
+            <Button
+              variant={statusFilter === 'admitted' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter('admitted')}
+            >
+              Admitted
+            </Button>
+            <Button
+              variant={statusFilter === 'discharged' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter('discharged')}
+            >
+              Discharged
+            </Button>
+          </div>
+          
+          {/* Search Bar */}
+          <div className="flex-1">
+            <SearchBar
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Search by pet name, owner, or reason..."
+              color="emerald"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Admissions List */}
