@@ -393,6 +393,7 @@ export default function EMRDirectory() {
           </div>
         )}
       </div>
+    </div>
 
       {/* ==================== PATIENTS TAB CONTENT ==================== */}
       {activeTab === 'patients' && (
