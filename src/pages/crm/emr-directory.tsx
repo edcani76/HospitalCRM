@@ -296,63 +296,63 @@ export default function EMRDirectory() {
         </div>
       )}
 
-      {/* Search */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400 group-focus-within:text-blue-500 transition-colors" />
-          <input
-            type="text"
-            className="block w-full pl-12 pr-4 py-3 bg-white border border-stone-200 shadow-sm rounded-xl text-base focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all placeholder:text-stone-300"
-            placeholder={activeTab === 'patients' ? "Search by Name, ID, Owner..." : "Search by pet, owner, doctor, diagnosis, complaint..."}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+      {/* Sticky Controls Section */}
+      <div className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur-md py-4 -mx-4 px-4 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 border-b border-gray-200/50 space-y-4">
+        {/* Search */}
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400 group-focus-within:text-blue-500 transition-colors" />
+            <input
+              type="text"
+              className="block w-full pl-12 pr-4 py-3 bg-white border border-stone-200 shadow-sm rounded-xl text-base focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all placeholder:text-stone-300"
+              placeholder={activeTab === 'patients' ? "Search by Name, ID, Owner..." : "Search by pet, owner, doctor, diagnosis, complaint..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-stone-200 h-fit self-center">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={cn("p-2.5 rounded-xl transition-all", viewMode === 'grid' ? "bg-blue-600 text-white shadow-md shadow-blue-100" : "text-stone-400 hover:bg-stone-50")}
+            >
+              <Grid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={cn("p-2.5 rounded-xl transition-all", viewMode === 'list' ? "bg-blue-600 text-white shadow-md shadow-blue-100" : "text-stone-400 hover:bg-stone-50")}
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-        <div className="flex bg-white p-1 rounded-xl shadow-sm border border-stone-200 h-fit self-center">
+
+        {/* Tabs */}
+        <div className="flex gap-1 p-1 bg-stone-100 rounded-xl w-fit">
           <button
-            onClick={() => setViewMode('grid')}
-            className={cn("p-2.5 rounded-xl transition-all", viewMode === 'grid' ? "bg-blue-600 text-white shadow-md shadow-blue-100" : "text-stone-400 hover:bg-stone-50")}
+            onClick={() => { setActiveTab('patients'); setSearchQuery(''); }}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-bold transition-all",
+              activeTab === 'patients' ? "bg-white text-blue-600 shadow-sm" : "text-stone-500 hover:text-stone-700"
+            )}
           >
-            <Grid className="w-4 h-4" />
+            <User className="w-4 h-4 inline mr-1.5" />
+            Patients
           </button>
           <button
-            onClick={() => setViewMode('list')}
-            className={cn("p-2.5 rounded-xl transition-all", viewMode === 'list' ? "bg-blue-600 text-white shadow-md shadow-blue-100" : "text-stone-400 hover:bg-stone-50")}
+            onClick={() => { setActiveTab('encounters'); setSearchQuery(''); setSelectedLetter(null); }}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-bold transition-all",
+              activeTab === 'encounters' ? "bg-white text-blue-600 shadow-sm" : "text-stone-500 hover:text-stone-700"
+            )}
           >
-            <List className="w-4 h-4" />
+            <FileText className="w-4 h-4 inline mr-1.5" />
+            Encounters
+            <span className="ml-1.5 text-[10px] bg-stone-200 px-1.5 py-0.5 rounded-full">{encounters.length}</span>
           </button>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-stone-100 rounded-xl w-fit">
-        <button
-          onClick={() => { setActiveTab('patients'); setSearchQuery(''); }}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-            activeTab === 'patients' ? "bg-white text-blue-600 shadow-sm" : "text-stone-500 hover:text-stone-700"
-          )}
-        >
-          <User className="w-4 h-4 inline mr-1.5" />
-          Patients
-        </button>
-        <button
-          onClick={() => { setActiveTab('encounters'); setSearchQuery(''); setSelectedLetter(null); }}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-            activeTab === 'encounters' ? "bg-white text-blue-600 shadow-sm" : "text-stone-500 hover:text-stone-700"
-          )}
-        >
-          <FileText className="w-4 h-4 inline mr-1.5" />
-          Encounters
-          <span className="ml-1.5 text-[10px] bg-stone-200 px-1.5 py-0.5 rounded-full">{encounters.length}</span>
-        </button>
-      </div>
-
-      {/* ==================== PATIENTS TAB ==================== */}
-      {activeTab === 'patients' && (
-        <>
-          {/* A-Z Alpha-Filter Bar */}
+        {/* A-Z Alpha-Filter Bar (Only in Patients Tab) */}
+        {activeTab === 'patients' && (
           <div className="flex flex-wrap items-center justify-center gap-1 p-3 bg-white rounded-xl border border-stone-200 shadow-sm">
             <button
               onClick={() => setSelectedLetter(null)}
@@ -389,7 +389,12 @@ export default function EMRDirectory() {
               );
             })}
           </div>
+        )}
+      </div>
 
+      {/* ==================== PATIENTS TAB CONTENT ==================== */}
+      {activeTab === 'patients' && (
+        <>
           {/* Patient Grid/List */}
           <div className="grid grid-cols-1">
             {viewMode === 'grid' ? (

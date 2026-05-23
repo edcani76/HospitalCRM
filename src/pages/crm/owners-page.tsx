@@ -225,62 +225,64 @@ export default function OwnersPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <PageHeader 
-        title="Pet Owner Directory" 
-        subtitle={
-          <div className="flex items-center gap-2">
-            <span>Manage the hospital's database of clients and their primary contact information.</span>
-            <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 border-emerald-100 px-3 py-1 font-bold rounded-lg shadow-sm">
-              {owners.length} Registered Clients
-            </Badge>
+    <div className="space-y-6">
+      {/* Sticky Header Section */}
+      <div className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur-md pt-4 pb-4 -mt-4 px-4 -mx-4 md:pt-6 md:-mt-6 md:px-6 md:-mx-6 lg:pt-8 lg:-mt-8 lg:px-8 lg:-mx-8 border-b border-gray-200/50">
+        <PageHeader 
+          title="Client Directory" 
+          subtitle={
+            <div className="flex items-center gap-2">
+              <span>Manage pet owners, their contact information, and billing history.</span>
+              <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 border-emerald-100 px-3 py-1 font-bold rounded-lg shadow-sm">
+                {owners.length} Total Clients
+              </Badge>
+            </div>
+          }
+          actions={
+            <Button 
+              onClick={() => setIsAddModalOpen(true)} 
+              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200 px-6 h-12 rounded-xl font-bold"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Add New Client
+            </Button>
+          }
+        />
+
+        {/* Modern Search & View Controls */}
+        <div className="flex flex-col md:flex-row gap-4 mb-4 mt-2">
+          <div className="relative flex-1 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
+            <input
+              type="text"
+              className="block w-full pl-12 pr-4 py-4 bg-white border border-gray-100 shadow-sm rounded-xl text-lg focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all placeholder:text-gray-300"
+              placeholder="Search by Name, ID, Email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-        }
-        actions={
-          <Button 
-            onClick={() => setIsAddModalOpen(true)} 
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add New Client
-          </Button>
-        }
-      />
-
-      {/* Modern Search & View Controls */}
-      <div className="flex flex-col md:flex-row gap-4 mb-10">
-        <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
-          <input
-            type="text"
-            className="block w-full pl-12 pr-4 py-4 bg-white border border-gray-100 shadow-sm rounded-xl text-lg focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all placeholder:text-gray-300"
-            placeholder="Search by Name, ID, Email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <div className="flex gap-2 p-1.5 bg-gray-50 rounded-xl border border-gray-100 h-fit self-center">
+            <Button
+              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+              size="icon"
+              onClick={() => setViewMode('grid')}
+              className={cn("rounded-xl transition-all h-10 w-10", viewMode === 'grid' && "bg-white shadow-sm")}
+            >
+              <Grid className="h-5 w-5" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+              size="icon"
+              onClick={() => setViewMode('list')}
+              className={cn("rounded-xl transition-all h-10 w-10", viewMode === 'list' && "bg-white shadow-sm")}
+            >
+              <List className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2 p-1.5 bg-gray-50 rounded-xl border border-gray-100">
-          <Button
-            variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-            size="icon"
-            onClick={() => setViewMode('grid')}
-            className={cn("rounded-xl transition-all", viewMode === 'grid' && "bg-white shadow-sm")}
-          >
-            <Grid className="h-5 w-5" />
-          </Button>
-          <Button
-            variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-            size="icon"
-            onClick={() => setViewMode('list')}
-            className={cn("rounded-xl transition-all", viewMode === 'list' && "bg-white shadow-sm")}
-          >
-            <List className="h-5 w-5" />
-          </Button>
-        </div>
-      </div>
 
-      {/* A-Z Alpha-Filter Bar */}
-      <div className="flex flex-wrap items-center justify-center gap-1 p-3 bg-white rounded-xl border border-gray-100 shadow-sm mb-10">
+        {/* A-Z Alpha-Filter Bar */}
+        <div className="flex flex-wrap items-center justify-center gap-1 p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
         <button
           onClick={() => setSelectedLetter(null)}
           className={cn(
@@ -318,6 +320,7 @@ export default function OwnersPage() {
             </button>
           );
         })}
+      </div>
       </div>
 
       {/* Owner Grid/List Display */}

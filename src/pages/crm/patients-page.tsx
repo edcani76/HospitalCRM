@@ -286,58 +286,60 @@ export default function PatientsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <PageHeader 
-        title="Patient Directory" 
-        subtitle={
-          <div className="flex items-center gap-2">
-            <span>Manage the hospital's central database of animals and their owners.</span>
-            <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-blue-100 px-3 py-1 font-bold rounded-lg shadow-sm">
-              {patients.length} Total Records
-            </Badge>
+    <div className="space-y-6">
+      {/* Sticky Header Section */}
+      <div className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur-md pt-4 pb-4 -mt-4 px-4 -mx-4 md:pt-6 md:-mt-6 md:px-6 md:-mx-6 lg:pt-8 lg:-mt-8 lg:px-8 lg:-mx-8 border-b border-gray-200/50">
+        <PageHeader 
+          title="Patient Directory" 
+          subtitle={
+            <div className="flex items-center gap-2">
+              <span>Manage the hospital's central database of animals and their owners.</span>
+              <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-blue-100 px-3 py-1 font-bold rounded-lg shadow-sm">
+                {patients.length} Total Records
+              </Badge>
+            </div>
+          }
+          actions={
+            <Button 
+              onClick={() => setIsAddModalOpen(true)} 
+              className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Register New Patient
+            </Button>
+          }
+        />
+
+        {/* Modern Search & View Controls */}
+        <div className="flex flex-col md:flex-row gap-4 mb-4 mt-2">
+          <div className="relative flex-1 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+            <input
+              type="text"
+              className="block w-full pl-12 pr-4 py-4 bg-white border border-gray-100 shadow-sm rounded-xl text-lg focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all placeholder:text-gray-300"
+              placeholder="Search by Name, ID, Owner..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-        }
-        actions={
-          <Button 
-            onClick={() => setIsAddModalOpen(true)} 
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Register New Patient
-          </Button>
-        }
-      />
-
-      {/* Modern Search & View Controls */}
-      <div className="flex flex-col md:flex-row gap-4 mb-10">
-        <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-          <input
-            type="text"
-            className="block w-full pl-12 pr-4 py-4 bg-white border border-gray-100 shadow-sm rounded-xl text-lg focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all placeholder:text-gray-300"
-            placeholder="Search by Name, ID, Owner..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-100 h-fit self-center">
+            <button 
+              onClick={() => setViewMode('grid')}
+              className={cn("p-3 rounded-xl transition-all", viewMode === 'grid' ? "bg-blue-600 text-white shadow-md shadow-blue-100" : "text-gray-400 hover:bg-gray-50")}
+            >
+              <Grid className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={() => setViewMode('list')}
+              className={cn("p-3 rounded-xl transition-all", viewMode === 'list' ? "bg-blue-600 text-white shadow-md shadow-blue-100" : "text-gray-400 hover:bg-gray-50")}
+            >
+              <List className="w-5 h-5" />
+            </button>
+          </div>
         </div>
-        <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-100 h-fit self-center">
-          <button 
-            onClick={() => setViewMode('grid')}
-            className={cn("p-3 rounded-xl transition-all", viewMode === 'grid' ? "bg-blue-600 text-white shadow-md shadow-blue-100" : "text-gray-400 hover:bg-gray-50")}
-          >
-            <Grid className="w-5 h-5" />
-          </button>
-          <button 
-            onClick={() => setViewMode('list')}
-            className={cn("p-3 rounded-xl transition-all", viewMode === 'list' ? "bg-blue-600 text-white shadow-md shadow-blue-100" : "text-gray-400 hover:bg-gray-50")}
-          >
-            <List className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
 
-      {/* A-Z Alpha-Filter Bar */}
-      <div className="flex flex-wrap items-center justify-center gap-1 p-3 bg-white rounded-xl border border-gray-100 shadow-sm mb-10">
+        {/* A-Z Alpha-Filter Bar */}
+        <div className="flex flex-wrap items-center justify-center gap-1 p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
         <button
           onClick={() => setSelectedLetter(null)}
           className={cn(
@@ -375,6 +377,7 @@ export default function PatientsPage() {
             </button>
           );
         })}
+      </div>
       </div>
 
       {/* Main Content */}

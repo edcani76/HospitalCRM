@@ -866,6 +866,23 @@ export default function LabReportsPage() {
                                     <CheckCircle className="w-4 h-4 mr-2 text-green-600" /> Approve Report
                                   </DropdownMenuItem>
                                 )}
+                                {order.status === 'completed' && (
+                                  <DropdownMenuItem asChild>
+                                    <PDFDownloadLink
+                                      document={<LabReportPDF order={order} patient={petMap.get(order.patientId)} owner={userMap.get(order.ownerId || petMap.get(order.patientId)?.ownerUid)} />}
+                                      fileName={`LabReport_${order.petName || 'Patient'}_${order.testCode || 'Test'}.pdf`}
+                                      className="flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground w-full"
+                                    >
+                                      {/* @ts-ignore */}
+                                      {({ loading }) => (
+                                        <>
+                                          <FileText className="w-4 h-4 mr-2" />
+                                          {loading ? 'Generating PDF...' : 'Download PDF'}
+                                        </>
+                                      )}
+                                    </PDFDownloadLink>
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onClick={() => goToEMR(order.encounterId)}>
                                   <Stethoscope className="w-4 h-4 mr-2" /> View in EMR
                                 </DropdownMenuItem>
