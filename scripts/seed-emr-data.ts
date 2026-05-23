@@ -855,7 +855,6 @@ async function seedEndToEndData() {
             }
           }
         }
-        }
       }
 
       // 6. Create prescriptions and dispensing records

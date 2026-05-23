@@ -321,6 +321,7 @@ Implement EMR mode detection, Quick Start Visit, service management, Visit Summa
 | `c569b6e` | Add admissions module, role-based appointment completion, search bars, and in-progress indicators |
 | `927d655` | Add role-based restrictions for appointment confirmation and start |
 | `f3885cf` | Convert all Dialog modals to Drawer side panels, standardize height and width |
+| `ef9b23e` | Enhance seed data: complete lab orders with all fields, Drive PDF uploads for lab reports |
 
 ### 🔧 Build Status
 - ✅ Lint: Clean (0 errors)
@@ -334,6 +335,7 @@ Implement EMR mode detection, Quick Start Visit, service management, Visit Summa
 - `scripts/migrate-encounters-startedAt.ts`: Encounters already have `startedAt`
 - `scripts/seed-pharmacy-data.ts`: Created 15 medications, 33 inventory batches, stock movements, 5 prescriptions
 - `scripts/remove-duplicate-encounters.ts`: 1 duplicate found and removed
+- `scripts/seed-emr-data.ts`: Enhanced lab orders with full fields (priority, category, sampleType, billingStatus, resultFileUrls), real Drive PDF uploads for lab reports
 
 ### 🚀 Next Steps
 1. Test all 7 Plan Builder modals end-to-end — verify plan items persist after reload, navigation buttons work, Owner Instructions populate Visit Summary
