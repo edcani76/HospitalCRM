@@ -10,14 +10,15 @@ interface PageHeaderProps {
   onBack?: () => void;
   backText?: string;
   backTo?: string;
+  showBack?: boolean;
 }
 
-export function PageHeader({ title, subtitle, actions, onBack, backText, backTo }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, actions, onBack, backText, backTo, showBack }: PageHeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Always show back button unless explicitly hidden
-  const hideBackButton = onBack === null;
+  // Only show back button if explicitly requested or if back navigation props are provided
+  const showBackButton = showBack === true || onBack !== undefined || backTo !== undefined;
   
   const handleBack = () => {
     if (onBack) {
@@ -37,7 +38,7 @@ export function PageHeader({ title, subtitle, actions, onBack, backText, backTo 
 
   return (
     <div className="mb-6">
-      {!hideBackButton && (
+      {showBackButton && (
         <Button 
           variant="ghost" 
           onClick={handleBack}
