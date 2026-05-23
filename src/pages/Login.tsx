@@ -67,9 +67,9 @@ export default function Login() {
 
       // Check if user exists in Firestore
       const userDoc = await getDoc(doc(db, 'users', user.uid));
-      
+
       if (!userDoc.exists()) {
-        // Create new user profile
+        // Create new user profile with default role and displayName
         await setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
           email: user.email,
@@ -78,9 +78,18 @@ export default function Login() {
           role: 'client', // Default role
           createdAt: serverTimestamp()
         });
+      } else {
+        // Ensure role and displayName are set (migration for older accounts)
+        const data = userDoc.data();
+        if (!data.role) {
+          await setDoc(doc(db, 'users', user.uid), { role: 'client' }, { merge: true });
+        }
+        if (!data.displayName && user.displayName) {
+          await setDoc(doc(db, 'users', user.uid), { displayName: user.displayName }, { merge: true });
+        }
       }
 
-      const role = userDoc.exists() ? (userDoc.data()?.role || 'client') : 'client';
+      const role = (userDoc.data()?.role) || 'client';
       navigate(getRedirectPath(role), { replace: true });
     } catch (err: any) {
       console.error(err);
@@ -106,7 +115,27 @@ export default function Login() {
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
       const userDoc = await getDoc(doc(db, 'users', result.user.uid));
-      const role = userDoc.exists() ? (userDoc.data()?.role || 'client') : 'client';
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        if (!data.role) {
+          await setDoc(doc(db, 'users', result.user.uid), { role: 'client' }, { merge: true });
+        }
+        if (!data.displayName) {
+          // Optionally set displayName from email prefix
+          const nameFromEmail = email.split('@')[0];
+          await setDoc(doc(db, 'users', result.user.uid), { displayName: nameFromEmail }, { merge: true });
+        }
+      } else {
+        // Create user doc if missing
+        await setDoc(doc(db, 'users', result.user.uid), {
+          uid: result.user.uid,
+          email: email,
+          displayName: email.split('@')[0],
+          role: 'client',
+          createdAt: serverTimestamp()
+        });
+      }
+      const role = (userDoc.data()?.role) || 'client';
       navigate(getRedirectPath(role), { replace: true });
     } catch (err: any) {
       console.error(err);
