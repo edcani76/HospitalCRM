@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '../../components/ui/button';
+import { AddButton } from '../../components/ui/AddButton';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
@@ -435,8 +436,11 @@ export default function BillingPage() {
             </div>
             <div className="flex gap-2">
               <Drawer open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <Button onClick={() => setIsAddDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" /> Create Invoice
+                <Button 
+                  onClick={() => setIsAddDialogOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
+                >
+                  <Plus className="w-5 h-5 mr-2" /> Create Invoice
                 </Button>
                 <DrawerContent className="">
                   <DrawerHeader><DrawerTitle>Create New Invoice</DrawerTitle><DrawerDescription className="sr-only">Fill in the invoice details</DrawerDescription></DrawerHeader>
@@ -462,11 +466,9 @@ export default function BillingPage() {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <Label>Line Items</Label>
-                        <Button type="button" variant="outline" size="sm" onClick={addFormItem}>
-                          <Plus className="w-3 h-3 mr-1" /> Add Item
-                        </Button>
-                      </div>
+                        <AddButton text="Add Item" onClick={addFormItem} />
                       <div className="space-y-2">
+                      </div>
                         {formItems.map((item, idx) => (
                           <div key={idx} className="flex gap-2 items-start">
                             <Input

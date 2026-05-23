@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
+import { AddButton } from '../../components/ui/AddButton';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
@@ -1238,15 +1239,11 @@ className={`text-white font-bold shadow-lg ${invoiceStatus === 'paid' ? 'bg-emer
                         </Button>
                       </div>
                     ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
+                    <AddButton
+                      text="Add Service"
                       onClick={() => setShowServiceSelector(true)}
                       className="w-full"
-                    >
-                      + Add Service
-                    </Button>
+                    />
                   </div>
                 </div>
 

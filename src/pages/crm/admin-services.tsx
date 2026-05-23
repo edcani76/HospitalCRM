@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { AddButton } from '../../components/ui/AddButton';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Badge } from '../../components/ui/badge';
+
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '../../components/ui/drawer';
 import { fetchServiceCatalog, fetchAllResources, addServiceToCatalog, updateServiceCatalog, updateServiceProviders, addResource, updateResourceStatus, addAuditLog } from '../../lib/firestore-helpers';
-import { db, auth, collection, getDocs, doc, updateDoc } from '../../firebase';
 import { Plus, Search, Edit2, Trash2, Eye, EyeOff, Filter, Package, Settings, Save, X } from 'lucide-react';
 
 type TabType = 'services' | 'resources';
@@ -207,7 +208,7 @@ export default function AdminServicesPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Service Catalog ({services.length})</CardTitle>
-            <Button onClick={openNewService}><Plus className="w-4 h-4 mr-2" /> Add Service</Button>
+            <AddButton text="Add Service" onClick={openNewService} />
           </CardHeader>
           <CardContent>
             {/* Filters */}
@@ -279,7 +280,7 @@ export default function AdminServicesPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Resources ({resources.length})</CardTitle>
-            <Button onClick={openNewResource}><Plus className="w-4 h-4 mr-2" /> Add Resource</Button>
+            <AddButton text="Add Resource" onClick={openNewResource} />
           </CardHeader>
           <CardContent>
             <div className="border rounded-lg overflow-hidden">
