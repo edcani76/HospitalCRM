@@ -189,115 +189,117 @@ export default function EMRDirectory() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <PageHeader
-        title="EMR & Medical Records"
-        subtitle={
-          <span>Manage consultations, SOAP notes, diagnoses, prescriptions, lab orders, and clinical history</span>
-        }
-      />
+      {/* Sticky Header, KPIs, Alerts, & Controls Section */}
+      <div className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur-md pt-4 pb-4 -mt-4 px-4 -mx-4 md:pt-6 md:-mt-6 md:px-6 md:-mx-6 lg:pt-8 lg:-mt-8 lg:px-8 lg:-mx-8 border-b border-gray-200/50 mb-6 space-y-4">
+        {/* Header */}
+        <PageHeader
+          title="EMR & Medical Records"
+          subtitle={
+            <span>Manage consultations, SOAP notes, diagnoses, prescriptions, lab orders, and clinical history</span>
+          }
+        />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Card className="shadow-sm border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Today's Consults</p>
-                <p className="text-2xl font-bold text-stone-900 mt-1">{todayEncounters.length}</p>
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <Card className="shadow-sm border-stone-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Today's Consults</p>
+                  <p className="text-2xl font-bold text-stone-900 mt-1">{todayEncounters.length}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <Stethoscope className="w-5 h-5 text-blue-600" />
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Stethoscope className="w-5 h-5 text-blue-600" />
-              </div>
-            </div>
-            {todayAppointments.length > 0 && (
-              <p className="text-[10px] text-stone-400 mt-2">{todayAppointments.length} scheduled</p>
-            )}
-          </CardContent>
-        </Card>
+              {todayAppointments.length > 0 && (
+                <p className="text-[10px] text-stone-400 mt-2">{todayAppointments.length} scheduled</p>
+              )}
+            </CardContent>
+          </Card>
 
-        <Card className="shadow-sm border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">In Progress</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{inProgressCount}</p>
+          <Card className="shadow-sm border-stone-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">In Progress</p>
+                  <p className="text-2xl font-bold text-blue-600 mt-1">{inProgressCount}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <Activity className="w-5 h-5 text-blue-600" />
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Activity className="w-5 h-5 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card className="shadow-sm border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Medical Complete</p>
-                <p className="text-2xl font-bold text-purple-600 mt-1">{medicalCompletedCount}</p>
+          <Card className="shadow-sm border-stone-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Medical Complete</p>
+                  <p className="text-2xl font-bold text-purple-600 mt-1">{medicalCompletedCount}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5 text-purple-600" />
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-purple-600" />
-              </div>
-            </div>
-            <p className="text-[10px] text-stone-400 mt-2">Pending billing</p>
-          </CardContent>
-        </Card>
+              <p className="text-[10px] text-stone-400 mt-2">Pending billing</p>
+            </CardContent>
+          </Card>
 
-        <Card className="shadow-sm border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Completed</p>
-                <p className="text-2xl font-bold text-emerald-600 mt-1">{completedCount}</p>
+          <Card className="shadow-sm border-stone-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Completed</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-1">{completedCount}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-emerald-600" />
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                <FileText className="w-5 h-5 text-emerald-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card className="shadow-sm border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Total Patients</p>
-                <p className="text-2xl font-bold text-stone-900 mt-1">{pets.length}</p>
+          <Card className="shadow-sm border-stone-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Total Patients</p>
+                  <p className="text-2xl font-bold text-stone-900 mt-1">{pets.length}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center">
+                  <User className="w-5 h-5 text-stone-600" />
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center">
-                <User className="w-5 h-5 text-stone-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card className="shadow-sm border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Total Records</p>
-                <p className="text-2xl font-bold text-stone-900 mt-1">{encounters.length}</p>
+          <Card className="shadow-sm border-stone-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Total Records</p>
+                  <p className="text-2xl font-bold text-stone-900 mt-1">{encounters.length}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-amber-600" />
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                <FileText className="w-5 h-5 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Alert Banner */}
-      {alerts.length > 0 && (
-        <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span>{alerts.join(' • ')}</span>
+            </CardContent>
+          </Card>
         </div>
-      )}
 
-      {/* Sticky Controls Section */}
-      <div className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur-md py-4 -mx-4 px-4 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 border-b border-gray-200/50 space-y-4">
+        {/* Alert Banner */}
+        {alerts.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{alerts.join(' • ')}</span>
+          </div>
+        )}
+
+        {/* Controls Section */}
+        <div className="space-y-4">
         {/* Search */}
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1 group">
