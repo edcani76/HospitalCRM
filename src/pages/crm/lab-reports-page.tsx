@@ -24,6 +24,8 @@ import {
 import { clearCache } from '../../lib/offline-cache';
 import { auth } from '../../firebase';
 import { format, parseISO, isAfter, addDays } from 'date-fns';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { LabReportPDF } from '../../components/lab-report-pdf';
 
 type TabType = 'orders' | 'sample-collection' | 'in-progress' | 'results' | 'critical' | 'external' | 'analytics';
 
@@ -547,8 +549,11 @@ export default function LabReportsPage() {
           <p className="text-muted-foreground">Manage lab orders, samples, diagnostic results, reports, and billing</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setIsNewOrderOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> New Lab Order
+          <Button 
+            onClick={() => setIsNewOrderOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
+          >
+            <Plus className="w-5 h-5 mr-2" /> New Lab Order
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -796,7 +801,7 @@ export default function LabReportsPage() {
                 ) : (
                   filteredOrders.map((order) => {
                     const pet = petMap.get(order.patientId);
-                    const owner = userMap.get(order.ownerId);
+                    const owner = userMap.get(order.ownerId || pet?.ownerUid);
                     return (
                       <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleView(order)}>
                         <TableCell className="font-mono text-xs">{order.orderNo || order.id?.slice(0, 8) || '—'}</TableCell>
@@ -905,7 +910,7 @@ export default function LabReportsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Owner</p>
-                  <p className="font-medium">{selectedOrder.ownerName || userMap.get(selectedOrder.ownerId)?.displayName || '—'}</p>
+                  <p className="font-medium">{selectedOrder.ownerName || userMap.get(selectedOrder.ownerId || petMap.get(selectedOrder.patientId)?.ownerUid)?.displayName || '—'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Test</p>
@@ -1058,6 +1063,21 @@ export default function LabReportsPage() {
                   <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => { setIsDrawerOpen(false); handleApprove(selectedOrder); }}>
                     <CheckCircle className="w-4 h-4 mr-2" /> Approve Report
                   </Button>
+                )}
+                {selectedOrder.status === 'completed' && (
+                  <PDFDownloadLink
+                    document={<LabReportPDF order={selectedOrder} patient={petMap.get(selectedOrder.patientId)} owner={userMap.get(selectedOrder.ownerId || petMap.get(selectedOrder.patientId)?.ownerUid)} />}
+                    fileName={`LabReport_${selectedOrder.petName || 'Patient'}_${selectedOrder.testCode || 'Test'}.pdf`}
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
+                  >
+                    {/* @ts-ignore */}
+                    {({ loading }) => (
+                      <>
+                        <FileText className="w-4 h-4 mr-2" />
+                        {loading ? 'Generating PDF...' : 'Download PDF Report'}
+                      </>
+                    )}
+                  </PDFDownloadLink>
                 )}
                 <Button variant="outline" size="sm" onClick={() => goToPatient(selectedOrder.patientId)}>
                   <User className="w-4 h-4 mr-2" /> View Patient

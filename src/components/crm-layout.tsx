@@ -463,21 +463,22 @@ return breadcrumbs
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 px-2 py-4 overflow-y-auto custom-scrollbar overflow-x-hidden">
           <ul className="space-y-1">
             {getMenuItems().map((item, index) => (
               <li key={index}>
                 <Link
                   to={item.path}
+                  title={!sidebarOpen ? item.name : undefined}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    "flex items-center gap-3 px-2 py-2 rounded-md text-sm font-medium transition-colors",
                     isActive(item.path)
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >
-                  <item.icon size={18} />
-                  {sidebarOpen && <span>{item.name}</span>}
+                  <item.icon size={20} className="shrink-0 ml-1" />
+                  <span className={cn("whitespace-nowrap transition-opacity", !sidebarOpen && "hidden")}>{item.name}</span>
                 </Link>
               </li>
             ))}
