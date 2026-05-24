@@ -52,6 +52,8 @@ This document tracks the milestones, current development status, and roadmap for
   - [x] **Timestamp Fix**: Uses `startedAt` (not `createdAt`) for encounters, migration complete.
   - [x] **Notes Display**: "Type(s)" → "Services", Additional Notes shows combined service + general notes.
   - [x] **Mode Display**: Handles "Walk-in" with hyphen correctly in UI.
+  - [x] **Service Code Conventions**: Enforced `[TYPE]-001` auto-generation format across EMR and Appointments.
+  - [x] **Resources vs Services**: Finalized integration mapping physical Resources (e.g. CAGE-001) to sellable Services Catalog items.
 
 ## 🚀 Current Focus
   - [ ] **Testing**: Test Quick Start Visit flow, Edit Appointment service management.
@@ -73,4 +75,4 @@ This document tracks the milestones, current development status, and roadmap for
 - [ ] **Mobile App**: Dedicated iOS and Android applications for pet owners.
 
 ---
-*Last Updated: 2026-05-02*
+*Last Updated: 2026-05-24*

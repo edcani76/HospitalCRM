@@ -22,6 +22,7 @@ edvirontvet is a modern, responsive veterinary clinic management system built to
 - **Enhanced Patient Records:** Microchip ID, blood type, date of birth, medical history, gender, color — with auto age conversion to months for pets under 1 year.
 - **Appointment Management:** Client portal allows viewing, cancelling, and rescheduling appointments with confirmation dialogs.
 - **AI Integration:** Powered by Google Gemini for smart medical assistance and data insights.
+- **Resources Integration:** Map physical clinic resources (rooms, cages, equipment) to billable services.
 - **Progress Tracking:** See [PROGRESS.md](PROGRESS.md) for current development status and roadmap.
 - **Workflow Documentation:** See [WORKFLOW.md](WORKFLOW.md) for complete appointment lifecycle and service management.
 
