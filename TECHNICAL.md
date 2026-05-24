@@ -316,7 +316,8 @@ payments/{paymentId}
 └── recordedBy: string
 
 service_catalog/{serviceId}
-├── code: string
+├── service_code: string (Format: [TYPE]-001)
+├── code: string (Legacy format)
 ├── name: string
 ├── category: "Consultation" | "Vaccination" | "Grooming" | ...
 ├── description: string
@@ -330,9 +331,14 @@ service_catalog/{serviceId}
 └── requiredResourceIds: string[]
 
 resources/{resourceId}
+├── resource_code: string (Format: [TYPE]-001)
 ├── name: string
-├── type: "room" | "equipment"
-└── status: "available" | "in-use" | "maintenance"
+├── resource_type: string
+├── department: string
+├── status: "Available" | "In Use" | "Maintenance"
+├── service_mapping_id?: string
+├── billable: boolean
+├── schedulable: boolean
 
 appointment_services/{serviceId}
 ├── appointmentId: string
@@ -782,3 +788,9 @@ Gmail SMTP with App Password provides:
 - No additional service costs (uses existing Gmail account)
 - Reliable delivery with proper DKIM/SPF if domain is configured
 - Fallback to Firebase's `sendPasswordResetEmail` when SMTP is unavailable
+
+### Resources vs. Services Catalog
+Resources and Services are integrated but fundamentally distinct:
+- **Service Catalog**: Represents sellable, chargeable items used for invoicing (e.g., "Consultation Fee", "X-Ray Service"). Codes use format `[TYPE]-001` (e.g., `CONS-001`).
+- **Resources**: Represents physical or operational assets needed to deliver care (e.g., "Exam Room 1", "Ultrasound Machine"). Codes use format `[TYPE]-001` (e.g., `EXAM-001`).
+Resources can optionally map to a Service (1:1 or 1:N) via `service_mapping_id`. If a resource has a price (e.g., Cage Confinement Daily Rate), it maps to the corresponding Service Catalog item to automatically generate charges.

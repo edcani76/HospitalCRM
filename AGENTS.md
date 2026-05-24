@@ -303,6 +303,14 @@ Implement EMR mode detection, Quick Start Visit, service management, Visit Summa
 40. **Case-Sensitive Letter Index Fix**
     - Patient and owner letter indexes now use `.toUpperCase().startsWith()` so names entered in lowercase appear under correct letter
 
+41. **Service and Resource Code Conventions**
+    - Adopted `[TYPE]-001` format for all auto-generated codes.
+    - Updated `emr-page.tsx`, `patient-profile.tsx`, `appointment-details-page.tsx`, and `order-lab-modal.tsx` to utilize `catalogItem.service_code || catalogItem.code` and replace legacy `.slice(0, 3)` hardcoded strings with the standard `[TYPE]-001` format.
+
+42. **Resources and Services Integration**
+    - Finalized the integration mapping between physical/operational Resources and sellable Service Catalog items.
+    - Added `billable` toggles and `service_mapping_id` selection inside the Add Resource drawer to directly map a resource (e.g. `CAGE-001`) to an invoice item (e.g. `Daily Boarding`).
+
 
 ### 📝 Recent Commits (branch: `codex/pr-1`)
 
