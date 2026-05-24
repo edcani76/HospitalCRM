@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { PageHeader } from '../../components/ui/page-header';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Label } from '../../components/ui/label';
@@ -17,11 +16,16 @@ import { notifyDoctor, notifyClient } from '../../lib/notifications';
 import { Doctor, Pet, Appointment } from '../../types';
 import PetDialog from '../../components/crm/pet-dialog';
 
-export default function CreateAppointmentPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const prefill = (location.state as any)?.prefill as (Appointment & { originalId?: string }) | undefined;
-  const isEdit = (location.state as any)?.isEdit || false;
+interface CreateAppointmentDrawerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  isEdit?: boolean;
+  prefillData?: any;
+  onSuccess?: () => void;
+}
+
+export default function CreateAppointmentDrawer({ open, onOpenChange, isEdit = false, prefillData, onSuccess }: CreateAppointmentDrawerProps) {
+  const prefill = prefillData as (Appointment & { originalId?: string }) | undefined;
 
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [groomers, setGroomers] = useState<Doctor[]>([]);
@@ -405,8 +409,9 @@ export default function CreateAppointmentPage() {
         }
         if (clientUid) await notifyClient(clientUid, 'appointment_created', 'Appointment Confirmed',
           `Your appointment(s) for ${petName} on ${appointments[0]?.date} have been scheduled.`);
-      }
-      navigate('/crm/appointments', { replace: true });
+        }
+      if (onSuccess) onSuccess();
+      onOpenChange(false);
     } catch (error: any) {
       console.error('Error creating appointment:', error);
       alert(`Failed to ${isEdit ? 'update' : 'create'} appointment: ${error.message || error}`);
@@ -414,11 +419,16 @@ export default function CreateAppointmentPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 md:space-y-6 px-2 sm:px-0">
-      <PageHeader
-        title={isEdit ? 'Edit Appointment' : 'Create New Appointment'}
-        backText={location.state?.backText || 'Back'}
-      />
+
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="w-full sm:max-w-3xl overflow-y-auto">
+        <DrawerHeader className="px-6 py-4 border-b border-stone-100 pb-4 shrink-0 bg-white sticky top-0 z-10">
+          <DrawerTitle className="text-xl font-bold flex items-center gap-2 text-stone-800">
+            {isEdit ? 'Edit Appointment' : 'Create New Appointment'}
+          </DrawerTitle>
+          <DrawerDescription className="sr-only">Appointment form</DrawerDescription>
+        </DrawerHeader>
+        <div className="p-6 space-y-4 md:space-y-6">
 
       <form onSubmit={handleCreateAppointment}>
         {/* Pet Selection */}
@@ -793,9 +803,8 @@ export default function CreateAppointmentPage() {
           </CardContent>
         </Card>
 
-        {/* Submit */}
         <div className="flex justify-end gap-2 pt-4">
-          <Button type="button" variant="outline" onClick={() => navigate('/crm/appointments')} disabled={loading}>Cancel</Button>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
           <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white" disabled={loading || appointments.length === 0 || !selectedPet}>
             {loading ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />{isEdit ? 'Updating...' : 'Creating...'}</>) : (isEdit ? 'Update Appointment' : 'Create Appointment')}
           </Button>
@@ -804,6 +813,8 @@ export default function CreateAppointmentPage() {
 
       <PetDialog open={isPetDialogOpen} onOpenChange={setIsPetDialogOpen} mode="add" users={users}
         onSubmit={handleNewPetFromDialog} onCancel={() => setIsPetDialogOpen(false)} />
-    </div>
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }

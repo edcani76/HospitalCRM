@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import CreateAppointmentDrawer from '../../components/crm/create-appointment-drawer';
 import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/ui/page-header';
 import { Button } from '../../components/ui/button';
@@ -35,6 +36,9 @@ export default function AppointmentsPage() {
   const navigate = useNavigate();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [drawerPrefillData, setDrawerPrefillData] = useState<any>(null);
+  const [isDrawerEdit, setIsDrawerEdit] = useState(false);
   const [boardView, setBoardView] = useState(() => {
     const saved = localStorage.getItem('appointments-board-view');
     return saved === 'true';
@@ -298,7 +302,9 @@ export default function AppointmentsPage() {
         doctorDepartment: doctor?.department || '',
         doctorExperience: doctor?.experience || 0,
       };
-      navigate('/crm/appointments/create', { state: { prefill: prefillData, isEdit: true } });
+      setDrawerPrefillData(prefillData);
+      setIsDrawerEdit(true);
+      setIsDrawerOpen(true);
     } catch (error) {
       console.error('Error editing:', error);
     }
@@ -421,7 +427,11 @@ export default function AppointmentsPage() {
           (user?.role === 'admin' || user?.role === 'staff') && (
             <Button
               className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 px-6 h-12 rounded-xl font-bold"
-              onClick={() => navigate('/crm/appointments/create')}
+              onClick={() => {
+                setDrawerPrefillData(null);
+                setIsDrawerEdit(false);
+                setIsDrawerOpen(true);
+              }}
             >
               <Plus className="w-5 h-5 mr-2" />
               <span className="hidden sm:inline">New Appointment</span>
@@ -647,7 +657,9 @@ export default function AppointmentsPage() {
                                         time: slot,
                                         date: format(selectedDate, 'yyyy-MM-dd'),
                                       };
-                                      navigate('/crm/appointments/create', { state: { prefill: prefillData, isEdit: false } });
+                                      setDrawerPrefillData(prefillData);
+                                      setIsDrawerEdit(false);
+                                      setIsDrawerOpen(true);
                                     }}
                                   >
                                     <div className="flex items-center justify-center h-full">
@@ -794,6 +806,16 @@ export default function AppointmentsPage() {
           </Card>
         </div>
       </div>
+
+      <CreateAppointmentDrawer
+        open={isDrawerOpen}
+        onOpenChange={setIsDrawerOpen}
+        isEdit={isDrawerEdit}
+        prefillData={drawerPrefillData}
+        onSuccess={() => {
+          fetchAllAppointments();
+        }}
+      />
     </>
   );
 }

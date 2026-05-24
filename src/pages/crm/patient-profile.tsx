@@ -28,6 +28,7 @@ import {
   AlertCircle,
   AlertTriangle,
   Syringe,
+  Pill,
   Scale,
   PhilippinePeso,
   Pill
@@ -42,6 +43,7 @@ import { Label } from '../../components/ui/label';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../../components/ui/drawer';
 import { db, auth, collection, getDocs, getDoc, addDoc, updateDoc, doc, query, where, serverTimestamp } from '../../firebase';
 import PetDialog from '../../components/crm/pet-dialog';
+import CreateAppointmentDrawer from '../../components/crm/create-appointment-drawer';
 import { uploadToGoogleDrive } from '../../lib/google-drive';
 import { addAuditLog } from '../../lib/firestore-helpers';
 
@@ -97,6 +99,10 @@ export default function PatientProfilePage() {
   const [startingVisit, setStartingVisit] = useState(false);
   const [tempPhoto, setTempPhoto] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // Create Appointment Drawer state
+  const [isAppointmentDrawerOpen, setIsAppointmentDrawerOpen] = useState(false);
+  const [appointmentDrawerData, setAppointmentDrawerData] = useState<any>(null);
   
   // Doctor selector for Quick Start
   const [showDoctorDialog, setShowDoctorDialog] = useState(false);
@@ -688,7 +694,10 @@ export default function PatientProfilePage() {
           <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs" onClick={() => navigate(`/crm/emr/${patient.id}`, { state: { from: `/crm/patients/${patient.id}`, backText: 'Back to Patient Profile' } })}>
             <FileText className="w-3.5 h-3.5 mr-1.5" /> Open EMR
           </Button>
-          <Button size="sm" variant="outline" className="text-xs" onClick={() => navigate(`/crm/appointments?petId=${patient.id}`)}>
+          <Button size="sm" variant="outline" className="text-xs" onClick={() => {
+            setAppointmentDrawerData({ petId: patient.id });
+            setIsAppointmentDrawerOpen(true);
+          }}>
             <Calendar className="w-3.5 h-3.5 mr-1.5" /> Schedule
           </Button>
           {scheduledAppointment ? (
@@ -778,14 +787,14 @@ export default function PatientProfilePage() {
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Species</p><p className="text-sm font-medium">{patient.species}</p></div>
-                  {patient.breed && <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Breed</p><p className="text-sm font-medium">{patient.breed}</p></div>}
-                  {patient.gender && <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Gender</p><p className="text-sm font-medium">{patient.gender}</p></div>}
+                  <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Breed</p><p className="text-sm font-medium">{patient.breed || '—'}</p></div>
+                  <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Gender</p><p className="text-sm font-medium">{patient.gender || '—'}</p></div>
                   <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Age</p><p className="text-sm font-medium">{getAge()}</p></div>
-                  {patient.dateOfBirth && <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Birthday</p><p className="text-sm font-medium">{patient.dateOfBirth}</p></div>}
-                  {patient.weight && <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Weight</p><p className="text-sm font-medium">{patient.weight} kg</p></div>}
-                  {patient.color && <div className="col-span-2"><p className="text-[10px] text-stone-500 uppercase font-semibold">Color/Markings</p><p className="text-sm font-medium">{patient.color}</p></div>}
-                  {patient.microchipId && <div className="col-span-2"><p className="text-[10px] text-stone-500 uppercase font-semibold">Microchip ID</p><p className="text-sm font-medium font-mono">{patient.microchipId}</p></div>}
-                  {patient.bloodType && <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Blood Type</p><p className="text-sm font-medium">{patient.bloodType}</p></div>}
+                  <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Birthday</p><p className="text-sm font-medium">{patient.dateOfBirth || '—'}</p></div>
+                  <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Weight</p><p className="text-sm font-medium">{patient.weight ? `${patient.weight} kg` : '—'}</p></div>
+                  <div className="col-span-2"><p className="text-[10px] text-stone-500 uppercase font-semibold">Color/Markings</p><p className="text-sm font-medium">{patient.color || '—'}</p></div>
+                  <div className="col-span-2"><p className="text-[10px] text-stone-500 uppercase font-semibold">Microchip ID</p><p className="text-sm font-medium font-mono">{patient.microchipId || '—'}</p></div>
+                  <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Blood Type</p><p className="text-sm font-medium">{patient.bloodType || '—'}</p></div>
                   <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Size</p><p className="text-sm font-medium">{patient.size || '—'}</p></div>
                 </div>
               </div>
@@ -803,10 +812,10 @@ export default function PatientProfilePage() {
               </div>
 
               {/* Alerts Detail */}
-              {hasAlerts && (
+              {(patient.allergies?.length > 0 || patient.chronicConditions?.length > 0 || patient.medicationReactions?.length > 0 || patient.aggressionWarning || patient.specialHandlingNotes || patient.contagiousDiseaseFlag) && (
                 <div className="bg-red-50 rounded-xl border border-red-200 p-4 shadow-sm">
                   <h3 className="text-sm font-bold text-red-800 mb-3 flex items-center gap-2">
-                    <ShieldAlert className="w-4 h-4" /> Allergies & Alerts
+                    <ShieldAlert className="w-4 h-4" /> Alerts & Warnings
                   </h3>
                   <div className="space-y-2">
                     {patient.allergies?.map((a: string, i: number) => (
@@ -848,6 +857,8 @@ export default function PatientProfilePage() {
                   </div>
                 </div>
               )}
+
+
             </div>
 
             {/* Right Columns */}
@@ -1223,6 +1234,17 @@ export default function PatientProfilePage() {
         onCancel={() => setIsEditModalOpen(false)}
         isSubmitting={isSaving}
       />
+
+      <CreateAppointmentDrawer
+        open={isAppointmentDrawerOpen}
+        onOpenChange={setIsAppointmentDrawerOpen}
+        prefillData={appointmentDrawerData}
+        onSuccess={() => {
+          // Re-fetch patient data/appointments here if needed, or window.location.reload()
+          window.location.reload();
+        }}
+      />
+
 
       {/* Camera Capture Modal */}
       <Drawer open={isCameraModalOpen} onOpenChange={(open) => {

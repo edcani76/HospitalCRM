@@ -23,7 +23,7 @@ import PharmacistDashboard from './pages/crm/pharmacist-dashboard';
 import PatientsPage from './pages/crm/patients-page';
 import OwnersPage from './pages/crm/owners-page';
 import AppointmentsPage from './pages/crm/appointments-page';
-import CreateAppointmentPage from './pages/crm/create-appointment-page';
+
 import EMRPage from './pages/crm/emr-page';
 import EMRDirectory from './pages/crm/emr-directory';
 import BillingPage from './pages/crm/billing-page';
@@ -70,7 +70,7 @@ export default function App() {
                     <Route path="owners/:ownerId" element={<OwnerProfilePage />} />
                     <Route path="patients/:patientId" element={<PatientProfilePage />} />
                     <Route path="appointments" element={<AppointmentsPage />} />
-                    <Route path="appointments/create" element={<CreateAppointmentPage />} />
+
                     <Route path="appointments/:appointmentId" element={<AppointmentDetailsPage />} />
                     <Route path="emr" element={<EMRDirectory />} />
                     <Route path="emr/:patientId" element={<EMRPage />} />
