@@ -30,8 +30,7 @@ import {
   Syringe,
   Pill,
   Scale,
-  PhilippinePeso,
-  Pill
+  PhilippinePeso
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
@@ -45,7 +44,7 @@ import { db, auth, collection, getDocs, getDoc, addDoc, updateDoc, doc, query, w
 import PetDialog from '../../components/crm/pet-dialog';
 import CreateAppointmentDrawer from '../../components/crm/create-appointment-drawer';
 import { uploadToGoogleDrive } from '../../lib/google-drive';
-import { addAuditLog } from '../../lib/firestore-helpers';
+import { addAuditLog, fetchServiceCatalog } from '../../lib/firestore-helpers';
 
 interface PatientProfile {
   id: string;
@@ -109,6 +108,7 @@ export default function PatientProfilePage() {
   const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string; availability?: any }>>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [selectedDoctorName, setSelectedDoctorName] = useState('');
+  const [serviceCatalog, setServiceCatalog] = useState<any[]>([]);
   
   useEffect(() => {
     const fetchPatient = async () => {
@@ -524,21 +524,32 @@ export default function PatientProfilePage() {
       });
       const encounterId = encRef.id;
       
-      // 4. Create initial services
+      // 4. Create initial services (catalog-aligned)
       // Parse services from notes (Services: consultation, grooming) or default to consultation
       const notesStr = `Services: consultation\nMode: Walk-in`;
       const serviceTypes = notesStr.match(/Services:\s*([^\n]+)/i)?.[1]?.split(',').map((s: string) => s.trim()).filter(Boolean) || ['consultation'];
       
+      // Load service catalog if not already loaded
+      let catalog = serviceCatalog;
+      if (catalog.length === 0) {
+        try { catalog = await fetchServiceCatalog(); setServiceCatalog(catalog); } catch (e) { console.error('Error loading catalog:', e); }
+      }
+      
       for (const svcType of serviceTypes) {
-        const serviceFee = svcType === 'consultation' ? 500 : svcType === 'grooming' ? 800 : svcType === 'vaccination' ? 300 : 1000;
+        // Look up service in catalog for correct code, name, and price
+        const catalogMatch = catalog.find((c: any) =>
+          (c.category || '').toLowerCase() === svcType.toLowerCase() ||
+          (c.service_name || c.name || '').toLowerCase().includes(svcType.toLowerCase())
+        );
+        const serviceFee = catalogMatch?.defaultPrice ?? (svcType === 'consultation' ? 500 : svcType === 'grooming' ? 800 : svcType === 'vaccination' ? 300 : 1000);
         const serviceData = {
           appointmentId: aptId,
           encounterId: encounterId,
           petId: patient.id,
           ownerId: patient.ownerUid || '',
-          serviceCatalogId: '',
-          serviceCode: svcType.toUpperCase().slice(0, 4) + '-001',
-          serviceName: svcType.charAt(0).toUpperCase() + svcType.slice(1),
+          serviceCatalogId: catalogMatch?.id || '',
+          serviceCode: catalogMatch?.service_code || catalogMatch?.code || svcType.toUpperCase().slice(0, 4) + '-001',
+          serviceName: catalogMatch?.service_name || catalogMatch?.name || svcType.charAt(0).toUpperCase() + svcType.slice(1),
           serviceType: svcType,
           status: 'in-progress',
           source: 'walk-in',
@@ -546,7 +557,7 @@ export default function PatientProfilePage() {
           quantity: 1,
           unitPrice: serviceFee,
           discountAmount: 0,
-          taxRate: 0,
+          taxRate: catalogMatch?.taxable ? 0.12 : 0,
           performedBy: selectedDoctorName || userUid,
           completedAt: null,
           createdBy: userUid,
@@ -560,7 +571,7 @@ export default function PatientProfilePage() {
           userName: auth.currentUser?.displayName || 'Unknown',
           patientId: patient.id,
           encounterId: encounterId,
-          details: `Service "${svcType}" created for walk-in visit`
+          details: `Service "${serviceData.serviceName}" created for walk-in visit`
         });
       }
       

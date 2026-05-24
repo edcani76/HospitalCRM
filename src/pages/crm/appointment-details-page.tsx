@@ -15,7 +15,7 @@ import { collection, doc, getDoc, getDocs, updateDoc, arrayUnion, addDoc, server
 import { notifyDoctor, notifyClient } from '../../lib/notifications';
 import { sendEmail } from '../../lib/email-service';
 import { appointmentConfirmed, appointmentCancelled } from '../../lib/email-templates';
-import { generateInvoiceFromEncounter, addAuditLog, fetchEncountersByAppointment } from '../../lib/firestore-helpers';
+import { generateInvoiceFromEncounter, addAuditLog, fetchEncountersByAppointment, fetchServiceCatalog } from '../../lib/firestore-helpers';
 import { format } from 'date-fns';
 import { Calendar, Clock, User, Stethoscope, FileText, CheckCircle, XCircle, Pencil, ArrowLeft, Play, Plus, Activity } from 'lucide-react';
 import { Appointment, Doctor } from '../../types';
@@ -72,6 +72,7 @@ export default function AppointmentDetailsPage() {
   const [emrId, setEmrId] = useState<string | null>(null);
   const [emrData, setEmrData] = useState<any | null>(null);
   const [encounterServices, setEncounterServices] = useState<any[]>([]);
+  const [serviceCatalog, setServiceCatalog] = useState<any[]>([]);
   const [addingService, setAddingService] = useState<string | null>(null);
   const [showPaymentTerms, setShowPaymentTerms] = useState(false);
   const [pendingMedicalComplete, setPendingMedicalComplete] = useState(false);
@@ -196,6 +197,12 @@ export default function AppointmentDetailsPage() {
 
         // Fetch users for audit trail
         await fetchUsers();
+
+        // Fetch service catalog for proper code/name/price alignment
+        try {
+          const catalog = await fetchServiceCatalog();
+          setServiceCatalog(catalog);
+        } catch (e) { console.error('Error loading service catalog:', e); }
 
         // Fetch appointment
         const aptSnap = await getDoc(doc(db, 'appointments', appointmentId || ''));
@@ -662,15 +669,21 @@ export default function AppointmentDetailsPage() {
       const createdServices: Array<{serviceCode: string, serviceName: string, serviceFee: number}> = [];
       
       for (const svcType of serviceTypes) {
-        const serviceFee = svcType === 'consultation' ? 500 : svcType === 'grooming' ? 800 : svcType === 'vaccination' ? 300 : 1000;
-        const serviceName = svcType.charAt(0).toUpperCase() + svcType.slice(1);
+        // Look up service in catalog for correct code, name, and price
+        const catalogMatch = serviceCatalog.find((c: any) =>
+          (c.category || '').toLowerCase() === svcType.toLowerCase() ||
+          (c.service_name || c.name || '').toLowerCase().includes(svcType.toLowerCase())
+        );
+        const serviceName = catalogMatch?.service_name || catalogMatch?.name || svcType.charAt(0).toUpperCase() + svcType.slice(1);
+        const serviceFee = catalogMatch?.defaultPrice ?? (svcType === 'consultation' ? 500 : svcType === 'grooming' ? 800 : svcType === 'vaccination' ? 300 : 1000);
+        const serviceCode = catalogMatch?.service_code || catalogMatch?.code || svcType.toUpperCase().slice(0, 4) + '-001';
         const serviceData = {
           appointmentId: appointment.id,
           encounterId: encounterId,
           petId: appointment.petId,
           clientUid: appointment.clientUid,
-          serviceCatalogId: '',
-          serviceCode: svcType.toUpperCase().slice(0, 4) + '-001',
+          serviceCatalogId: catalogMatch?.id || '',
+          serviceCode: serviceCode,
           serviceName: serviceName,
           serviceType: svcType as AppointmentType,
           status: 'in-progress',
@@ -679,7 +692,7 @@ export default function AppointmentDetailsPage() {
           quantity: 1,
           unitPrice: serviceFee,
           discountAmount: 0,
-          taxRate: 0,
+          taxRate: catalogMatch?.taxable ? 0.12 : 0,
           performedBy: appointment.doctorName || appointment.doctorId,
           completedAt: null,
           createdBy: userUid,
@@ -695,10 +708,10 @@ export default function AppointmentDetailsPage() {
           userName: auth.currentUser?.displayName || undefined,
           encounterId: encounterId,
           patientId: appointment?.petId || '',
-          details: `Service: ${svcType}`
+          details: `Service: ${serviceName}`
         });
 
-        createdServices.push({ serviceCode: svcType.toUpperCase().slice(0, 4) + '-001', serviceName, serviceFee });
+        createdServices.push({ serviceCode, serviceName, serviceFee });
       }
       
       // Create or update invoice
@@ -1384,7 +1397,10 @@ className={`text-white font-bold shadow-lg ${invoiceStatus === 'paid' ? 'bg-emer
                   <tbody>
                     {encounterServices.length > 0 ? encounterServices.map((service: any) => (
                       <tr key={service.id} className="border-b hover:bg-gray-50">
-                        <td className="p-3 font-medium">{service.serviceName}</td>
+                        <td className="p-3 font-medium">
+                          {service.serviceCode && <span className="font-mono text-xs text-gray-500 mr-1">[{service.serviceCode}]</span>}
+                          {service.serviceName}
+                        </td>
                         <td className="p-3 text-gray-600">
                           {service.createdAt?.toDate?.()?.toLocaleTimeString?.([], {hour: '2-digit', minute:'2-digit'}) || '--'}
                         </td>

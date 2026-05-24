@@ -255,7 +255,10 @@ function VisitSummaryTab({ patient, owner, encounter, encounters, vitals, servic
                 {services.map((srv: any) => (
                   <div key={srv.id} className="flex justify-between items-center p-2 bg-gray-50 rounded-md">
                     <div>
-                      <p className="text-sm font-medium">{srv.serviceName}</p>
+                      <p className="text-sm font-medium">
+                        {srv.serviceCode && <span className="font-mono text-xs text-gray-500 mr-1">[{srv.serviceCode}]</span>}
+                        {srv.serviceName}
+                      </p>
                       <p className="text-xs text-gray-500">{srv.serviceType} • Qty: {srv.quantity}</p>
                     </div>
                     <div className="text-right">
@@ -626,19 +629,24 @@ Mode: Walk-in`,
       await addAuditLog({ action: 'encounter_created', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: encRef.id, patientId: patientId, details: 'Quick Start Visit started' });
       const encounterId = encRef.id;
       
-      // 4. Create service records for ALL services
+      // 4. Create service records for ALL services (catalog-aligned)
       const serviceTypes = ['consultation']; // Default for Quick Start
       
       for (const svcType of serviceTypes) {
-        const serviceFee = svcType === 'consultation' ? 500 : svcType === 'grooming' ? 800 : svcType === 'vaccination' ? 300 : 1000;
+        // Look up service in catalog for correct code, name, and price
+        const catalogMatch = serviceCatalog.find((c: any) =>
+          (c.category || '').toLowerCase() === svcType.toLowerCase() ||
+          (c.service_name || c.name || '').toLowerCase().includes(svcType.toLowerCase())
+        );
+        const serviceFee = catalogMatch?.defaultPrice ?? (svcType === 'consultation' ? 500 : svcType === 'grooming' ? 800 : svcType === 'vaccination' ? 300 : 1000);
         const serviceData = {
           appointmentId: aptId,
           encounterId: encounterId,
           petId: patientId,
           ownerId: patient.ownerUid || '',
-          serviceCatalogId: '',
-          serviceCode: svcType.toUpperCase().slice(0, 4) + '-001',
-          serviceName: svcType.charAt(0).toUpperCase() + svcType.slice(1),
+          serviceCatalogId: catalogMatch?.id || '',
+          serviceCode: catalogMatch?.service_code || catalogMatch?.code || svcType.toUpperCase().slice(0, 4) + '-001',
+          serviceName: catalogMatch?.service_name || catalogMatch?.name || svcType.charAt(0).toUpperCase() + svcType.slice(1),
           serviceType: svcType,
           status: 'in-progress',
           source: 'walk-in',
@@ -646,7 +654,7 @@ Mode: Walk-in`,
           quantity: 1,
           unitPrice: serviceFee,
           discountAmount: 0,
-          taxRate: 0,
+          taxRate: catalogMatch?.taxable ? 0.12 : 0,
           performedBy: selectedDoctorName || auth.currentUser?.displayName || userUid,
           completedAt: null,
           createdBy: userUid,
@@ -654,7 +662,7 @@ Mode: Walk-in`,
           updatedAt: serverTimestamp()
         };
         const svcRef2 = await addDoc(collection(db, 'appointment_services'), serviceData);
-        await addAuditLog({ action: 'service_created', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: encounterId, patientId: patientId, details: 'Quick Start service' });
+        await addAuditLog({ action: 'service_created', userId: auth.currentUser?.uid || 'unknown', userName: auth.currentUser?.displayName || 'Unknown', encounterId: encounterId, patientId: patientId, details: `Quick Start service: ${serviceData.serviceName}` });
       }
       
       // 5. Navigate directly to EMR with encounterId
@@ -1517,7 +1525,7 @@ Mode: Walk-in`,
         petId: patientId,
         ownerId: selectedEncounter.ownerId || '',
         serviceCatalogId: prescription.medicationCatalogId || '',
-        serviceCode: 'DISP',
+        serviceCode: catalogItem?.service_code || catalogItem?.code || 'DISP-001',
         serviceName: `Dispense: ${prescription.medicationName}`,
         serviceType: 'medication',
         status: 'completed',
@@ -3266,7 +3274,7 @@ function TreatmentDrawer({ open, onOpenChange, onSave, encounterId, patientId, p
                 const item: any = { id: `treat_${Date.now()}`, type: 'treatment', title: tf.name, dose: tf.dose, route: tf.route, subtitle: `${tf.dose} \u00b7 ${tf.route} \u00b7 ${tf.status}`, status: tf.status === 'administered' ? 'Administered' : 'Planned', details: { Reason: tf.reason, 'Performed by': tf.performedBy, Notes: tf.notes }, billingBehavior: tf.chargeToBilling ? 'queue' : undefined, inventoryDeduction: tf.inventoryDeduction };
                 const svcRef = await addDoc(collection(db, 'appointment_services'), {
                   appointmentId: encounterId, encounterId, petId: patientId, petName: patientName, ownerId, ownerName,
-                  serviceName: tf.name, serviceType: 'treatment', billable: tf.chargeToBilling, status: 'active',
+                  serviceCode: 'TREAT-001', serviceName: tf.name, serviceType: 'treatment', billable: tf.chargeToBilling, status: 'active',
                   quantity: 1, price: 0, dose: tf.dose, route: tf.route, notes: tf.notes,
                   performedBy: tf.performedBy, createdBy: auth.currentUser?.displayName || '', createdAt: serverTimestamp()
                 });
@@ -3393,7 +3401,7 @@ function ProcedureDrawer({ open, onOpenChange, onSave, encounterId, patientId, p
                 const item: any = { id: `proc_${Date.now()}`, type: 'procedure', title: prf.name, subtitle: `Status: ${prf.status}`, status: prf.status, details: { Indication: prf.indication, 'Performed by': prf.performedBy, 'Supplies': prf.supplies, 'Consent': prf.consentRequired ? 'Required' : 'Not required', Notes: prf.notes }, billingBehavior: prf.billingBehavior };
                 const svcRef = await addDoc(collection(db, 'appointment_services'), {
                   appointmentId: encounterId, encounterId, petId: patientId, petName: patientName, ownerId, ownerName,
-                  serviceName: prf.name, serviceType: 'procedure', billable: prf.billingBehavior !== 'queue',
+                  serviceCode: 'PROC-001', serviceName: prf.name, serviceType: 'procedure', billable: prf.billingBehavior !== 'queue',
                   status: 'active', quantity: 1, price: 0, supplies: prf.supplies, notes: prf.notes,
                   consentRequired: prf.consentRequired, performedBy: prf.performedBy,
                   createdBy: auth.currentUser?.displayName || '', createdAt: serverTimestamp()

@@ -788,7 +788,10 @@ export default function BillingPage() {
                       <div className="space-y-1">
                         {invoiceItems.map((item: any, i: number) => (
                           <div key={item.id || i} className="flex justify-between text-sm py-1 border-b border-gray-100">
-                            <span>{item.description || item.itemType} {item.quantity > 1 ? `x${item.quantity}` : ''}</span>
+                            <span>
+                              {item.serviceCode && <span className="font-mono text-xs text-gray-500 mr-1">[{item.serviceCode}]</span>}
+                              {item.description || item.itemType} {item.quantity > 1 ? `x${item.quantity}` : ''}
+                            </span>
                             <span className="font-medium">₱{item.lineTotal?.toLocaleString() || (item.unitPrice * item.quantity).toLocaleString()}</span>
                           </div>
                         ))}

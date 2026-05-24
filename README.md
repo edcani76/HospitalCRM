@@ -11,7 +11,9 @@ edvirontvet is a modern, responsive veterinary clinic management system built to
 - **Secure Authentication:** Integrated Google Sign-In via Firebase for seamless and secure user access.
 - **Veterinary Profiles:** Browse, search, and filter a directory of specialized veterinarians (e.g., Cardiology, Surgery, Preventive Care).
 - **Service Catalog:** Detailed overview of clinic departments including Diagnostic Medicine, Avian/Exotics, Therapy/Rehabilitation, and Emergency Care.
-- **Appointment Booking:** Interactive doctor carousel with dynamic availability — browse all vets, select "Any Available Doctor," or pick a specific specialist with real-time slot filtering.
+// Updated feature list bullet
+- **New Appointment Drawer:** Integrated a drawer modal for creating and editing appointments directly from the Patient Profile page, providing a seamless, inline experience without navigation.
+
 - **Advanced CRM System:** Comprehensive management for Pet Owners, Patients, and Electronic Medical Records (EMR).
 - **EMR Mode Detection:** Auto-detects Active Visit (in-progress) vs View Mode with real-time status.
 - **Quick Start Visit:** One-click walk-in/emergency visits from Patient Profile or EMR page with doctor selector.

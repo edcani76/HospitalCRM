@@ -538,7 +538,7 @@ export async function generateInvoiceFromEncounter(encounterId: string, appointm
       encounterId,
       appointmentServiceId: svc.id,
       itemType: svc.serviceType || 'service',
-      description: svc.serviceName,
+      description: svc.serviceCode ? `[${svc.serviceCode}] ${svc.serviceName}` : svc.serviceName,
       quantity: svc.quantity || 1,
       unitPrice: svc.unitPrice || 0,
       discountAmount: discount,
