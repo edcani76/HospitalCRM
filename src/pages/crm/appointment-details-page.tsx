@@ -670,7 +670,7 @@ export default function AppointmentDetailsPage() {
           petId: appointment.petId,
           clientUid: appointment.clientUid,
           serviceCatalogId: '',
-          serviceCode: svcType.toUpperCase().slice(0, 3),
+          serviceCode: svcType.toUpperCase().slice(0, 4) + '-001',
           serviceName: serviceName,
           serviceType: svcType as AppointmentType,
           status: 'in-progress',
@@ -698,7 +698,7 @@ export default function AppointmentDetailsPage() {
           details: `Service: ${svcType}`
         });
 
-        createdServices.push({ serviceCode: svcType.toUpperCase().slice(0, 3), serviceName, serviceFee });
+        createdServices.push({ serviceCode: svcType.toUpperCase().slice(0, 4) + '-001', serviceName, serviceFee });
       }
       
       // Create or update invoice

@@ -27,7 +27,9 @@ import {
   WifiOff,
   RefreshCw,
   Bell,
-  Bed
+  Bed,
+  Tags,
+  Box
 } from 'lucide-react'
 import { signOut, auth } from '../firebase'
 import { useState, useEffect } from 'react'
@@ -208,6 +210,18 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
         path: '/crm/billing',
         icon: Wallet,
         roles: ['admin', 'staff'],
+      },
+      {
+        name: 'Services Catalog',
+        path: '/crm/services-catalog',
+        icon: Tags,
+        roles: ['admin', 'staff', 'billing'],
+      },
+      {
+        name: 'Resources',
+        path: '/crm/resources',
+        icon: Box,
+        roles: ['admin', 'staff', 'billing', 'doctor'],
       },
       {
         name: 'Pharmacy',

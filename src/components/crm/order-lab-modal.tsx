@@ -75,7 +75,7 @@ export function OrderLabModal({ open, onOpenChange, encounter, patient, owner, d
       setForm(f => ({
         ...f,
         testName: item.name,
-        testCode: item.code,
+        testCode: item.service_code || item.code || '',
         testCategory: catalogTestCategories[item.category] || 'Laboratory',
       }));
     }

@@ -11,7 +11,7 @@ export default function ResetPassword() {
   const navigate = useNavigate();
   const oobCode = searchParams.get('oobCode');
   const mode = searchParams.get('mode');
-  const apiKey = searchParams.get('apiKey');
+  
 
   const [state, setState] = useState<ResetState>(oobCode ? 'verifying' : 'email_sent');
   const [email, setEmail] = useState('');

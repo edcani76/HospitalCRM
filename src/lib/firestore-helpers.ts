@@ -375,16 +375,6 @@ export async function updateServiceCatalog(serviceId: string, updates: any) {
   });
 }
 
-// Add resource (admin)
-export async function addResource(resourceData: any) {
-  const ref = await addDoc(collection(db, 'resources'), {
-    ...resourceData,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  });
-  return { id: ref.id, ...resourceData };
-}
-
 // Update resource status (admin)
 export async function updateResourceStatus(resourceId: string, status: string) {
   const ref = doc(db, 'resources', resourceId);
@@ -860,3 +850,84 @@ export async function addAuditLog(data: {
   const { clearCache } = await import('./offline-cache');
   clearCache('auditLogs');
 }
+
+// ==========================================
+// RESOURCES, PRICING RULES, AND RESERVATIONS
+// ==========================================
+
+import { Resource, ResourcePricingRule, ResourceReservation } from '../types';
+
+export const fetchResources = async (): Promise<Resource[]> => {
+  const querySnapshot = await getDocs(collection(db, 'resources'));
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Resource));
+};
+
+export const addResource = async (resource: Omit<Resource, 'id'>): Promise<Resource> => {
+  const resourceRef = await addDoc(collection(db, 'resources'), {
+    ...resource,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+  return { id: resourceRef.id, ...resource };
+};
+
+export const updateResource = async (id: string, updates: Partial<Resource>): Promise<void> => {
+  const resourceRef = doc(db, 'resources', id);
+  await updateDoc(resourceRef, {
+    ...updates,
+    updatedAt: new Date()
+  });
+};
+
+export const deactivateResource = async (id: string): Promise<void> => {
+  const resourceRef = doc(db, 'resources', id);
+  await updateDoc(resourceRef, {
+    status: 'Inactive',
+    active: false,
+    updatedAt: new Date()
+  });
+};
+
+export const fetchResourcePricingRules = async (): Promise<ResourcePricingRule[]> => {
+  const querySnapshot = await getDocs(collection(db, 'resource_pricing_rules'));
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ResourcePricingRule));
+};
+
+export const addResourcePricingRule = async (rule: Omit<ResourcePricingRule, 'id'>): Promise<ResourcePricingRule> => {
+  const ruleRef = await addDoc(collection(db, 'resource_pricing_rules'), {
+    ...rule,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+  return { id: ruleRef.id, ...rule };
+};
+
+export const updateResourcePricingRule = async (id: string, updates: Partial<ResourcePricingRule>): Promise<void> => {
+  const ruleRef = doc(db, 'resource_pricing_rules', id);
+  await updateDoc(ruleRef, {
+    ...updates,
+    updatedAt: new Date()
+  });
+};
+
+export const fetchResourceReservations = async (): Promise<ResourceReservation[]> => {
+  const querySnapshot = await getDocs(collection(db, 'resource_reservations'));
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ResourceReservation));
+};
+
+export const addResourceReservation = async (reservation: Omit<ResourceReservation, 'id'>): Promise<ResourceReservation> => {
+  const resRef = await addDoc(collection(db, 'resource_reservations'), {
+    ...reservation,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+  return { id: resRef.id, ...reservation };
+};
+
+export const updateResourceReservation = async (id: string, updates: Partial<ResourceReservation>): Promise<void> => {
+  const resRef = doc(db, 'resource_reservations', id);
+  await updateDoc(resRef, {
+    ...updates,
+    updatedAt: new Date()
+  });
+};

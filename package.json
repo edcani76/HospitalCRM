@@ -9,6 +9,9 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
+    "seed-emr": "tsx scripts/seed-emr-data.ts",
+    "seed-demo": "tsx scripts/generate-demo-data.ts",
+    "seed:e2e": "tsx scripts/seed-e2e.ts",
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {

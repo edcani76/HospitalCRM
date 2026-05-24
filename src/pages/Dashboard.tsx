@@ -47,6 +47,7 @@ export default function Dashboard() {
   const formatPetAge = (pet: Pet) => {
     if (pet.dateOfBirth) {
       const dob = new Date(pet.dateOfBirth + 'T00:00:00');
+      if (isNaN(dob.getTime())) return '?';
       const years = differenceInYears(new Date(), dob);
       if (years >= 1) return `${years}y`;
       const months = differenceInMonths(new Date(), dob);
@@ -269,9 +270,9 @@ export default function Dashboard() {
 
     const messages = [
       `Welcome back, ${firstName}! ${petCount > 0 ? `${petNames.join(', ')} ${petCount === 1 ? 'is' : 'are'} ready for today.` : 'Looking forward to meeting your furry friends.'}${upcomingCount > 0 ? ` You have ${upcomingCount} upcoming visit${upcomingCount > 1 ? 's' : ''}.` : ''}`,
-      `Good day, ${firstName}! ${petCount > 0 ? `${petNames.join(' & ')} ${petCount === 1 ? 'has' : 'have'} ${petCount} record${petCount > 1 ? 's' : ''} with us.` : ''}${todayCount > 0 ? ` Don't forget — you have a visit scheduled today!` : upcomingCount > 0 ? ` Your next visit is ${format(new Date(nextApt.date), 'MMM dd')}.` : ''}`,
+      `Good day, ${firstName}! ${petCount > 0 ? `${petNames.join(' & ')} ${petCount === 1 ? 'has' : 'have'} ${petCount} record${petCount > 1 ? 's' : ''} with us.` : ''}${todayCount > 0 ? ` Don't forget — you have a visit scheduled today!` : (upcomingCount > 0 && nextApt?.date) ? ` Your next visit is ${format(new Date(nextApt.date), 'MMM dd')}.` : ''}`,
       `Hello, ${firstName}! ${petCount > 0 ? `Managing ${petCount} pet${petCount > 1 ? 's' : ''}${petNames.length > 0 ? ` including ${petNames.join(', ')}` : ''}.` : ''}${totalBalance > 0 ? ` You have an outstanding balance of ₱${totalBalance.toFixed(0)}.` : ''}${upcomingCount === 0 ? ` Ready to book your next visit?` : ''}`,
-      `Hi there, ${firstName}! ${todayCount > 0 ? `You have ${todayCount} visit${todayCount > 1 ? 's' : ''} today — see you soon!` : upcomingCount > 0 ? `${upcomingCount} visit${upcomingCount > 1 ? 's' : ''} coming up. Next: ${nextApt.petName} on ${format(new Date(nextApt.date), 'MMM dd')}.` : `No visits scheduled — everything looks good!`}`,
+      `Hi there, ${firstName}! ${todayCount > 0 ? `You have ${todayCount} visit${todayCount > 1 ? 's' : ''} today — see you soon!` : (upcomingCount > 0 && nextApt?.date) ? `${upcomingCount} visit${upcomingCount > 1 ? 's' : ''} coming up. Next: ${nextApt.petName} on ${format(new Date(nextApt.date), 'MMM dd')}.` : `No visits scheduled — everything looks good!`}`,
       `Welcome, ${firstName}! ${petCount > 0 ? `${petNames[0]}${petCount > 1 ? ` and ${petCount - 1} other${petCount > 2 ? '' : ''} pet${petCount > 2 ? 's' : ''}` : ''} ${petCount === 1 ? 'is' : 'are'} in great health.` : ''}${activeInvoices.length > 0 ? ` ${activeInvoices.length} invoice${activeInvoices.length > 1 ? 's' : ''} pending.` : ''}`,
     ];
 
@@ -301,8 +302,8 @@ export default function Dashboard() {
     const cancelled = appointments.filter(a => a.status === 'cancelled');
     const messages = [
       `${confirmed.length} upcoming, ${completed.length} completed, ${cancelled.length} cancelled. Stay on top of your visit schedule.`,
-      `${firstName}, you have ${confirmed.length} visit${confirmed.length !== 1 ? 's' : ''} planned${confirmed.length > 0 ? ` — next: ${format(new Date(upcomingAppointments[0]?.date), 'MMM dd') || 'soon'}` : '. No pending visits right now.'}`,
-      `Appointment Hub: ${appointments.length} total visits. ${confirmed.length > 0 ? `${confirmed.length} pending${confirmed.length > 0 ? ` starting ${format(new Date(upcomingAppointments[0]?.date), 'MMM dd')}` : ''}` : 'All visits completed.'}`,
+      `${firstName}, you have ${confirmed.length} visit${confirmed.length !== 1 ? 's' : ''} planned${confirmed.length > 0 ? ` — next: ${(upcomingAppointments[0]?.date) ? format(new Date(upcomingAppointments[0].date), 'MMM dd') : 'soon'}` : '. No pending visits right now.'}`,
+      `Appointment Hub: ${appointments.length} total visits. ${confirmed.length > 0 ? `${confirmed.length} pending${confirmed.length > 0 ? ` starting ${(upcomingAppointments[0]?.date) ? format(new Date(upcomingAppointments[0].date), 'MMM dd') : 'soon'}` : ''}` : 'All visits completed.'}`,
       `Tracking ${appointments.length} appointments for your pets. ${todayCount > 0 ? `Today: ${todayCount} visit${todayCount > 1 ? 's' : ''}!` : 'No visits today.'}`,
       `Your visit history: ${completed.length} done, ${confirmed.length} upcoming. ${cancelled.length > 0 ? `${cancelled.length} cancelled.` : ''}`,
     ];
@@ -639,10 +640,10 @@ export default function Dashboard() {
                           <div key={apt.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center gap-4">
                             <div className="w-14 h-14 bg-indigo-50 rounded-lg flex flex-col items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
                               <span className="text-[10px] font-bold uppercase">
-                                {format(new Date(apt.date), 'MMM')}
+                                {apt.date ? format(new Date(apt.date), 'MMM') : '--'}
                               </span>
                               <span className="text-xl font-bold leading-none">
-                                {format(new Date(apt.date), 'dd')}
+                                {apt.date ? format(new Date(apt.date), 'dd') : '--'}
                               </span>
                             </div>
                             <div className="flex-1 text-center md:text-left min-w-0">
@@ -970,7 +971,7 @@ export default function Dashboard() {
                         <div>
                           <h4 className="font-semibold text-base text-slate-900">{inv.description}</h4>
                           <p className="text-xs font-medium text-slate-400 mt-0.5">
-                            Patient: {inv.petName} • Due <span className="text-rose-500">{format(new Date(inv.dueDate), 'MMM dd, yyyy')}</span>
+                            Patient: {inv.petName} • Due <span className="text-rose-500">{inv.dueDate && !isNaN(new Date(inv.dueDate).getTime()) ? format(new Date(inv.dueDate), 'MMM dd, yyyy') : '--'}</span>
                           </p>
                         </div>
                       </div>
@@ -1022,7 +1023,7 @@ export default function Dashboard() {
                         <h4 className="font-semibold text-lg text-slate-900 leading-tight">{report.title}</h4>
                         <p className="text-[10px] font-medium text-slate-400 mt-1 flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          {format(new Date(report.date), 'MMMM dd, yyyy')}
+                          {report.date ? format(new Date(report.date), 'MMMM dd, yyyy') : '--'}
                         </p>
                       </div>
                     </div>

@@ -115,28 +115,97 @@ export interface Notification {
 
 export interface ServiceCatalogItem {
   id?: string;
-  code: string;
-  name: string;
-  category: 'consultation' | 'vaccination' | 'lab' | 'diagnostic' | 'procedure' | 'grooming' | 'medication' | 'supply';
-  description: string;
-  defaultPrice: number;
-  taxable: boolean;
-  active: boolean;
-  requiresClinicalRecord: boolean;
+  // Legacy fields (keep for compatibility during transition)
+  code?: string;
+  name?: string;
+  category?: string;
+  defaultPrice?: number;
+  taxable?: boolean;
+  active?: boolean | string;
+  requiresClinicalRecord?: boolean;
   inventoryItemId?: string;
   durationMin?: number;
   allowedProviderIds?: string[];
   requiredResourceIds?: string[];
+  
+  // New Fields from Services Catalog Spec
+  service_code?: string;
+  service_name?: string;
+  invoice_label?: string;
+  category_id?: string;
+  department?: string;
+  description?: string;
+  base_price?: number;
+  unit?: string; // 'Per visit', 'Per day', 'Per hour', 'Per test', 'Per kg', 'Per dose'
+  tax_type?: 'VAT' | 'Non-VAT' | 'Exempt';
+  tax_mode?: 'Inclusive' | 'Exclusive';
+  billing_behavior?: 'manual' | 'auto-add' | 'package' | 'estimate-only';
+  module_availability?: string[]; // e.g. ['Appointments', 'EMR', 'Billing', 'Lab', 'Admissions']
+  allow_discount?: boolean;
+  allow_waiver?: boolean;
+  allow_price_override?: boolean;
+  require_override_reason?: boolean;
+  status?: 'active' | 'draft' | 'inactive' | 'archived';
+  effective_date?: any;
+  created_by?: string;
+  updated_by?: string;
+  
   createdAt?: any;
   updatedAt?: any;
 }
 
 export interface Resource {
   id?: string;
-  name: string;
-  type: 'room' | 'equipment';
-  status: 'available' | 'in-use' | 'maintenance';
-  description?: string;
+  resource_code?: string;
+  name?: string;
+  resource_type?: string; // Cage, room, equipment, etc.
+  branch_id?: string;
+  location?: string;
+  department?: string;
+  capacity?: number;
+  schedulable?: boolean;
+  billable?: boolean;
+  status?: 'Available' | 'In Use' | 'Reserved' | 'Maintenance' | 'Cleaning' | 'Out of Service' | 'Inactive';
+  service_mapping_id?: string; // Links to ServiceCatalogItem
+  default_pricing_rule_id?: string;
+  species_restriction?: string;
+  isolation_capable?: boolean;
+  icu_capable?: boolean;
+  maintenance_required?: boolean;
+  active?: boolean;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export interface ResourcePricingRule {
+  id?: string;
+  name?: string;
+  resource_id?: string;
+  resource_type?: string;
+  service_id?: string;
+  pricing_model?: 'Per use' | 'Per hour' | 'Per day' | 'Per night' | 'Package Included' | 'Manual';
+  base_rate?: number;
+  minimum_charge?: number;
+  branch_id?: string;
+  status?: 'Active' | 'Draft' | 'Expired' | 'Inactive';
+  effective_from?: any;
+  effective_to?: any;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export interface ResourceReservation {
+  id?: string;
+  resource_id?: string;
+  source?: 'Appointment' | 'Admission' | 'Surgery' | 'Lab Order' | 'Grooming' | 'Manual';
+  source_id?: string; // ID of the appointment/admission
+  pet_id?: string;
+  owner_id?: string;
+  start_time?: any;
+  end_time?: any;
+  status?: 'Reserved' | 'Checked In' | 'In Use' | 'Extended' | 'Completed' | 'Cancelled' | 'No-Show' | 'Released';
+  billing_status?: 'Not Billable' | 'Queued' | 'Billed' | 'Paid';
+  notes?: string;
   createdAt?: any;
   updatedAt?: any;
 }

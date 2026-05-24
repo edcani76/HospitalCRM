@@ -1,19 +1,21 @@
-// scripts/seed-service-catalog.ts
+// scripts/seed-service-catalog.cjs
 
-import admin from 'firebase-admin';
-import { ServiceCatalogItem } from '../src/types';
-import serviceAccount from '../firebase-service-account.json' assert { type: 'json' };
+const admin = require('firebase-admin');
+
+const serviceAccount = require('../firebase-service-account.json');
+
+const { getFirestore } = require('firebase-admin/firestore');
+const firebaseConfig = require('../firebase-applet-config.json');
 
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount as any),
+    credential: admin.credential.cert(serviceAccount),
     projectId: serviceAccount.project_id,
   });
 }
+const db = getFirestore(firebaseConfig.firestoreDatabaseId || '(default)');
 
-const db = admin.firestore();
-
-const serviceCatalog: ServiceCatalogItem[] = [
+const serviceCatalog = [
   {
     service_code: 'CONS-001',
     name: 'General Consultation',
@@ -50,9 +52,9 @@ const serviceCatalog: ServiceCatalogItem[] = [
   },
   {
     service_code: 'IMG-001',
-    name: 'Radiology X‑Ray',
+    name: 'Radiology X-Ray',
     category: 'diagnostic',
-    description: 'Standard X‑Ray imaging for bone and organ assessment.',
+    description: 'Standard X-Ray imaging for bone and organ assessment.',
     defaultPrice: 1200,
     taxable: true,
     active: true,
@@ -62,9 +64,9 @@ const serviceCatalog: ServiceCatalogItem[] = [
   },
   {
     service_code: 'MED-001',
-    name: 'Antibiotic Course – Amoxicillin',
+    name: 'Antibiotic Course - Amoxicillin',
     category: 'medication',
-    description: '7‑day oral antibiotic course.',
+    description: '7-day oral antibiotic course.',
     defaultPrice: 450,
     taxable: true,
     active: true,
@@ -78,7 +80,7 @@ async function seedServiceCatalog() {
   console.log('Seeding Service Catalog...');
   const batch = db.batch();
   const collRef = db.collection('serviceCatalog');
-  serviceCatalog.forEach((item) => {
+  serviceCatalog.forEach(item => {
     const docRef = collRef.doc();
     batch.set(docRef, { ...item, createdAt: admin.firestore.FieldValue.serverTimestamp() });
   });
@@ -88,7 +90,7 @@ async function seedServiceCatalog() {
 
 seedServiceCatalog()
   .then(() => process.exit(0))
-  .catch((err) => {
+  .catch(err => {
     console.error('Error seeding service catalog:', err);
     process.exit(1);
   });

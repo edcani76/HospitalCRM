@@ -531,7 +531,7 @@ export default function PatientProfilePage() {
           petId: patient.id,
           ownerId: patient.ownerUid || '',
           serviceCatalogId: '',
-          serviceCode: svcType.toUpperCase().slice(0, 3),
+          serviceCode: svcType.toUpperCase().slice(0, 4) + '-001',
           serviceName: svcType.charAt(0).toUpperCase() + svcType.slice(1),
           serviceType: svcType,
           status: 'in-progress',
