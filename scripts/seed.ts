@@ -27,6 +27,8 @@ const MOCK_USERS = [
   { email: 'emily@medipaws.com', password: 'Password123!', role: 'client', displayName: 'Emily Wilson' },
   { email: 'michael@medipaws.com', password: 'Password123!', role: 'client', displayName: 'Michael Brown' },
   { email: 'sarah@medipaws.com', password: 'Password123!', role: 'client', displayName: 'Sarah Miller' },
+  { email: 'ecanicula@gmail.com', password: 'Password123!', role: 'client', displayName: 'Ecanicula User' },
+  { email: 'edcani@rocketmail.com', password: 'Password123!', role: 'client', displayName: 'Edcani User' },
 ];
 
 const DOCTORS_DATA = [
@@ -105,6 +107,10 @@ const PETS_DATA = [
   { ownerEmail: 'michael@medipaws.com', name: 'Bella', species: 'Dog', breed: 'Beagle', age: 3, weight: 11, type: 'Medium', imageUrl: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=400' },
   { ownerEmail: 'sarah@medipaws.com', name: 'Oliver', species: 'Cat', breed: 'Tabby', age: 1, weight: 4.2, type: 'Small', imageUrl: 'https://images.unsplash.com/photo-1495360010541-f48722b34f7d?auto=format&fit=crop&q=80&w=400' },
   { ownerEmail: 'sarah@medipaws.com', name: 'Milo', species: 'Dog', breed: 'Poodle', age: 2, weight: 8, type: 'Small', imageUrl: 'https://images.unsplash.com/photo-1517849845537-4d557ef76a8f?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'ecanicula@gmail.com', name: 'Bella', species: 'Dog', breed: 'Beagle', age: 3, weight: 11, type: 'Medium', imageUrl: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'ecanicula@gmail.com', name: 'Milo', species: 'Cat', breed: 'Tabby', age: 2, weight: 4.2, type: 'Small', imageUrl: 'https://images.unsplash.com/photo-1495360010541-f48722b34f7d?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'edcani@rocketmail.com', name: 'Charlie', species: 'Dog', breed: 'Labrador Retriever', age: 4, weight: 30, type: 'Large', imageUrl: 'https://images.unsplash.com/photo-1537151625747-088f5dd5eb3a?auto=format&fit=crop&q=80&w=400' },
+  { ownerEmail: 'edcani@rocketmail.com', name: 'Lucy', species: 'Cat', breed: 'Persian', age: 2, weight: 3.8, type: 'Small', imageUrl: 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?auto=format&fit=crop&q=80&w=400' },
 ];
 
 // Store created data
