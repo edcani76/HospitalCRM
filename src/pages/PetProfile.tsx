@@ -17,6 +17,7 @@ import PetDialog from '../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../lib/google-drive';
 import { fetchEncounters, fetchInvoices, fetchReports, fetchAdmissions, fetchAppointments } from '../lib/firestore-helpers';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../components/ui/drawer';
+import { BookAppointmentDrawer } from './BookAppointment';
 
 type TabType = 'overview' | 'medical-history' | 'appointments' | 'preventive' | 'medications' | 'admissions' | 'billing';
 
@@ -70,6 +71,7 @@ export default function PetProfile() {
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [selectedEncounter, setSelectedEncounter] = useState<any>(null);
+  const [isBookAptDrawerOpen, setIsBookAptDrawerOpen] = useState(false);
 
   // Data from connected modules
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -340,9 +342,9 @@ export default function PetProfile() {
               </div>
               {/* Actions */}
               <div className="flex items-center gap-2 shrink-0">
-                <Link to={`/book-appointment?petId=${pet.id}`} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all shadow-sm">
+                <button onClick={() => setIsBookAptDrawerOpen(true)} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all shadow-sm">
                   <Plus className="w-3.5 h-3.5" /> New Appointment
-                </Link>
+                </button>
                 <button
                   onClick={() => setIsEditDialogOpen(true)}
                   className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
@@ -355,9 +357,9 @@ export default function PetProfile() {
           </div>
 
           <div className="px-4 pb-3 sm:hidden">
-            <Link to={`/book-appointment?petId=${pet.id}`} className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-sm w-full">
+            <button onClick={() => setIsBookAptDrawerOpen(true)} className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-sm w-full">
               <Plus className="w-4 h-4" /> New Appointment
-            </Link>
+            </button>
           </div>
 
           {/* Summary Cards */}
@@ -1119,6 +1121,14 @@ export default function PetProfile() {
           onSubmit={handlePetUpdate}
           onCancel={() => setIsEditDialogOpen(false)}
           isSubmitting={isSubmittingEdit}
+        />
+      )}
+
+      {pet && (
+        <BookAppointmentDrawer 
+          open={isBookAptDrawerOpen} 
+          onOpenChange={setIsBookAptDrawerOpen} 
+          initialPetId={pet.id} 
         />
       )}
     </DashboardLayout>

@@ -162,7 +162,12 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ children }) => {
     }
   }
 
-  const isActive = (path: string) => location.pathname === path
+  const isActive = (path: string) => {
+    if (path === `/crm/${user?.role}-dashboard`) {
+      return location.pathname === path || location.pathname === `${path}/`;
+    }
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  }
 
   const getMenuItems = () => {
     const role = user?.role
@@ -485,10 +490,10 @@ return breadcrumbs
                   to={item.path}
                   title={!sidebarOpen ? item.name : undefined}
                   className={cn(
-                    "flex items-center gap-3 px-2 py-2 rounded-md text-sm font-medium transition-colors",
+                    "flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-all",
                     isActive(item.path)
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                   )}
                 >
                   <item.icon size={20} className="shrink-0 ml-1" />

@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import PetDialog from '../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../lib/google-drive';
 import { ServiceSelector } from '../components/ServiceSelector';
+import { BookAppointmentDrawer } from './BookAppointment';
 import { pdf } from '@react-pdf/renderer';
 import { InvoicePDF } from '../components/invoice-pdf';
 
@@ -93,6 +94,7 @@ export default function Dashboard() {
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [rescheduling, setRescheduling] = useState(false);
+  const [isBookAptDrawerOpen, setIsBookAptDrawerOpen] = useState(false);
   const [isProfileEditing, setIsProfileEditing] = useState(false);
   const [profileData, setProfileData] = useState({ displayName: '', phone: '', address: '' });
   const [savingProfile, setSavingProfile] = useState(false);
@@ -212,12 +214,10 @@ export default function Dashboard() {
       setPets(data);
 
       // Attachments
-      const petIds = data.map(p => p.id);
-      if (petIds.length > 0) {
-        // chunk the petIds array if it exceeds 10 to avoid Firestore limits, but usually it's less than 10
+      if (ownerUids.length > 0) {
         const qAttachments = query(
           collection(db, 'attachments'),
-          where('patientId', 'in', petIds.slice(0, 10))
+          where('ownerUid', 'in', ownerUids)
         );
         unsubAttachments = onSnapshot(qAttachments, (snap) => {
           const attData = snap.docs.map(doc => {
@@ -654,13 +654,13 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-3">
-                  <Link 
-                    to="/doctors" 
+                  <button 
+                    onClick={() => setIsBookAptDrawerOpen(true)}
                     className="bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg"
                   >
                     <Plus className="w-4 h-4" />
                     Schedule Clinical Visit
-                  </Link>
+                  </button>
                   <p className="text-slate-500 text-[10px] text-center font-medium">Next availability: Today, 2:30 PM</p>
                 </div>
               </div>
@@ -715,9 +715,9 @@ export default function Dashboard() {
                         <p className="text-slate-400 text-sm font-semibold">No Active Visits</p>
                         <p className="text-slate-400 text-xs">Keep your companions healthy by scheduling a routine checkup.</p>
                       </div>
-                      <Link to="/doctors" className="inline-flex items-center gap-2 bg-white text-emerald-500 px-4 py-2 rounded-lg text-xs font-semibold border border-emerald-100 shadow-sm hover:bg-emerald-50 transition-all">
+                      <button onClick={() => setIsBookAptDrawerOpen(true)} className="inline-flex items-center gap-2 bg-white text-emerald-500 px-4 py-2 rounded-lg text-xs font-semibold border border-emerald-100 shadow-sm hover:bg-emerald-50 transition-all">
                         Browse Specialists <ArrowRight className="w-3 h-3" />
-                      </Link>
+                      </button>
                     </div>
                   );
 
@@ -880,7 +880,7 @@ export default function Dashboard() {
                 </Link>
               ))}
               
-<button 
+              <button 
                   onClick={() => setIsPetDialogOpen(true)}
                   className="group relative rounded-xl border-2 border-dashed border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/30 transition-all duration-300 flex flex-col items-center justify-center py-12 px-6 text-slate-400 hover:text-emerald-600 cursor-pointer min-h-[240px]"
                 >
@@ -911,7 +911,7 @@ export default function Dashboard() {
                 <p className="text-slate-500 mt-1 text-sm font-medium">{appointmentsTabMessage}</p>
               </div>
               <button
-                onClick={() => navigate('/book-appointment')}
+                onClick={() => setIsBookAptDrawerOpen(true)}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-all shadow-sm"
               >
                 <Plus className="w-4 h-4" />
@@ -1587,6 +1587,13 @@ export default function Dashboard() {
         </div>
       </div>
     )}
+
+    <BookAppointmentDrawer 
+        open={isBookAptDrawerOpen} 
+        onOpenChange={(open) => {
+          setIsBookAptDrawerOpen(open);
+        }} 
+      />
     </>
   );
 }

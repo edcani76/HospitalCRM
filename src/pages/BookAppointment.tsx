@@ -12,8 +12,15 @@ import { uploadToGoogleDrive } from '../lib/google-drive';
 import { ServiceSelector } from '../components/ServiceSelector';
 import { PageHeader } from '../components/ui/page-header';
 import { Breadcrumb } from '../components/ui/breadcrumb';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../components/ui/drawer';
 
-export default function BookAppointment() {
+interface BookAppointmentContentProps {
+  isDrawer?: boolean;
+  onSuccessCallback?: () => void;
+  initialPetId?: string;
+}
+
+export function BookAppointmentContent({ isDrawer = false, onSuccessCallback, initialPetId }: BookAppointmentContentProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
@@ -83,7 +90,8 @@ export default function BookAppointment() {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pet));
         setPets(data);
         if (data.length > 0) {
-          setSelectedPetId(data[0].id);
+          const urlPetId = searchParams.get('petId');
+          setSelectedPetId(initialPetId || urlPetId || data[0].id);
         }
       }
     };
@@ -106,7 +114,7 @@ export default function BookAppointment() {
 
     fetchDoctors();
     if (user) fetchPets();
-    fetchCatalog();
+    if (user) fetchCatalog();
   }, [user]);
 
   useEffect(() => {
@@ -309,6 +317,9 @@ export default function BookAppointment() {
         time: selectedTime,
         notes
       }));
+      if (isDrawer && onSuccessCallback) {
+        onSuccessCallback();
+      }
       navigate('/login', { state: { from: { pathname: '/book-appointment' } } });
       return;
     }
@@ -374,7 +385,13 @@ export default function BookAppointment() {
       });
 
       setSuccess(true);
-      setTimeout(() => navigate('/dashboard'), 3000);
+      setTimeout(() => {
+        if (onSuccessCallback) {
+          onSuccessCallback();
+        } else {
+          navigate('/dashboard');
+        }
+      }, 3000);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to book appointment");
@@ -394,11 +411,13 @@ export default function BookAppointment() {
   if (success) {
     return (
       <div className="max-w-md mx-auto space-y-8">
-        <PageHeader
-          title="Visit Request"
-          backTo="/dashboard"
-          backText="Back to Dashboard"
-        />
+        {!isDrawer && (
+          <PageHeader
+            title="Visit Request"
+            backTo="/dashboard"
+            backText="Back to Dashboard"
+          />
+        )}
         <div className="text-center py-12 space-y-6">
         <motion.div 
           initial={{ scale: 0 }}
@@ -410,10 +429,10 @@ export default function BookAppointment() {
         <h1 className="text-3xl font-bold">Visit Request Successful!</h1>
         <p className="text-stone-500">Your visit with {doctor?.name} has been requested. You will be redirected to your dashboard shortly.</p>
           <button 
-            onClick={() => navigate('/dashboard')}
+            onClick={() => onSuccessCallback ? onSuccessCallback() : navigate('/dashboard')}
             className="text-emerald-600 font-bold flex items-center gap-2 mx-auto"
           >
-            Go to Dashboard <ArrowRight className="w-4 h-4" />
+            {isDrawer ? 'Close' : 'Go to Dashboard'} <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -421,27 +440,31 @@ export default function BookAppointment() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <Breadcrumb
-        items={[
-          { name: 'Dashboard', path: '/dashboard' },
-          { name: 'Book Visit' },
-        ]}
-      />
-      <PageHeader
-        title="Book Visit"
-        subtitle="Choose your preferred doctor, date, and time for your pet's consultation."
-        backTo="/dashboard"
-        backText="Back to Dashboard"
-      />
+    <div className={isDrawer ? "" : "max-w-6xl mx-auto"}>
+      {!isDrawer && (
+        <>
+          <Breadcrumb
+            items={[
+              { name: 'Dashboard', path: '/dashboard' },
+              { name: 'Book Visit' },
+            ]}
+          />
+          <PageHeader
+            title="Book Visit"
+            subtitle="Choose your preferred doctor, date, and time for your pet's consultation."
+            backTo="/dashboard"
+            backText="Back to Dashboard"
+          />
+        </>
+      )}
 
       {/* Doctor Carousel */}
-      <div className="mb-8" style={{ height: '360px' }}>
-        <h3 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
-          <Stethoscope className="w-5 h-5 text-emerald-600" />
+      <div className="mb-4" style={{ height: isDrawer ? '220px' : '360px' }}>
+        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+          <Stethoscope className="w-4 h-4 text-emerald-600" />
           Select Your Doctor
         </h3>
-        <div className="relative px-8" style={{ height: '280px' }}>
+        <div className="relative px-8" style={{ height: isDrawer ? '160px' : '280px' }}>
           {doctors.length > 1 && (
             <>
               <button
@@ -459,7 +482,7 @@ export default function BookAppointment() {
             </>
           )}
           
-          <div className="overflow-hidden rounded-2xl" style={{ height: '280px' }}>
+          <div className="overflow-hidden rounded-xl" style={{ height: isDrawer ? '160px' : '280px' }}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={doctorIndex}
@@ -467,11 +490,11 @@ export default function BookAppointment() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -300 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="bg-white rounded-2xl border border-slate-200 overflow-hidden h-full"
-                style={{ height: '280px' }}
+                className="bg-white rounded-xl border border-slate-200 overflow-hidden h-full"
+                style={{ height: isDrawer ? '160px' : '280px' }}
               >
-                <div className="flex h-full" style={{ height: '280px' }}>
-                  <div className="w-40 md:w-56 shrink-0">
+                <div className="flex h-full" style={{ height: isDrawer ? '160px' : '280px' }}>
+                  <div className={`shrink-0 ${isDrawer ? 'w-32' : 'w-40 md:w-56'}`}>
                     <img 
                       src={doctor?.image} 
                       alt={doctor?.name} 
@@ -479,30 +502,30 @@ export default function BookAppointment() {
                       referrerPolicy="no-referrer"
                     />
                   </div>
-                  <div className="flex-1 p-5 md:p-8 flex flex-col justify-center overflow-hidden" style={{ height: '280px' }}>
-                    <div className="space-y-3">
+                  <div className={`flex-1 flex flex-col justify-center overflow-hidden ${isDrawer ? 'p-3' : 'p-5 md:p-8'}`} style={{ height: isDrawer ? '160px' : '280px' }}>
+                    <div className="space-y-2">
                       <div>
-                        <div className="flex items-center gap-3">
-                          <h2 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight">{doctor?.name}</h2>
+                        <div className="flex items-center gap-2">
+                          <h2 className={`${isDrawer ? 'text-sm' : 'text-xl md:text-2xl'} font-bold text-slate-900 leading-tight`}>{doctor?.name}</h2>
                           {isAnyDoctor && (
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full whitespace-nowrap shrink-0">Recommended</span>
+                            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-bold rounded-full whitespace-nowrap shrink-0">Recommended</span>
                           )}
                         </div>
-                        <p className="text-emerald-600 font-medium text-sm md:text-base line-clamp-1">{doctor?.specialization}</p>
+                        <p className={`text-emerald-600 font-medium ${isDrawer ? 'text-xs' : 'text-sm md:text-base'} line-clamp-1`}>{doctor?.specialization}</p>
                       </div>
-                      <div className="flex items-center gap-5 py-3 border-y border-slate-100">
+                      <div className={`flex items-center ${isDrawer ? 'gap-3 py-1' : 'gap-5 py-3'} border-y border-slate-100`}>
                         {!isAnyDoctor && (
                           <>
                             <div className="text-center">
-                              <p className="text-[10px] text-slate-400 uppercase font-bold">Experience</p>
-                              <p className="text-base font-bold text-slate-900">{doctor?.experience} Yrs</p>
+                              <p className="text-[9px] text-slate-400 uppercase font-bold">Experience</p>
+                              <p className={`${isDrawer ? 'text-xs' : 'text-base'} font-bold text-slate-900`}>{doctor?.experience} Yrs</p>
                             </div>
-                            <div className="w-px h-7 bg-slate-100" />
+                            <div className="w-px h-5 bg-slate-100" />
                           </>
                         )}
                         <div className="text-center">
-                          <p className="text-[10px] text-slate-400 uppercase font-bold">Department</p>
-                          <p className="text-base font-bold text-slate-900 line-clamp-1">{doctor?.department}</p>
+                          <p className="text-[9px] text-slate-400 uppercase font-bold">Department</p>
+                          <p className={`${isDrawer ? 'text-xs' : 'text-base'} font-bold text-slate-900 line-clamp-1`}>{doctor?.department}</p>
                         </div>
                       </div>
                       {isAnyDoctor && (
@@ -537,10 +560,10 @@ export default function BookAppointment() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className={`grid grid-cols-1 lg:grid-cols-3 ${isDrawer ? 'gap-4' : 'gap-8'}`}>
         {/* Left Column: Date & Time */}
-        <div className="lg:col-span-2 space-y-8">
-          <form onSubmit={handleBooking} className="bg-white p-8 rounded-2xl border border-slate-200 space-y-10">
+        <div className={`lg:col-span-2 ${isDrawer ? 'space-y-4' : 'space-y-8'}`}>
+          <form onSubmit={handleBooking} className={`bg-white ${isDrawer ? 'p-4 rounded-xl space-y-5' : 'p-8 rounded-2xl space-y-10'} border border-slate-200`}>
             {error && (
               <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
@@ -549,22 +572,24 @@ export default function BookAppointment() {
             )}
 
             {/* Date Selection */}
-            <div className="space-y-4">
-              <label className="text-lg font-bold flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5 text-emerald-600" />
+            <div className="space-y-2">
+              <label className={`${isDrawer ? 'text-sm' : 'text-lg'} font-bold flex items-center gap-2`}>
+                <CalendarIcon className={`${isDrawer ? 'w-4 h-4' : 'w-5 h-5'} text-emerald-600`} />
                 Select Date
               </label>
-              <Calendar
-                selectedDate={selectedDate}
-                onDateSelect={(date) => setSelectedDate(date)}
-                minDate={startOfDay(startOfToday())}
-              />
+              <div className={isDrawer ? 'scale-90 origin-top-left -mb-6' : ''}>
+                <Calendar
+                  selectedDate={selectedDate}
+                  onDateSelect={(date) => setSelectedDate(date)}
+                  minDate={startOfDay(startOfToday())}
+                />
+              </div>
             </div>
 
             {/* Time Selection */}
-            <div className="space-y-4">
-              <label className="text-lg font-bold flex items-center gap-2">
-                <Clock className="w-5 h-5 text-emerald-600" />
+            <div className="space-y-2">
+              <label className={`${isDrawer ? 'text-sm' : 'text-lg'} font-bold flex items-center gap-2`}>
+                <Clock className={`${isDrawer ? 'w-4 h-4' : 'w-5 h-5'} text-emerald-600`} />
                 Available Time Slots
                 {loadingSlots && (
                   <span className="text-xs font-normal text-slate-400 ml-2">Loading...</span>
@@ -601,10 +626,10 @@ export default function BookAppointment() {
 
             {/* Pet Selection — requires auth */}
             {user ? (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-lg font-bold flex items-center gap-2">
-                    <PawPrint className="w-5 h-5 text-emerald-600" />
+                  <label className={`${isDrawer ? 'text-sm' : 'text-lg'} font-bold flex items-center gap-2`}>
+                    <PawPrint className={`${isDrawer ? 'w-4 h-4' : 'w-5 h-5'} text-emerald-600`} />
                     Select Pet
                   </label>
                   <button
@@ -633,7 +658,7 @@ export default function BookAppointment() {
                     <select 
                       value={selectedPetId}
                       onChange={(e) => setSelectedPetId(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 appearance-none focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-bold"
+                      className={`w-full bg-slate-50 border border-slate-100 rounded-xl ${isDrawer ? 'p-2 text-sm' : 'p-4'} appearance-none focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-bold`}
                     >
                       <option value="" disabled>Choose your pet...</option>
                       {pets.map(pet => (
@@ -663,6 +688,7 @@ export default function BookAppointment() {
                       time: selectedTime,
                       notes
                     }));
+                    if (isDrawer && onSuccessCallback) onSuccessCallback();
                     navigate('/login', { state: { from: { pathname: '/book-appointment' } } });
                   }}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold transition-colors inline-flex items-center gap-2"
@@ -674,16 +700,15 @@ export default function BookAppointment() {
 
             {/* Services Selection */}
             {user && (
-              <div className="space-y-4">
-                <label className="text-lg font-bold flex items-center gap-2">
-                  <Stethoscope className="w-5 h-5 text-emerald-600" />
+              <div className="space-y-2">
+                <label className={`${isDrawer ? 'text-sm' : 'text-lg'} font-bold flex items-center gap-2`}>
+                  <Stethoscope className={`${isDrawer ? 'w-4 h-4' : 'w-5 h-5'} text-emerald-600`} />
                   Select Services
                 </label>
-                <div className="bg-slate-50 border border-slate-100 rounded-xl p-6">
+                <div className={`bg-slate-50 border border-slate-100 rounded-xl ${isDrawer ? 'p-3' : 'p-6'}`}>
                   <ServiceSelector
                     selectedServices={selectedServices}
                     onChange={setSelectedServices}
-                    providerId={doctor?.id}
                     requireConsultation={true}
                     showPrice={false}
                     hideCategories={['medication', 'supply']}
@@ -697,23 +722,23 @@ export default function BookAppointment() {
             )}
 
             {/* Notes */}
-            <div className="space-y-4">
-              <label className="text-lg font-bold flex items-center gap-2">
-                <User className="w-5 h-5 text-emerald-600" />
+            <div className="space-y-2">
+              <label className={`${isDrawer ? 'text-sm' : 'text-lg'} font-bold flex items-center gap-2`}>
+                <User className={`${isDrawer ? 'w-4 h-4' : 'w-5 h-5'} text-emerald-600`} />
                 Reason for Visit (Optional)
               </label>
               <textarea 
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Briefly describe your symptoms or reason for consultation..."
-                className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 min-h-[100px] focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                className={`w-full bg-slate-50 border border-slate-100 rounded-xl ${isDrawer ? 'p-2 text-sm min-h-[60px]' : 'p-4 min-h-[100px]'} focus:ring-2 focus:ring-emerald-500 outline-none transition-all`}
               />
             </div>
 
             <button
               type="submit"
               disabled={booking}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-bold text-base flex items-center justify-center gap-3 transition-all disabled:opacity-50"
+              className={`w-full bg-emerald-600 hover:bg-emerald-700 text-white ${isDrawer ? 'py-2.5 text-sm' : 'py-4 text-base'} rounded-xl font-bold flex items-center justify-center gap-3 transition-all disabled:opacity-50`}
             >
               {booking ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -727,13 +752,13 @@ export default function BookAppointment() {
         </div>
 
         {/* Right Column: Policy */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-slate-900 text-white p-6 rounded-2xl space-y-4">
-            <h4 className="font-bold flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-emerald-400" />
+        <div className={`lg:col-span-1 ${isDrawer ? 'space-y-4' : 'space-y-6'}`}>
+          <div className={`bg-slate-900 text-white ${isDrawer ? 'p-4' : 'p-6'} rounded-xl space-y-3`}>
+            <h4 className={`${isDrawer ? 'text-sm' : 'text-base'} font-bold flex items-center gap-2`}>
+              <AlertCircle className={`${isDrawer ? 'w-4 h-4' : 'w-5 h-5'} text-emerald-400`} />
               Visit Policy
             </h4>
-            <ul className="text-sm text-slate-300 space-y-3 list-disc pl-4">
+            <ul className={`${isDrawer ? 'text-xs' : 'text-sm'} text-slate-300 space-y-2 list-disc pl-4`}>
               <li>Please arrive 15 minutes before your scheduled time.</li>
               <li>Cancellations must be made at least 24 hours in advance.</li>
               <li>Bring your pet's vaccination history and any prior clinic records if applicable.</li>
@@ -741,8 +766,8 @@ export default function BookAppointment() {
           </div>
 
           {/* Selected Doctor Summary */}
-          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 space-y-4">
-            <h4 className="font-bold text-emerald-900 text-sm uppercase">Your Selection</h4>
+          <div className={`bg-emerald-50 border border-emerald-100 rounded-xl ${isDrawer ? 'p-4' : 'p-6'} space-y-3`}>
+            <h4 className="font-bold text-emerald-900 text-xs uppercase">Your Selection</h4>
             <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0">
@@ -780,5 +805,25 @@ export default function BookAppointment() {
         isSubmitting={isSubmittingPet}
       />
     </div>
+  );
+}
+
+export default function BookAppointmentPage() {
+  return <BookAppointmentContent />;
+}
+
+export function BookAppointmentDrawer({ open, onOpenChange, initialPetId }: { open: boolean, onOpenChange: (open: boolean) => void, initialPetId?: string }) {
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="w-full sm:max-w-2xl max-h-[95vh] flex flex-col bg-slate-50">
+        <DrawerHeader className="border-b border-stone-100 shrink-0 bg-white">
+          <DrawerTitle className="text-lg">Book New Appointment</DrawerTitle>
+          <DrawerDescription className="text-xs">Choose your preferred doctor, date, and time for your pet's consultation.</DrawerDescription>
+        </DrawerHeader>
+        <div className="flex-1 overflow-y-auto min-h-0 bg-slate-50">
+          <BookAppointmentContent isDrawer onSuccessCallback={() => onOpenChange(false)} initialPetId={initialPetId} />
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }

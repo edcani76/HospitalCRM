@@ -141,7 +141,7 @@ export function ServiceSelector({
               <Badge
                 key={id}
                 variant={isConsult ? 'default' : 'secondary'}
-                className={`text-xs cursor-${isConsult ? 'default' : 'pointer'} ${isConsult ? 'bg-blue-600' : ''}`}
+                className={`text-xs cursor-${isConsult ? 'default' : 'pointer'} ${isConsult ? 'bg-blue-600 text-white' : ''}`}
                 onClick={() => !isConsult && toggleService(id)}
               >
                 {svc.name}

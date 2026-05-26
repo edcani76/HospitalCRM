@@ -244,6 +244,16 @@ service cloud.firestore {
       allow write: if isAdmin() || isPharmacist() || isDoctor();
     }
 
+    match /service_catalog/{serviceId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isStaff();
+    }
+
+    match /resources/{resourceId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isStaff();
+    }
+
     match /{path=**} {
       allow read, write: if false;
     }
