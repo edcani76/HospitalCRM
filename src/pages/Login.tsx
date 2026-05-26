@@ -113,20 +113,27 @@ export default function Login() {
     setLoading(true);
     setError(null);
     try {
+      console.log("Login: Attempting signInWithEmailAndPassword");
       const result = await signInWithEmailAndPassword(auth, email, password);
+      console.log("Login: Sign in successful. UID:", result.user.uid);
+      
+      console.log("Login: Attempting getDoc for user");
       const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+      console.log("Login: getDoc successful. exists?", userDoc.exists());
+      
       if (userDoc.exists()) {
         const data = userDoc.data();
         if (!data.role) {
+          console.log("Login: Attempting setDoc merge role");
           await setDoc(doc(db, 'users', result.user.uid), { role: 'client' }, { merge: true });
         }
         if (!data.displayName) {
-          // Optionally set displayName from email prefix
+          console.log("Login: Attempting setDoc merge displayName");
           const nameFromEmail = email.split('@')[0];
           await setDoc(doc(db, 'users', result.user.uid), { displayName: nameFromEmail }, { merge: true });
         }
       } else {
-        // Create user doc if missing
+        console.log("Login: Attempting setDoc create new user");
         await setDoc(doc(db, 'users', result.user.uid), {
           uid: result.user.uid,
           email: email,
@@ -136,9 +143,10 @@ export default function Login() {
         });
       }
       const role = (userDoc.data()?.role) || 'client';
+      console.log("Login: Proceeding to navigate");
       navigate(getRedirectPath(role), { replace: true });
     } catch (err: any) {
-      console.error(err);
+      console.error("Login Error:", err);
       setError("Invalid email or password. Please try again.");
     } finally {
       setLoading(false);

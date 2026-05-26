@@ -16,8 +16,9 @@ import DashboardLayout from '../components/DashboardLayout';
 import PetDialog from '../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../lib/google-drive';
 import { fetchEncounters, fetchInvoices, fetchReports, fetchAdmissions, fetchAppointments } from '../lib/firestore-helpers';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../components/ui/drawer';
 
-type TabType = 'overview' | 'medical-history' | 'appointments' | 'preventive' | 'medications' | 'admissions' | 'billing' | 'crm-notes';
+type TabType = 'overview' | 'medical-history' | 'appointments' | 'preventive' | 'medications' | 'admissions' | 'billing';
 
 const formatPetAge = (pet: Pet) => {
   if (pet.dateOfBirth) {
@@ -59,6 +60,7 @@ export default function PetProfile() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [selectedEncounter, setSelectedEncounter] = useState<any>(null);
 
   // Data from connected modules
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -81,11 +83,11 @@ export default function PetProfile() {
 
         const [ownerSnap, apptsData, encData, invData, admData, repData] = await Promise.all([
           getDoc(doc(db, 'users', petData.ownerUid)).catch(() => null),
-          fetchAppointments({ petId: petData.id }).catch(() => []),
+          fetchAppointments({ petId: petData.id }).then(res => res.filter((a: any) => a.petId === petData.id)).catch(() => []),
           fetchEncounters(petData.id).catch(() => []),
-          fetchInvoices({ petId: petData.id }).catch(() => []),
-          fetchAdmissions(petData.id).catch(() => []),
-          fetchReports({ petId: petData.id }).catch(() => []),
+          fetchInvoices({ petId: petData.id }).then(res => res.filter((i: any) => i.petId === petData.id)).catch(() => []),
+          fetchAdmissions(petData.id).then(res => res.filter((a: any) => a.petId === petData.id)).catch(() => []),
+          fetchReports({ petId: petData.id }).then(res => res.filter((r: any) => r.petId === petData.id)).catch(() => []),
         ]);
 
         if (cancelled) return;
@@ -109,7 +111,7 @@ export default function PetProfile() {
   // === Computed Values ===
   const nextAppointment = useMemo(() => {
     return appointments
-      .filter(a => a.status !== 'cancelled' && a.status !== 'completed')
+      .filter(a => a.status !== 'cancelled' && a.status !== 'completed' && !isBefore(new Date(a.date + 'T' + (a.time || '00:00')), startOfToday()))
       .sort((a, b) => new Date(a.date + 'T' + (a.time || '00:00')).getTime() - new Date(b.date + 'T' + (b.time || '00:00')).getTime())[0] || null;
   }, [appointments]);
 
@@ -142,7 +144,7 @@ export default function PetProfile() {
     return invoices.reduce((sum, inv) => sum + (inv.amountPaid ?? 0), 0);
   }, [invoices]);
 
-  const hasMedicalAlerts = !!(pet?.allergies?.length || pet?.aggressionWarning || pet?.chronicConditions?.length || pet?.medicationReactions?.length || pet?.contagiousDiseaseFlag || pet?.specialHandlingNotes);
+  const hasMedicalAlerts = !!(pet?.allergies?.length || pet?.chronicConditions?.length || pet?.medicationReactions?.length);
 
   // === Helpers ===
   const handlePetUpdate = async (formData: any) => {
@@ -155,14 +157,18 @@ export default function PetProfile() {
         const result = await uploadToGoogleDrive(formData.photoFile, { ownerName, petName: pet.name, fileType: 'photos' });
         imageUrl = result.downloadUrl || result.webViewLink;
       }
-      await updateDoc(doc(db, 'pets', pet.id), {
+      const updatedFields = {
         name: formData.name, species: formData.species, breed: formData.breed,
         weight: formData.weight || 0, dateOfBirth: formData.dateOfBirth || '',
-        gender: formData.gender || '', bloodType: formData.bloodType || 'Unknown',
+        gender: formData.gender || '', bloodType: formData.bloodType || '',
         color: formData.color || '', microchipId: formData.microchipId || '',
         medicalHistory: formData.medicalHistory || '', imageUrl,
+      };
+      await updateDoc(doc(db, 'pets', pet.id), {
+        ...updatedFields,
         updatedAt: serverTimestamp(),
       });
+      setPet({ ...pet, ...updatedFields } as Pet);
       setIsEditDialogOpen(false);
     } catch (err) {
       console.error('Failed to update pet:', err);
@@ -238,7 +244,6 @@ export default function PetProfile() {
     { key: 'medications', label: 'Medications', icon: <Pill className="w-4 h-4" /> },
     { key: 'admissions', label: 'Admissions', icon: <Stethoscope className="w-4 h-4" /> },
     { key: 'billing', label: 'Billing', icon: <DollarSign className="w-4 h-4" /> },
-    { key: 'crm-notes', label: 'CRM Notes', icon: <ClipboardList className="w-4 h-4" /> },
   ];
 
   return (
@@ -311,26 +316,11 @@ export default function PetProfile() {
                         <AlertTriangle className="w-3 h-3" />Allergy: {a}
                       </span>
                     ))}
-                    {pet.aggressionWarning && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200">
-                        <Zap className="w-3 h-3" />Aggressive
-                      </span>
-                    )}
                     {pet.chronicConditions?.map((c, i) => (
                       <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
                         <Activity className="w-3 h-3" />{c}
                       </span>
                     ))}
-                    {pet.contagiousDiseaseFlag && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-800 border border-red-300">
-                        <AlertCircle className="w-3 h-3" />Contagious{pet.contagiousDiseaseNotes ? `: ${pet.contagiousDiseaseNotes}` : ''}
-                      </span>
-                    )}
-                    {pet.specialHandlingNotes && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200">
-                        <AlertTriangle className="w-3 h-3" />{pet.specialHandlingNotes}
-                      </span>
-                    )}
                     {pet.medicationReactions?.map((r, i) => (
                       <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-pink-100 text-pink-700 border border-pink-200">
                         <Pill className="w-3 h-3" />Reaction: {r}
@@ -339,37 +329,26 @@ export default function PetProfile() {
                   </div>
                 )}
               </div>
-              {/* Edit Button */}
-              <button
-                onClick={() => setIsEditDialogOpen(true)}
-                className="shrink-0 p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                title="Edit Pet"
-              >
-                <Edit className="w-5 h-5" />
-              </button>
+              {/* Actions */}
+              <div className="flex items-center gap-2 shrink-0">
+                <Link to={`/book-appointment?petId=${pet.id}`} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all shadow-sm">
+                  <Plus className="w-3.5 h-3.5" /> New Appointment
+                </Link>
+                <button
+                  onClick={() => setIsEditDialogOpen(true)}
+                  className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                  title="Edit Pet"
+                >
+                  <Edit className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="px-4 pb-3 flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all shadow-sm">
-              <Plus className="w-3.5 h-3.5" /> New Appointment
-            </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-all shadow-sm">
-              <Activity className="w-3.5 h-3.5" /> Start Consultation
-            </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-600 text-white text-xs font-bold rounded-lg hover:bg-stone-700 transition-all shadow-sm">
-              <DollarSign className="w-3.5 h-3.5" /> Create Invoice
-            </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white text-xs font-bold rounded-lg hover:bg-orange-700 transition-all shadow-sm">
-              <Stethoscope className="w-3.5 h-3.5" /> Admit Pet
-            </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700 transition-all shadow-sm">
-              <Pill className="w-3.5 h-3.5" /> Add Prescription
-            </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-500 text-white text-xs font-bold rounded-lg hover:bg-stone-600 transition-all shadow-sm">
-              <FileText className="w-3.5 h-3.5" /> Upload Document
-            </button>
+          <div className="px-4 pb-3 sm:hidden">
+            <Link to={`/book-appointment?petId=${pet.id}`} className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-sm w-full">
+              <Plus className="w-4 h-4" /> New Appointment
+            </Link>
           </div>
 
           {/* Summary Cards */}
@@ -411,7 +390,7 @@ export default function PetProfile() {
           </div>
 
           {/* Sticky Tabs */}
-          <div className="px-4 border-t border-stone-100 overflow-x-auto">
+          <div className="px-4 border-t border-stone-100 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <div className="flex gap-0.5 -mb-px">
               {tabs.map(tab => (
                 <button
@@ -443,15 +422,16 @@ export default function PetProfile() {
                     <PawPrint className="w-4 h-4 text-emerald-600" /> Pet Details
                   </h3>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Species</p><p className="text-sm font-medium">{pet.species}</p></div>
-                    {pet.breed && <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Breed</p><p className="text-sm font-medium">{pet.breed}</p></div>}
-                    {pet.gender && <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Gender</p><p className="text-sm font-medium">{pet.gender}</p></div>}
+                    <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Species</p><p className="text-sm font-medium">{pet.species || '—'}</p></div>
+                    <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Breed</p><p className="text-sm font-medium">{pet.breed || '—'}</p></div>
+                    <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Gender</p><p className="text-sm font-medium">{pet.gender || '—'}</p></div>
                     <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Age</p><p className="text-sm font-medium">{formatPetAge(pet)}</p></div>
-                    {pet.dateOfBirth && <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Birthday</p><p className="text-sm font-medium">{format(new Date(pet.dateOfBirth + 'T00:00:00'), 'MMM dd, yyyy')}</p></div>}
-                    {pet.weight && <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Weight</p><p className="text-sm font-medium">{pet.weight} kg</p></div>}
-                    {pet.color && <div className="col-span-2"><p className="text-[10px] text-stone-500 uppercase font-semibold">Color/Markings</p><p className="text-sm font-medium">{pet.color}</p></div>}
-                    {pet.microchipId && <div className="col-span-2"><p className="text-[10px] text-stone-500 uppercase font-semibold">Microchip ID</p><p className="text-sm font-medium font-mono">{pet.microchipId}</p></div>}
-                    {pet.bloodType && <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Blood Type</p><p className="text-sm font-medium">{pet.bloodType}</p></div>}
+                    <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Birthday</p><p className="text-sm font-medium">{pet.dateOfBirth ? format(new Date(pet.dateOfBirth + 'T00:00:00'), 'MMM dd, yyyy') : '—'}</p></div>
+                    <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Weight</p><p className="text-sm font-medium">{pet.weight ? `${pet.weight} kg` : '—'}</p></div>
+                    <div className="col-span-2"><p className="text-[10px] text-stone-500 uppercase font-semibold">Color/Markings</p><p className="text-sm font-medium">{pet.color || '—'}</p></div>
+                    <div className="col-span-2"><p className="text-[10px] text-stone-500 uppercase font-semibold">Microchip ID</p><p className="text-sm font-medium font-mono">{pet.microchipId || '—'}</p></div>
+                    <div><p className="text-[10px] text-stone-500 uppercase font-semibold">Blood Type</p><p className="text-sm font-medium">{pet.bloodType || '—'}</p></div>
+                    {pet.medicalHistory && <div className="col-span-2"><p className="text-[10px] text-stone-500 uppercase font-semibold">Medical History</p><p className="text-sm font-medium whitespace-pre-wrap">{pet.medicalHistory}</p></div>}
                   </div>
                 </div>
 
@@ -488,7 +468,7 @@ export default function PetProfile() {
                 {hasMedicalAlerts && (
                   <div className="bg-white rounded-xl border border-stone-200 p-4 shadow-sm">
                     <h3 className="text-sm font-bold text-stone-900 mb-3 flex items-center gap-2 text-red-600">
-                      <AlertTriangle className="w-4 h-4" /> Medical Alerts
+                      <AlertTriangle className="w-4 h-4" /> Clinical Alerts
                     </h3>
                     <div className="space-y-2">
                       {pet.allergies?.map((a, i) => (
@@ -509,24 +489,6 @@ export default function PetProfile() {
                           <div><span className="font-bold text-pink-700">Reaction:</span> <span className="text-pink-600">{r}</span></div>
                         </div>
                       ))}
-                      {pet.aggressionWarning && (
-                        <div className="flex items-start gap-2 p-2 bg-orange-50 rounded-lg text-sm">
-                          <Zap className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-                          <div><span className="font-bold text-orange-700">Behavior:</span> <span className="text-orange-600">{pet.aggressionNotes || 'Aggressive when restrained'}</span></div>
-                        </div>
-                      )}
-                      {pet.specialHandlingNotes && (
-                        <div className="flex items-start gap-2 p-2 bg-purple-50 rounded-lg text-sm">
-                          <AlertTriangle className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
-                          <div><span className="font-bold text-purple-700">Handling:</span> <span className="text-purple-600">{pet.specialHandlingNotes}</span></div>
-                        </div>
-                      )}
-                      {pet.contagiousDiseaseFlag && (
-                        <div className="flex items-start gap-2 p-2 bg-red-100 rounded-lg text-sm">
-                          <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                          <div><span className="font-bold text-red-800">Contagious:</span> <span className="text-red-700">{pet.contagiousDiseaseNotes || 'Isolation recommended'}</span></div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -554,21 +516,7 @@ export default function PetProfile() {
                   </div>
                 )}
 
-                {/* Quick Links */}
-                <div className="bg-white rounded-xl border border-stone-200 p-4 shadow-sm">
-                  <h3 className="text-sm font-bold text-stone-900 mb-3">Quick Links</h3>
-                  <div className="space-y-1">
-                    <Link to="/crm/visit-history" className="flex items-center gap-2 text-sm text-stone-600 hover:text-emerald-600 p-1.5 rounded-lg hover:bg-stone-50 transition-all">
-                      <Calendar className="w-4 h-4" /> View Full Calendar
-                    </Link>
-                    <button className="flex items-center gap-2 text-sm text-stone-600 hover:text-emerald-600 p-1.5 rounded-lg hover:bg-stone-50 transition-all w-full text-left">
-                      <FileText className="w-4 h-4" /> View Billing Records
-                    </button>
-                    <button className="flex items-center gap-2 text-sm text-stone-600 hover:text-emerald-600 p-1.5 rounded-lg hover:bg-stone-50 transition-all w-full text-left">
-                      <ClipboardList className="w-4 h-4" /> View Medical History
-                    </button>
-                  </div>
-                </div>
+
               </div>
 
               {/* Right Column - Recent Activity */}
@@ -577,7 +525,7 @@ export default function PetProfile() {
                 <div className="bg-white rounded-xl border border-stone-200 shadow-sm">
                   <div className="p-4 border-b border-stone-100 flex items-center justify-between">
                     <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-emerald-600" /> Recent Visits
+                      <Activity className="w-4 h-4 text-emerald-600" /> Visit History ({encounters.length})
                     </h3>
                     <button onClick={() => setActiveTab('medical-history')} className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">
                       View All
@@ -597,7 +545,10 @@ export default function PetProfile() {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: idx * 0.03 }}
                           className="flex items-start gap-3 p-3 bg-stone-50 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
-                          onClick={() => { if (currentUser?.role === 'admin') navigate(`/crm/emr/${enc.petId || pet?.id}`); }}
+                          onClick={() => {
+                            if (currentUser?.role === 'admin') navigate(`/crm/emr/${enc.petId || pet?.id}`);
+                            else setActiveTab('medical-history');
+                          }}
                         >
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                             enc.status === 'completed' ? 'bg-green-100' : enc.status === 'medical-completed' ? 'bg-purple-100' : 'bg-blue-100'
@@ -622,48 +573,11 @@ export default function PetProfile() {
                   </div>
                 </div>
 
-                {/* Recent Appointments */}
-                <div className="bg-white rounded-xl border border-stone-200 shadow-sm">
-                  <div className="p-4 border-b border-stone-100 flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-emerald-600" /> Appointments
-                    </h3>
-                    <button onClick={() => setActiveTab('appointments')} className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">
-                      View All
-                    </button>
-                  </div>
-                  <div className="p-4 space-y-2">
-                    {appointments.length === 0 ? (
-                      <div className="text-center py-6 text-stone-400">
-                        <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No appointments yet</p>
-                      </div>
-                    ) : (
-                      [...appointments].sort((a: any, b: any) => new Date(b.date + 'T' + (b.time || '00:00')).getTime() - new Date(a.date + 'T' + (a.time || '00:00')).getTime()).slice(0, 5).map((appt, idx) => (
-                        <div key={appt.id} className="flex items-center justify-between p-2.5 bg-stone-50 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                              <Calendar className="w-4 h-4 text-emerald-600" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-stone-900">
-                                {format(new Date(appt.date), 'MMM dd, yyyy')} · {appt.time}
-                              </p>
-                              <p className="text-xs text-stone-500">{appt.doctorName}</p>
-                            </div>
-                          </div>
-                          {getStatusBadge(appt.status)}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
                 {/* Billing Summary */}
                 <div className="bg-white rounded-xl border border-stone-200 shadow-sm">
                   <div className="p-4 border-b border-stone-100 flex items-center justify-between">
                     <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-emerald-600" /> Billing Summary
+                      <DollarSign className="w-4 h-4 text-emerald-600" /> Billing Summary ({invoices.length})
                     </h3>
                     <button onClick={() => setActiveTab('billing')} className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">
                       View All
@@ -688,7 +602,7 @@ export default function PetProfile() {
                     </div>
                     {invoices.length > 0 && (
                       <div className="space-y-1.5">
-                        {invoices.slice(0, 3).map((inv: any) => (
+                        {[...invoices].sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 3).map((inv: any) => (
                           <div key={inv.id} className="flex items-center justify-between text-xs p-2 bg-stone-50 rounded-lg">
                             <div className="flex items-center gap-2">
                               <span className="font-mono font-bold text-stone-700">{inv.invoiceNo || `INV-${inv.id?.slice(-6)}`}</span>
@@ -728,11 +642,11 @@ export default function PetProfile() {
                   <div className="bg-white rounded-xl border border-stone-200 shadow-sm">
                     <div className="p-4 border-b border-stone-100 flex items-center justify-between">
                       <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-emerald-600" /> Documents & Reports
+                        <FileText className="w-4 h-4 text-emerald-600" /> Documents & Reports ({reports.length})
                       </h3>
                     </div>
                     <div className="p-4 space-y-2">
-                      {reports.slice(0, 5).map((r: any) => (
+                      {[...reports].sort((a: any, b: any) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()).slice(0, 5).map((r: any) => (
                         <div key={r.id} className="flex items-center justify-between p-2 bg-stone-50 rounded-lg text-sm">
                           <div className="flex items-center gap-2">
                             <FileText className="w-4 h-4 text-stone-400" />
@@ -757,7 +671,7 @@ export default function PetProfile() {
           {activeTab === 'medical-history' && (
             <div className="max-w-4xl mx-auto">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-stone-900">Medical History Timeline</h2>
+                <h2 className="text-lg font-bold text-stone-900">Medical History ({encounters.length})</h2>
                 <span className="text-xs text-stone-500">{encounters.length} visit{encounters.length !== 1 ? 's' : ''}</span>
               </div>
               {encounters.length === 0 && appointments.filter(a => a.status === 'completed').length === 0 ? (
@@ -803,7 +717,7 @@ export default function PetProfile() {
                               {enc.notes && <p className="text-sm text-stone-600 mt-2">{enc.notes}</p>}
                             </div>
                             <button
-                              onClick={() => { if (currentUser?.role === 'admin') navigate(`/crm/emr/${enc.id}`); }}
+                              onClick={() => { if (currentUser?.role === 'admin') navigate(`/crm/emr/${enc.id}`); else setSelectedEncounter(enc); }}
                               className="shrink-0 px-3 py-1.5 text-xs font-bold bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors"
                             >
                               View Details
@@ -834,51 +748,96 @@ export default function PetProfile() {
 
           {/* APPOINTMENTS TAB */}
           {activeTab === 'appointments' && (
-            <div className="max-w-4xl mx-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-stone-900">Appointments</h2>
-              </div>
-              {appointments.length === 0 ? (
-                <div className="text-center py-12 text-stone-400 bg-white rounded-xl border border-stone-200">
-                  <Calendar className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                  <p className="text-lg font-medium">No appointments</p>
-                  <p className="text-sm mt-1">Schedule a visit to get started.</p>
-                </div>
-              ) : (
-                <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="bg-stone-50 border-b border-stone-200 text-xs font-bold text-stone-500 uppercase tracking-wider">
-                          <th className="px-4 py-3">Date & Time</th>
-                          <th className="px-4 py-3">Doctor</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3">Notes</th>
-                          <th className="px-4 py-3 text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-100 text-sm">
-                        {[...appointments].sort((a: any, b: any) => new Date(b.date + 'T' + (b.time || '00:00')).getTime() - new Date(a.date + 'T' + (a.time || '00:00')).getTime()).map(appt => (
-                          <tr key={appt.id} className="hover:bg-stone-50/50 transition-colors">
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <p className="font-bold text-stone-700">{format(new Date(appt.date), 'MMM dd, yyyy')}</p>
-                              <p className="text-xs text-stone-400">{appt.time}</p>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-stone-600">{appt.doctorName}</td>
-                            <td className="px-4 py-3 whitespace-nowrap">{getStatusBadge(appt.status)}</td>
-                            <td className="px-4 py-3 text-stone-500 text-xs max-w-[200px] truncate">{appt.notes || '—'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-right">
-                              <button className="text-emerald-600 hover:text-emerald-700 font-bold text-xs transition-colors">
-                                View Details
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+            <div className="max-w-4xl mx-auto space-y-8">
+              {/* Upcoming Appointments */}
+              <div>
+                <h2 className="text-lg font-bold text-stone-900 mb-4">Upcoming Appointments ({appointments.filter(a => a.status !== 'cancelled' && a.status !== 'completed' && !isBefore(new Date(a.date + 'T' + (a.time || '00:00')), startOfToday())).length})</h2>
+                {appointments.filter(a => a.status !== 'cancelled' && a.status !== 'completed' && !isBefore(new Date(a.date + 'T' + (a.time || '00:00')), startOfToday())).length === 0 ? (
+                  <div className="text-center py-12 text-stone-400 bg-white rounded-xl border border-stone-200">
+                    <Calendar className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                    <p className="text-lg font-medium">No upcoming appointments</p>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-stone-50 border-b border-stone-200 text-xs font-bold text-stone-500 uppercase tracking-wider">
+                            <th className="px-4 py-3">Date & Time</th>
+                            <th className="px-4 py-3">Doctor</th>
+                            <th className="px-4 py-3">Status</th>
+                            <th className="px-4 py-3">Notes</th>
+                            <th className="px-4 py-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100 text-sm">
+                          {[...appointments]
+                            .filter(a => a.status !== 'cancelled' && a.status !== 'completed' && !isBefore(new Date(a.date + 'T' + (a.time || '00:00')), startOfToday()))
+                            .sort((a: any, b: any) => new Date(a.date + 'T' + (a.time || '00:00')).getTime() - new Date(b.date + 'T' + (b.time || '00:00')).getTime())
+                            .map(appt => (
+                            <tr key={appt.id} className="hover:bg-stone-50/50 transition-colors">
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <p className="font-bold text-stone-700">{format(new Date(appt.date), 'MMM dd, yyyy')}</p>
+                                <p className="text-xs text-stone-400">{appt.time}</p>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-stone-600">{appt.doctorName}</td>
+                              <td className="px-4 py-3 whitespace-nowrap">{getStatusBadge(appt.status)}</td>
+                              <td className="px-4 py-3 text-stone-500 text-xs max-w-[200px] truncate">{appt.notes || '—'}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-right">
+                                <button className="text-emerald-600 hover:text-emerald-700 font-bold text-xs transition-colors">
+                                  View Details
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Past Appointments */}
+              <div>
+                <h2 className="text-lg font-bold text-stone-900 mb-4">Past Appointments ({appointments.filter(a => a.status === 'cancelled' || a.status === 'completed' || isBefore(new Date(a.date + 'T' + (a.time || '00:00')), startOfToday())).length})</h2>
+                {appointments.filter(a => a.status === 'cancelled' || a.status === 'completed' || isBefore(new Date(a.date + 'T' + (a.time || '00:00')), startOfToday())).length === 0 ? (
+                  <div className="text-center py-12 text-stone-400 bg-white rounded-xl border border-stone-200">
+                    <Calendar className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                    <p className="text-lg font-medium">No past appointments</p>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-stone-50 border-b border-stone-200 text-xs font-bold text-stone-500 uppercase tracking-wider">
+                            <th className="px-4 py-3">Date & Time</th>
+                            <th className="px-4 py-3">Doctor</th>
+                            <th className="px-4 py-3">Status</th>
+                            <th className="px-4 py-3">Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100 text-sm">
+                          {[...appointments]
+                            .filter(a => a.status === 'cancelled' || a.status === 'completed' || isBefore(new Date(a.date + 'T' + (a.time || '00:00')), startOfToday()))
+                            .sort((a: any, b: any) => new Date(b.date + 'T' + (b.time || '00:00')).getTime() - new Date(a.date + 'T' + (a.time || '00:00')).getTime())
+                            .map(appt => (
+                            <tr key={appt.id} className="hover:bg-stone-50/50 transition-colors">
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <p className="font-bold text-stone-700">{format(new Date(appt.date), 'MMM dd, yyyy')}</p>
+                                <p className="text-xs text-stone-400">{appt.time}</p>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-stone-600">{appt.doctorName}</td>
+                              <td className="px-4 py-3 whitespace-nowrap">{getStatusBadge(appt.status)}</td>
+                              <td className="px-4 py-3 text-stone-500 text-xs max-w-[200px] truncate">{appt.notes || '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -926,7 +885,7 @@ export default function PetProfile() {
           {/* ADMISSIONS TAB */}
           {activeTab === 'admissions' && (
             <div className="max-w-4xl mx-auto">
-              <h2 className="text-lg font-bold text-stone-900 mb-4">Admissions & Confinement</h2>
+              <h2 className="text-lg font-bold text-stone-900 mb-4">Admissions & Confinement ({admissions.length})</h2>
               {currentAdmission && (
                 <div className="bg-white rounded-xl border border-orange-200 p-4 shadow-sm mb-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -952,7 +911,7 @@ export default function PetProfile() {
               ) : (
                 <div className="space-y-3">
                   <h3 className="text-sm font-bold text-stone-700">Past Admissions</h3>
-                  {admissions.filter(a => a.status !== 'admitted').map((adm: any) => (
+                  {[...admissions].filter(a => a.status !== 'admitted').sort((a: any, b: any) => new Date(b.checkInDate || 0).getTime() - new Date(a.checkInDate || 0).getTime()).map((adm: any) => (
                     <div key={adm.id} className="bg-white rounded-xl border border-stone-200 p-4 shadow-sm">
                       <div className="flex items-start justify-between">
                         <div>
@@ -976,7 +935,7 @@ export default function PetProfile() {
           {activeTab === 'billing' && (
             <div className="max-w-4xl mx-auto">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-stone-900">Billing & Invoices</h2>
+                <h2 className="text-lg font-bold text-stone-900">Billing & Invoices ({invoices.length})</h2>
               </div>
 
               {/* Summary Cards */}
@@ -1019,12 +978,12 @@ export default function PetProfile() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-100 text-sm">
-                        {invoices.map((inv: any) => {
+                        {[...invoices].sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).map((inv: any) => {
                           const total = inv.grandTotal ?? inv.amount ?? 0;
                           const paid = inv.amountPaid ?? 0;
                           const bal = inv.balanceDue ?? (total - paid);
                           return (
-                            <tr key={inv.id} className="hover:bg-stone-50/50 transition-colors">
+                            <tr key={inv.id} className="hover:bg-stone-50/50 transition-colors cursor-pointer" onClick={() => { if(currentUser?.role === 'admin') navigate('/crm/billing'); }}>
                               <td className="px-4 py-3 font-mono font-bold text-xs">{inv.invoiceNo || `INV-${inv.id?.slice(-6)}`}</td>
                               <td className="px-4 py-3 text-stone-600 text-xs">{formatDate(inv.createdAt || inv.date)}</td>
                               <td className="px-4 py-3 text-right font-bold">₱{total.toLocaleString()}</td>
@@ -1043,20 +1002,102 @@ export default function PetProfile() {
               )}
             </div>
           )}
-
-          {/* CRM NOTES TAB */}
-          {activeTab === 'crm-notes' && (
-            <div className="max-w-4xl mx-auto">
-              <h2 className="text-lg font-bold text-stone-900 mb-4">CRM Notes</h2>
-              <div className="text-center py-12 text-stone-400 bg-white rounded-xl border border-stone-200">
-                <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                <p className="text-lg font-medium">No CRM notes yet</p>
-                <p className="text-sm mt-1">Communication and follow-up notes will appear here.</p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Encounter Details Drawer */}
+      <Drawer open={!!selectedEncounter} onOpenChange={(open) => !open && setSelectedEncounter(null)}>
+        <DrawerContent className="w-full sm:max-w-xl">
+          <DrawerHeader className="border-b border-stone-100 pb-4">
+            <DrawerTitle className="text-xl font-bold flex items-center gap-2">
+              <Activity className="w-5 h-5 text-emerald-600" />
+              Visit Record
+            </DrawerTitle>
+            <DrawerDescription>
+              {selectedEncounter && formatDate(selectedEncounter.startedAt)} · Dr. {selectedEncounter?.doctorName || '—'}
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="p-6 overflow-y-auto space-y-6 h-full pb-20">
+            {selectedEncounter && (
+              <>
+                {/* Chief Complaint */}
+                <div className="bg-stone-50 p-4 rounded-xl border border-stone-200">
+                  <p className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-1">Chief Complaint / Reason for Visit</p>
+                  <p className="text-stone-900 font-medium">{selectedEncounter.chiefComplaint || 'Routine checkup'}</p>
+                </div>
+
+                {/* Vitals */}
+                {selectedEncounter.vitals && Object.keys(selectedEncounter.vitals).length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-bold text-stone-900 mb-3 flex items-center gap-2"><Heart className="w-4 h-4 text-rose-500" /> Triage & Vitals</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {selectedEncounter.vitals.weight && <div className="p-3 bg-white border border-stone-200 rounded-lg"><span className="block text-[10px] text-stone-500 uppercase font-bold">Weight</span><span className="font-medium">{selectedEncounter.vitals.weight} kg</span></div>}
+                      {selectedEncounter.vitals.temperature && <div className="p-3 bg-white border border-stone-200 rounded-lg"><span className="block text-[10px] text-stone-500 uppercase font-bold">Temp</span><span className="font-medium">{selectedEncounter.vitals.temperature} °C</span></div>}
+                      {selectedEncounter.vitals.heartRate && <div className="p-3 bg-white border border-stone-200 rounded-lg"><span className="block text-[10px] text-stone-500 uppercase font-bold">Heart Rate</span><span className="font-medium">{selectedEncounter.vitals.heartRate} bpm</span></div>}
+                      {selectedEncounter.vitals.respiratoryRate && <div className="p-3 bg-white border border-stone-200 rounded-lg"><span className="block text-[10px] text-stone-500 uppercase font-bold">Resp Rate</span><span className="font-medium">{selectedEncounter.vitals.respiratoryRate} /min</span></div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Clinical Notes (SOAP) */}
+                {selectedEncounter.clinicalNotes && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2"><ClipboardList className="w-4 h-4 text-blue-500" /> Clinical Notes</h3>
+                    
+                    {selectedEncounter.clinicalNotes.subjective && (
+                      <div className="p-3 bg-blue-50/50 rounded-lg text-sm border border-blue-100">
+                        <span className="font-bold text-blue-800 block mb-1">Subjective (History)</span>
+                        <p className="text-stone-700 whitespace-pre-wrap">{selectedEncounter.clinicalNotes.subjective}</p>
+                      </div>
+                    )}
+                    
+                    {selectedEncounter.clinicalNotes.objective && (
+                      <div className="p-3 bg-emerald-50/50 rounded-lg text-sm border border-emerald-100">
+                        <span className="font-bold text-emerald-800 block mb-1">Objective (Physical Exam)</span>
+                        <p className="text-stone-700 whitespace-pre-wrap">{selectedEncounter.clinicalNotes.objective}</p>
+                      </div>
+                    )}
+                    
+                    {selectedEncounter.clinicalNotes.assessment && (
+                      <div className="p-3 bg-purple-50/50 rounded-lg text-sm border border-purple-100">
+                        <span className="font-bold text-purple-800 block mb-1">Assessment (Diagnosis)</span>
+                        <p className="text-stone-700 whitespace-pre-wrap">{selectedEncounter.clinicalNotes.assessment}</p>
+                      </div>
+                    )}
+
+                    {selectedEncounter.clinicalNotes.plan && (
+                      <div className="p-3 bg-orange-50/50 rounded-lg text-sm border border-orange-100">
+                        <span className="font-bold text-orange-800 block mb-1">Plan (Treatment/Instructions)</span>
+                        <p className="text-stone-700 whitespace-pre-wrap">{selectedEncounter.clinicalNotes.plan}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Plan Items / Prescriptions */}
+                {selectedEncounter.clinicalNotes?.planItems?.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-bold text-stone-900 mb-3 flex items-center gap-2"><Pill className="w-4 h-4 text-indigo-500" /> Prescriptions & Treatments</h3>
+                    <div className="space-y-2">
+                      {selectedEncounter.clinicalNotes.planItems.map((item: any, i: number) => (
+                        <div key={item.id || i} className="p-3 bg-white border border-stone-200 rounded-lg flex items-start gap-3">
+                          <div className={`p-2 rounded-lg ${item.type === 'prescription' ? 'bg-indigo-50 text-indigo-600' : 'bg-stone-100 text-stone-600'}`}>
+                            {item.type === 'prescription' ? <Pill className="w-4 h-4" /> : <Activity className="w-4 h-4" />}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-stone-900">{item.name || item.medicationName || item.treatmentName || 'Treatment'}</p>
+                            <p className="text-xs text-stone-500 mt-1">{item.instructions || item.dosage || '—'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {/* Edit Dialog */}
       {pet && (

@@ -19,22 +19,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          setUser({ ...userDoc.data(), uid: firebaseUser.uid } as UserProfile);
-        } else {
-          // Fallback if document doesn't exist yet
-          const newUser: UserProfile = {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            displayName: firebaseUser.displayName || '',
-            photoURL: firebaseUser.photoURL || '',
-            role: 'client',
-            createdAt: new Date().toISOString()
-          };
-          setUser(newUser);
+        console.log("AuthContext: Attempting to fetch user doc for UID:", firebaseUser.uid);
+        try {
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          console.log("AuthContext: Successfully fetched user doc. Exists?", userDoc.exists());
+          if (userDoc.exists()) {
+            setUser({ ...userDoc.data(), uid: firebaseUser.uid } as UserProfile);
+          } else {
+            // Fallback if document doesn't exist yet
+            const newUser: UserProfile = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              displayName: firebaseUser.displayName || '',
+              photoURL: firebaseUser.photoURL || '',
+              role: 'client',
+              createdAt: new Date().toISOString()
+            };
+            setUser(newUser);
+          }
+        } catch (error) {
+          console.error("AuthContext: Error fetching user doc:", error);
+          setUser(null); // Set to null so the app doesn't crash completely
         }
       } else {
+        console.log("AuthContext: No firebaseUser found, setting user to null.");
         setUser(null);
       }
       setLoading(false);

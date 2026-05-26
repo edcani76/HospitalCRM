@@ -115,7 +115,15 @@ export default function BillingPage() {
   };
   const getSource = (b: any) => b.source || b.encounterId ? 'Consultation' : 'Manual';
   const getInvoiceNo = (b: any) => b.invoiceNo || `INV-${b.id?.slice(-6)?.toUpperCase() || '000000'}`;
-  const getDueDate = (b: any) => b.dueDate?.toDate ? format(b.dueDate.toDate(), 'MMM dd, yyyy') : b.dueDate || '—';
+  const getDueDate = (b: any) => {
+    if (b.dueDate?.toDate) {
+      try { return format(b.dueDate.toDate(), 'MMM dd, yyyy'); } catch {}
+    }
+    if (typeof b.dueDate === 'string' && b.dueDate) {
+      try { return format(parseISO(b.dueDate), 'MMM dd, yyyy'); } catch {}
+    }
+    return '—';
+  };
   const getInvoiceDate = (b: any) => {
     if (b.createdAt?.toDate) {
       try { return format(b.createdAt.toDate(), 'MMM dd, yyyy'); } catch {}

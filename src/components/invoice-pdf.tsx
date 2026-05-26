@@ -150,7 +150,10 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
           {lineItems.length > 0 ? lineItems.map((item: any, index: number) => (
             <View key={index} style={styles.tableRow}>
               <Text style={styles.colNum}>{item.quantity || 1}</Text>
-              <Text style={styles.colDesc}>{item.description || 'Service'}</Text>
+              <Text style={styles.colDesc}>
+                {item.serviceCode ? `[${item.serviceCode}] ` : ''}
+                {item.description || 'Service'}
+              </Text>
               <Text style={styles.colPrice}>{fmt(item.unitPrice || 0)}</Text>
               <Text style={styles.colTotal}>{fmt(item.lineTotal || 0)}</Text>
             </View>

@@ -84,7 +84,7 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="relative flex h-[calc(100vh-64px)] bg-[#f8fafc] overflow-hidden font-sans">
+    <div className="relative flex h-[calc(100vh-128px)] bg-[#f8fafc] overflow-hidden font-sans border border-slate-200 rounded-xl shadow-sm">
       {/* Mobile overlay - blocks interaction with main content when sidebar is open */}
       <AnimatePresence>
         {isMobile && mobileOpen && (

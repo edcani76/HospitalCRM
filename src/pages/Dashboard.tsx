@@ -3,7 +3,7 @@ import { auth, db, collection, query, where, onSnapshot, doc, getDoc, getDocs, a
 import { Appointment, Report, UserProfile, Invoice, Pet } from '../types';
 import { motion } from 'motion/react';
 import { LayoutDashboard, Calendar, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, User, ArrowRight, Download, Activity, ChevronRight, Edit, Ban, X, PawPrint, Camera } from 'lucide-react';
-import { format, addDays, startOfToday, differenceInYears, differenceInMonths, isToday, isAfter } from 'date-fns';
+import { format, addDays, startOfToday, differenceInYears, differenceInMonths, isToday, isAfter, isPast, parseISO } from 'date-fns';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import { Badge } from '../components/ui/badge';
@@ -11,6 +11,8 @@ import { useAuth } from '../contexts/AuthContext';
 import PetDialog from '../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../lib/google-drive';
 import { ServiceSelector } from '../components/ServiceSelector';
+import { pdf } from '@react-pdf/renderer';
+import { InvoicePDF } from '../components/invoice-pdf';
 
 function PetImage({ pet }: { pet: Pet }) {
   const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(pet.name)}&background=10b981&color=fff&size=200&font-size=0.33&bold=false`;
@@ -69,6 +71,7 @@ export default function Dashboard() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'pets' | 'appointments' | 'billing' | 'records' | 'profile'>('overview');
   const [isPetDialogOpen, setIsPetDialogOpen] = useState(false);
   const [isSubmittingPet, setIsSubmittingPet] = useState(false);
@@ -90,6 +93,40 @@ export default function Dashboard() {
   const [consentTerms, setConsentTerms] = useState(false);
   const [consentTimestamps, setConsentTimestamps] = useState<{ privacy?: string; terms?: string }>({});
 
+  const handleDownloadInvoice = async (inv: Invoice) => {
+    try {
+      setIsDownloading(inv.id!);
+      const pet = pets.find(p => p.id === inv.petId);
+      
+      let invoiceItems: any[] = [];
+      try {
+        const itemsSnap = await getDocs(collection(db, `invoices/${inv.id}/items`));
+        invoiceItems = itemsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } catch (e) {}
+
+      let payments: any[] = [];
+      try {
+        const paymentsSnap = await getDocs(query(collection(db, 'payments'), where('invoiceId', '==', inv.id)));
+        payments = paymentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } catch (e) {}
+
+      const docPdf = await pdf(<InvoicePDF invoice={inv} invoiceItems={invoiceItems} payments={payments} patient={pet} owner={user} />).toBlob();
+      
+      const url = URL.createObjectURL(docPdf);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice_${inv.invoiceNo || inv.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+    } finally {
+      setIsDownloading(null);
+    }
+  };
+
   useEffect(() => {
     const tab = (location.state as any)?.tab;
     if (tab) setActiveTab(tab);
@@ -110,6 +147,8 @@ export default function Dashboard() {
     if (!user || !user.uid) return;
     let mounted = true;
 
+    let unsubAttachments: () => void = () => {};
+
     // Listen to Appointments
     const qAppointments = query(
       collection(db, 'appointments'),
@@ -127,34 +166,33 @@ export default function Dashboard() {
       setAppointments(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     });
 
-    // Listen to Reports
-    const qReports = query(
-      collection(db, 'reports'),
-      where('clientUid', '==', user.uid)
-    );
-    const unsubReports = onSnapshot(qReports, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Report));
-      setReports(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-      setLoading(false);
-    });
-
     // Listen to Invoices
     const qInvoices = query(
       collection(db, 'invoices'),
       where('clientUid', '==', user.uid)
     );
     const unsubInvoices = onSnapshot(qInvoices, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
+      const data = snapshot.docs.map(doc => {
+        const d = doc.data();
+        return { 
+          id: doc.id, 
+          ...d,
+          dueDate: d.dueDate?.toDate ? d.dueDate.toDate().toISOString() : d.dueDate,
+          date: d.date?.toDate ? d.date.toDate().toISOString() : d.date || d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
+        } as Invoice;
+      });
       setInvoices(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     });
 
-    // Fetch Pets — check linkedTo for migrated guest users
+    // Fetch Pets & Attachments (EMR Vault) — check linkedTo for migrated guest users
     (async () => {
       const ownerUids = [user.uid];
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (userDoc.exists() && userDoc.data()?.linkedTo) {
         ownerUids.push(userDoc.data().linkedTo);
       }
+
+      // Pets
       const qPets = query(
         collection(db, 'pets'),
         where('ownerUid', 'in', ownerUids)
@@ -163,12 +201,50 @@ export default function Dashboard() {
       if (!mounted) return;
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pet));
       setPets(data);
+
+      // Attachments
+      const petIds = data.map(p => p.id);
+      if (petIds.length > 0) {
+        // chunk the petIds array if it exceeds 10 to avoid Firestore limits, but usually it's less than 10
+        const qAttachments = query(
+          collection(db, 'attachments'),
+          where('patientId', 'in', petIds.slice(0, 10))
+        );
+        unsubAttachments = onSnapshot(qAttachments, (snap) => {
+          const attData = snap.docs.map(doc => {
+            const d = doc.data();
+            let dateStr = '';
+            if (d.uploadedAt) {
+              dateStr = d.uploadedAt.toDate ? d.uploadedAt.toDate().toISOString() : new Date(d.uploadedAt.seconds * 1000).toISOString();
+            } else if (d.date) {
+              dateStr = d.date;
+            }
+            return {
+              id: doc.id,
+              title: d.fileName || d.title || 'Medical Report',
+              description: d.notes || (d.encounterId ? `Medical Record Reference: ${d.encounterId}` : 'Clinical Document'),
+              date: dateStr,
+              fileUrl: d.fileUrl || d.downloadUrl || '',
+              petId: d.patientId || d.petId || '',
+              clientUid: d.ownerUid || ''
+            } as Report;
+          });
+          setReports(attData.sort((a, b) => {
+            const timeA = a.date ? new Date(a.date).getTime() : 0;
+            const timeB = b.date ? new Date(b.date).getTime() : 0;
+            return timeB - timeA;
+          }));
+        });
+      } else {
+        setReports([]);
+      }
+
       setLoading(false);
     })();
 
     return () => {
       unsubAppointments();
-      unsubReports();
+      unsubAttachments();
       unsubInvoices();
       mounted = false;
     };
@@ -257,8 +333,14 @@ export default function Dashboard() {
   );
   const todayCount = todayAppointments.length;
 
-  const activeInvoices = invoices.filter(i => i.status === 'active');
-  const totalBalance = invoices.filter(i => i.status === 'active').reduce((sum, inv) => sum + inv.amount, 0);
+  const getInvoiceBalance = (inv: Invoice) => inv.balanceDue ?? ((inv.grandTotal ?? inv.amount ?? 0) - (inv.amountPaid ?? 0));
+  const isInvoicePending = (inv: Invoice) => {
+    const s = inv.status?.toLowerCase() || '';
+    if (s === 'paid' || s === 'void' || s === 'refunded') return false;
+    return getInvoiceBalance(inv) > 0;
+  };
+  const activeInvoices = invoices.filter(isInvoicePending);
+  const totalBalance = activeInvoices.reduce((sum, inv) => sum + getInvoiceBalance(inv), 0);
 
   const welcomeMessage = (() => {
     const firstName = user?.displayName?.split(' ')[0] || 'Pet Parent';
@@ -312,10 +394,10 @@ export default function Dashboard() {
 
   const billingTabMessage = (() => {
     const firstName = user?.displayName?.split(' ')[0] || 'Pet Parent';
-    const paid = invoices.filter(i => i.status === 'paid');
-    const pending = invoices.filter(i => i.status === 'active');
-    const totalSpent = paid.reduce((sum, inv) => sum + inv.amount, 0);
-    const totalOwed = pending.reduce((sum, inv) => sum + inv.amount, 0);
+    const paid = invoices.filter(i => !isInvoicePending(i));
+    const pending = invoices.filter(isInvoicePending);
+    const totalSpent = invoices.reduce((sum, inv) => sum + (inv.amountPaid ?? (inv.status === 'paid' ? (inv.grandTotal ?? inv.amount ?? 0) : 0)), 0);
+    const totalOwed = pending.reduce((sum, inv) => sum + getInvoiceBalance(inv), 0);
     const messages = [
       `${invoices.length} invoice${invoices.length !== 1 ? 's' : ''} total. ${totalOwed > 0 ? `₱${totalOwed.toFixed(0)} outstanding.` : 'All clear — no outstanding balance.'}`,
       `${firstName}'s Billing: ₱${totalSpent.toFixed(0)} spent, ${totalOwed > 0 ? `₱${totalOwed.toFixed(0)} pending.` : 'fully paid up.'}`,
@@ -580,7 +662,7 @@ export default function Dashboard() {
               {[
                 { label: 'Registered Pets', value: pets.length, icon: PawPrint, color: 'text-blue-500', bg: 'bg-blue-50', shadow: 'shadow-blue-500/10' },
                 { label: 'Scheduled Visits', value: appointments.filter(a => a.status === 'confirmed' || a.status === 'unconfirmed').length, icon: Calendar, color: 'text-emerald-500', bg: 'bg-emerald-50', shadow: 'shadow-emerald-500/10' },
-                { label: 'Outstanding Balance', value: `₱${invoices.filter(i => i.status === 'active').reduce((sum, inv) => sum + inv.amount, 0).toFixed(0)}`, icon: FileText, color: 'text-rose-500', bg: 'bg-rose-50', shadow: 'shadow-rose-500/10' }
+                { label: 'Outstanding Balance', value: `₱${totalBalance.toFixed(0)}`, icon: FileText, color: 'text-rose-500', bg: 'bg-rose-50', shadow: 'shadow-rose-500/10' }
               ].map((stat, i) => (
                 <div key={i} className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
                   <div className="relative z-10">
@@ -965,9 +1047,17 @@ export default function Dashboard() {
                   {invoices.map((inv) => (
                     <div key={inv.id} className="p-6 flex flex-col md:flex-row items-center justify-between hover:bg-rose-50/20 transition-colors group gap-4">
                       <div className="flex items-center gap-6">
-                        <div className="w-14 h-14 bg-slate-50 rounded-lg flex items-center justify-center text-slate-300 group-hover:text-rose-500 transition-all border border-slate-100">
-                          <Download className="w-6 h-6" />
-                        </div>
+                        <button 
+                          onClick={() => handleDownloadInvoice(inv)}
+                          disabled={isDownloading === inv.id}
+                          className="w-14 h-14 bg-slate-50 rounded-lg flex items-center justify-center text-slate-300 group-hover:text-rose-500 hover:bg-rose-100 transition-all border border-slate-100 cursor-pointer disabled:opacity-50"
+                        >
+                          {isDownloading === inv.id ? (
+                            <div className="w-5 h-5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Download className="w-6 h-6" />
+                          )}
+                        </button>
                         <div>
                           <h4 className="font-semibold text-base text-slate-900">{inv.description}</h4>
                           <p className="text-xs font-medium text-slate-400 mt-0.5">
@@ -976,11 +1066,26 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="flex flex-col items-center md:items-end gap-1">
-                        <p className="text-xl font-bold text-slate-900">₱{(inv.amount ?? 0).toFixed(2)}</p>
-                        <div className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-md text-[10px] font-semibold ${inv.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                          <div className={`w-1.5 h-1.5 rounded-full ${inv.status === 'paid' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
-                          {inv.status}
-                        </div>
+                        <p className="text-xl font-bold text-slate-900">₱{((inv.grandTotal ?? inv.amount ?? 0)).toFixed(2)}</p>
+                        {(() => {
+                          let s = inv.status?.toLowerCase() || 'draft';
+                          const bal = (inv.grandTotal ?? inv.amount ?? 0) - (inv.amountPaid ?? 0);
+                          if (s !== 'draft' && s !== 'paid' && s !== 'void' && s !== 'refunded') {
+                            if (bal <= 0) s = 'paid';
+                            else if (inv.dueDate && typeof inv.dueDate === 'string' && isPast(parseISO(inv.dueDate))) s = 'overdue';
+                            else if (inv.amountPaid && inv.amountPaid > 0) s = 'partial';
+                            else s = 'unpaid';
+                          }
+                          const isPaid = s === 'paid';
+                          const isOverdue = s === 'overdue';
+                          const displayStatus = s === 'partially_paid' || s === 'partial' ? 'Partial' : s.charAt(0).toUpperCase() + s.slice(1);
+                          return (
+                            <div className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-md text-[10px] font-semibold ${isPaid ? 'bg-emerald-50 text-emerald-600' : isOverdue ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'}`}>
+                              <div className={`w-1.5 h-1.5 rounded-full ${isPaid ? 'bg-emerald-500' : isOverdue ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'}`} />
+                              {displayStatus}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   ))}
@@ -1033,9 +1138,11 @@ export default function Dashboard() {
                       </p>
                     </div>
                   </div>
-                  <button className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm">
-                    <Download className="w-4 h-4" /> Download PDF
-                  </button>
+                  {report.fileUrl && (
+                    <a href={report.fileUrl} target="_blank" rel="noopener noreferrer" className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm">
+                      <Download className="w-4 h-4" /> View / Download PDF
+                    </a>
+                  )}
                 </div>
               ))}
             </div>

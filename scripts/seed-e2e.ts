@@ -178,31 +178,48 @@ async function seedEndToEndData() {
   await clearCollection('stock_movements');
   console.log('');
 
-  // Fetch existing users and pets
+  // Define the required pets and their target owners
+  const requiredPets = [
+    { name: 'Buddy', species: 'Dog', breed: 'Golden Retriever', ownerUid: testUser1, weight: 32, dateOfBirth: '2020-03-15', gender: 'Male', color: 'Golden' },
+    { name: 'Whiskers', species: 'Cat', breed: 'Siamese', ownerUid: testUser1, weight: 4.5, dateOfBirth: '2018-06-10', gender: 'Female', color: 'Seal Point' },
+    { name: 'Max', species: 'Dog', breed: 'German Shepherd', ownerUid: testUser1, weight: 38, dateOfBirth: '2019-11-20', gender: 'Male', color: 'Black & Tan' },
+    { name: 'Luna', species: 'Cat', breed: 'Domestic Shorthair', ownerUid: testUser2, weight: 3.8, dateOfBirth: '2021-04-05', gender: 'Female', color: 'Tuxedo' },
+    { name: 'Charlie', species: 'Dog', breed: 'Beagle', ownerUid: testUser2, weight: 12, dateOfBirth: '2022-01-15', gender: 'Male', color: 'Tricolor' },
+    { name: 'Rocky', species: 'Dog', breed: 'Boxer', ownerUid: testUser2, weight: 26, dateOfBirth: '2017-08-30', gender: 'Male', color: 'Brindle' }
+  ];
+
+  // Fetch existing users
   const usersSnap = await getDocs(collection(db, 'users'));
   const users: Record<string, any> = {};
   usersSnap.forEach(d => { users[d.id] = { id: d.id, ...d.data() }; });
 
+  console.log('🐾 Setting up required pets...');
   const petsSnap = await getDocs(collection(db, 'pets'));
-  const pets: Record<string, any> = {};
-  petsSnap.forEach(d => { pets[d.id] = { id: d.id, ...d.data() }; });
-  const petsByName: Record<string, any> = {};
-  Object.values(pets).forEach(p => { petsByName[p.name] = p; });
+  const existingPetsByName: Record<string, any> = {};
+  petsSnap.forEach(d => { existingPetsByName[d.data().name] = { id: d.id, ...d.data() }; });
 
-  // Distribute pets between test users
-  const petIds = Object.keys(pets);
-  for (let i = 0; i < petIds.length; i++) {
-    const ownerUid = i % 2 === 0 ? testUser1 : testUser2;
-    const petId = petIds[i];
-    await updateDocument('pets', petId, { ownerUid });
-    pets[petId].ownerUid = ownerUid; // update local copy
+  const petsByName: Record<string, any> = {};
+  
+  for (const petData of requiredPets) {
+    if (existingPetsByName[petData.name]) {
+      const petId = existingPetsByName[petData.name].id;
+      await updateDoc(doc(db, 'pets', petId), { ownerUid: petData.ownerUid });
+      petsByName[petData.name] = { ...existingPetsByName[petData.name], ownerUid: petData.ownerUid };
+    } else {
+      const petRef = await addDoc(collection(db, 'pets'), {
+        ...petData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      petsByName[petData.name] = { id: petRef.id, ...petData };
+    }
   }
 
   const doctorsSnap = await getDocs(collection(db, 'doctors'));
   const doctors: any[] = [];
   doctorsSnap.forEach(d => { doctors.push({ id: d.id, ...d.data() }); });
 
-  console.log(`   Found ${Object.keys(users).length} users, ${Object.keys(pets).length} pets, ${doctors.length} doctors\n`);
+  console.log(`   Found ${Object.keys(users).length} users, ${Object.keys(petsByName).length} pets, ${doctors.length} doctors\n`);
 
   // --- PHARMACY SETUP ---
   const medicationsList = [
@@ -787,12 +804,20 @@ async function seedEndToEndData() {
   }
 
   // Generate encounters for each pet
-  for (const scenario of visitScenarios) {
+  console.log('📅 Creating appointments, EMRs, labs, and billing...\n');
+
+  let encounterCount = 0;
+  for (let i = 0; i < visitScenarios.length; i++) {
+    const scenario = visitScenarios[i];
     const pet = petsByName[scenario.petName];
     if (!pet) {
-      console.log(`   Skipping ${scenario.petName} - pet not found`);
+      console.log(`   ⚠️ Pet ${scenario.petName} not found, skipping scenario`);
       continue;
     }
+    const ownerUid = pet.ownerUid;
+
+    const targetDocIndex = doctors.findIndex(d => d.id === scenario.visits[0].doctorId);
+    const docData = targetDocIndex >= 0 ? doctors[targetDocIndex] : doctors[0];
 
     createdEncounters[scenario.petName] = [];
 
@@ -974,6 +999,16 @@ async function seedEndToEndData() {
             );
             if (fileUrl) {
               await updateDoc(doc(db, 'lab_orders', labRef.id), { resultFileUrls: [fileUrl] });
+              await addDoc(collection(db, 'attachments'), {
+                encounterId,
+                patientId: pet.id,
+                fileName: `${pet.name}_${lab.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+                fileType: 'pdf',
+                fileUrl: fileUrl,
+                storagePath: `sample/${pet.name.toLowerCase()}/lab-results.pdf`,
+                uploadedBy: 'seed-script',
+                uploadedAt: visitDate
+              });
             }
           }
         }
@@ -1114,6 +1149,8 @@ async function seedEndToEndData() {
           petId: pet.id,
           petName: pet.name,
           clientUid: pet.ownerUid,
+          doctorId: doctor.id,
+          doctorName: doctor.name,
           invoiceNo: `INV-${String(createdEncounters[scenario.petName].length + 1).padStart(3, '0')}-${pet.name.toUpperCase().slice(0, 3)}`,
           status: invoiceStatus,
           subTotal,
@@ -1202,37 +1239,7 @@ async function seedEndToEndData() {
 
   // Create some attachments (medical records) for a few encounters
   console.log('\n   Creating sample attachments...');
-  for (const petName of ['Buddy', 'Whiskers', 'Max']) {
-    const encounters = createdEncounters[petName];
-    if (!encounters || encounters.length === 0) continue;
-
-    const firstEnc = encounters[0];
-
-    await addDoc(collection(db, 'attachments'), {
-      encounterId: firstEnc.id,
-      patientId: petsByName[petName].id,
-      fileName: `${petName}_XRay_Report.pdf`,
-      fileType: 'pdf',
-      fileUrl: 'https://example.com/sample-xray-report.pdf',
-      storagePath: `sample/${petName.toLowerCase()}/xray-report.pdf`,
-      uploadedBy: 'seed-script',
-      uploadedAt: timestamp(firstEnc.date)
-    });
-
-    await addDoc(collection(db, 'attachments'), {
-      encounterId: firstEnc.id,
-      patientId: petsByName[petName].id,
-      fileName: `${petName}_Lab_Results.pdf`,
-      fileType: 'pdf',
-      fileUrl: 'https://example.com/sample-lab-results.pdf',
-      storagePath: `sample/${petName.toLowerCase()}/lab-results.pdf`,
-      uploadedBy: 'seed-script',
-      uploadedAt: timestamp(firstEnc.date)
-    });
-
-    console.log(`   Created attachments for ${petName}`);
-  }
-
+  // Dummy attachments block removed - attachments are now dynamically generated with real Drive links.
   console.log('\n🎉 End-to-end seed data complete!\n');
   console.log('📋 Summary:');
   for (const petName of Object.keys(createdEncounters)) {

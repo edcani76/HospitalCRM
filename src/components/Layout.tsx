@@ -20,18 +20,30 @@ export default function Layout({ children, showFooter = true }: { children: Reac
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          setUser(userDoc.data() as UserProfile);
-        } else {
-          // If user exists in Auth but not in Firestore yet
+        try {
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
+            setUser(userDoc.data() as UserProfile);
+          } else {
+            // If user exists in Auth but not in Firestore yet
+            setUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              displayName: firebaseUser.displayName || '',
+              photoURL: firebaseUser.photoURL || '',
+              role: 'client',
+              createdAt: new Date().toISOString() as any
+            });
+          }
+        } catch (error) {
+          console.error("Layout: Error fetching user doc:", error);
           setUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email || '',
             displayName: firebaseUser.displayName || '',
             photoURL: firebaseUser.photoURL || '',
             role: 'client',
-            createdAt: new Date()
+            createdAt: new Date().toISOString() as any
           });
         }
       } else {

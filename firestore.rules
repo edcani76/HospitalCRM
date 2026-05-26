@@ -212,6 +212,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /attachments/{attachmentId} {
+      allow read: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin() || isDoctor() || isStaff());
+      allow create: if isAuthenticated() && (request.auth.uid == request.resource.data.ownerUid || isAdmin() || isDoctor() || isStaff());
+      allow update: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin() || isDoctor() || isStaff());
+      allow delete: if isAdmin();
+    }
+
     // Allow authenticated users to read their own notifications
     match /notifications/{notificationId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;

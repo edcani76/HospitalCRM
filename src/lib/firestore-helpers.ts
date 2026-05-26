@@ -199,7 +199,7 @@ export async function fetchAppointments(filters?: any) {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   };
-  return fetchWithCache('appointments', queryFn);
+  return queryFn(); // Bypass cache
 }
 
 export async function fetchInvoices(filters?: any) {
@@ -209,9 +209,11 @@ export async function fetchInvoices(filters?: any) {
     if (filters?.petId) q = query(collection(db, 'invoices'), where('petId', '==', filters.petId));
     if (filters?.status) q = query(collection(db, 'invoices'), where('status', '==', filters.status));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    const results = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    console.log(`fetchInvoices(${JSON.stringify(filters)}) returned ${results.length} invoices`);
+    return results;
   };
-  return fetchWithCache('invoices', queryFn);
+  return queryFn(); // Bypass cache
 }
 
 export async function fetchReports(filters?: any) {
@@ -223,7 +225,7 @@ export async function fetchReports(filters?: any) {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   };
-  return fetchWithCache('reports', queryFn);
+  return queryFn(); // Bypass cache
 }
 
 export async function fetchMedications() {
@@ -790,7 +792,7 @@ export async function fetchAdmissions(petId?: string) {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   };
-  return fetchWithCache('admissions', queryFn);
+  return queryFn(); // Bypass cache
 }
 
 // Create Lab Order
