@@ -32,6 +32,8 @@ interface DashboardLayoutProps {
   user: UserProfile | null;
   title?: string;
   breadcrumbs?: BreadcrumbItem[];
+  searchQuery?: string;
+  onSearchChange?: (val: string) => void;
 }
 
 export default function DashboardLayout({ 
@@ -41,7 +43,9 @@ export default function DashboardLayout({
   onTabChange, 
   user,
   title = "Dashboard",
-  breadcrumbs
+  breadcrumbs,
+  searchQuery,
+  onSearchChange
 }: DashboardLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expanded, setExpanded] = useState(true);
@@ -239,6 +243,8 @@ export default function DashboardLayout({
               <input 
                 type="text" 
                 placeholder="Search..." 
+                value={searchQuery || ''}
+                onChange={(e) => onSearchChange?.(e.target.value)}
                 className="bg-slate-50 border-none rounded-md py-1.5 pr-3 pl-9 text-xs focus:ring-2 focus:ring-emerald-500/10 focus:bg-white transition-all outline-none w-48"
               />
             </div>

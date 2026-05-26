@@ -7,6 +7,7 @@ import { format, addDays, startOfToday, differenceInYears, differenceInMonths, i
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import { Badge } from '../components/ui/badge';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../components/ui/drawer';
 import { useAuth } from '../contexts/AuthContext';
 import PetDialog from '../components/crm/pet-dialog';
 import { uploadToGoogleDrive } from '../lib/google-drive';
@@ -103,6 +104,60 @@ export default function Dashboard() {
   const [consentPrivacy, setConsentPrivacy] = useState(false);
   const [consentTerms, setConsentTerms] = useState(false);
   const [consentTimestamps, setConsentTimestamps] = useState<{ privacy?: string; terms?: string }>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [billingFilter, setBillingFilter] = useState('all');
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [selectedInvoiceItems, setSelectedInvoiceItems] = useState<any[]>([]);
+  const [selectedInvoicePayments, setSelectedInvoicePayments] = useState<any[]>([]);
+  const [isLoadingInvoiceItems, setIsLoadingInvoiceItems] = useState(false);
+
+  useEffect(() => {
+    if (selectedInvoice && selectedInvoice.id) {
+      setIsLoadingInvoiceItems(true);
+
+      const fetchItems = async () => {
+        try {
+          const itemsSnap = await getDocs(query(collection(db, 'invoice_items'), where('invoiceId', '==', selectedInvoice.id)));
+          let items = itemsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          
+          if (items.length === 0) {
+            const subItemsSnap = await getDocs(collection(db, `invoices/${selectedInvoice.id}/items`));
+            items = subItemsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          }
+
+          if (items.length === 0 && (selectedInvoice as any).items) {
+            items = (selectedInvoice as any).items;
+          }
+          setSelectedInvoiceItems(items.filter((i: any) => i.itemType !== 'tax'));
+        } catch (e) {
+          if ((selectedInvoice as any).items) {
+            setSelectedInvoiceItems((selectedInvoice as any).items.filter((i: any) => i.itemType !== 'tax'));
+          } else {
+            setSelectedInvoiceItems([]);
+          }
+        }
+      };
+
+      const fetchPayments = async () => {
+        try {
+          const paymentsSnap = await getDocs(query(collection(db, 'payments'), where('invoiceId', '==', selectedInvoice.id)));
+          setSelectedInvoicePayments(paymentsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        } catch (e) {
+          setSelectedInvoicePayments([]);
+        }
+      };
+
+      Promise.all([fetchItems(), fetchPayments()]).finally(() => setIsLoadingInvoiceItems(false));
+    } else {
+      setSelectedInvoiceItems([]);
+      setSelectedInvoicePayments([]);
+    }
+  }, [selectedInvoice]);
+
+  const handleTabChange = (tab: any) => {
+    setActiveTab(tab);
+    setSearchQuery('');
+  };
 
   const handleDownloadInvoice = async (inv: Invoice) => {
     try {
@@ -111,8 +166,17 @@ export default function Dashboard() {
       
       let invoiceItems: any[] = [];
       try {
-        const itemsSnap = await getDocs(collection(db, `invoices/${inv.id}/items`));
+        const itemsSnap = await getDocs(query(collection(db, 'invoice_items'), where('invoiceId', '==', inv.id)));
         invoiceItems = itemsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        if (invoiceItems.length === 0) {
+          const subItemsSnap = await getDocs(collection(db, `invoices/${inv.id}/items`));
+          invoiceItems = subItemsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        }
+
+        if (invoiceItems.length === 0 && (inv as any).items) {
+          invoiceItems = (inv as any).items;
+        }
       } catch (e) {}
 
       let payments: any[] = [];
@@ -364,7 +428,7 @@ export default function Dashboard() {
       `Good day, ${firstName}! ${petCount > 0 ? `${petNames.join(' & ')} ${petCount === 1 ? 'has' : 'have'} ${petCount} record${petCount > 1 ? 's' : ''} with us.` : ''}${todayCount > 0 ? ` Don't forget — you have a visit scheduled today!` : (upcomingCount > 0 && nextApt?.date) ? ` Your next visit is ${format(new Date(nextApt.date), 'MMM dd')}.` : ''}`,
       `Hello, ${firstName}! ${petCount > 0 ? `Managing ${petCount} pet${petCount > 1 ? 's' : ''}${petNames.length > 0 ? ` including ${petNames.join(', ')}` : ''}.` : ''}${totalBalance > 0 ? ` You have an outstanding balance of ₱${totalBalance.toFixed(0)}.` : ''}${upcomingCount === 0 ? ` Ready to book your next visit?` : ''}`,
       `Hi there, ${firstName}! ${todayCount > 0 ? `You have ${todayCount} visit${todayCount > 1 ? 's' : ''} today — see you soon!` : (upcomingCount > 0 && nextApt?.date) ? `${upcomingCount} visit${upcomingCount > 1 ? 's' : ''} coming up. Next: ${nextApt.petName} on ${format(new Date(nextApt.date), 'MMM dd')}.` : `No visits scheduled — everything looks good!`}`,
-      `Welcome, ${firstName}! ${petCount > 0 ? `${petNames[0]}${petCount > 1 ? ` and ${petCount - 1} other${petCount > 2 ? '' : ''} pet${petCount > 2 ? 's' : ''}` : ''} ${petCount === 1 ? 'is' : 'are'} in great health.` : ''}${activeInvoices.length > 0 ? ` ${activeInvoices.length} invoice${activeInvoices.length > 1 ? 's' : ''} pending.` : ''}`,
+      `Welcome, ${firstName}! ${petCount > 0 ? `${petNames[0]}${petCount > 1 ? ` and ${petCount - 1} other${petCount > 2 ? '' : ''} pet${petCount > 2 ? '' : ''}` : ''} ${petCount === 1 ? 'is' : 'are'} in great health.` : ''}${activeInvoices.length > 0 ? ` ${activeInvoices.length} invoice${activeInvoices.length > 1 ? 's' : ''} pending.` : ''}`,
     ];
 
     const dayIndex = new Date().getDate() % messages.length;
@@ -378,7 +442,7 @@ export default function Dashboard() {
     const petNames = pets.map(p => p.name);
     const messages = [
       `${petCount} registered pet${petCount > 1 ? 's' : ''}: ${petNames.join(', ')}. Click any card to view clinical details.`,
-      `Meet your furry family, ${firstName}! ${petNames[0]}${petCount > 1 ? ` and ${petCount - 1} other${petCount > 2 ? '' : ''} friend${petCount > 2 ? 's' : ''}` : ''} ${petCount === 1 ? 'is' : 'are'} all set.`,
+      `Meet your furry family, ${firstName}! ${petNames[0]}${petCount > 1 ? ` and ${petCount - 1} other${petCount > 2 ? '' : ''} friend${petCount > 2 ? '' : ''}` : ''} ${petCount === 1 ? 'is' : 'are'} all set.`,
       `${firstName}'s Pet Gallery: ${petNames.join(' • ')} — ${petCount} companion${petCount > 1 ? 's' : ''} under your care.`,
       `Caring for ${petCount} pet${petCount > 1 ? 's' : ''}? ${petNames.join(', ')} ${petCount === 1 ? 'has' : 'have'} everything they need.`,
       `Your pets — ${petNames.join(', ')} — ${petCount} total. View profiles, track health, and manage records from here.`,
@@ -430,9 +494,7 @@ export default function Dashboard() {
   })();
 
   const handleNewPetSubmit = async (formData: any) => {
-    console.log('[Pet Submit] handleNewPetSubmit called, user:', !!user, 'photo:', !!formData.photoFile);
     if (!user) {
-      console.error('[Pet Submit] No user, returning');
       setIsSubmittingPet(false);
       return;
     }
@@ -449,8 +511,6 @@ export default function Dashboard() {
         imageUrl = result.downloadUrl || result.webViewLink;
       }
 
-      console.log('[Pet Submit] Saving to Firestore, imageUrl:', imageUrl);
-      // Check for duplicate pet name under same owner (including linked guest)
       if (user) {
         const dupOwnerUids = [user.uid];
         const userDocSnap = await getDoc(doc(db, 'users', user.uid));
@@ -488,12 +548,10 @@ export default function Dashboard() {
         consentTermsTimestamp: formData.consentTermsTimestamp || null,
         createdAt: serverTimestamp()
       });
-      console.log('[Pet Submit] Firestore save complete');
       setIsPetDialogOpen(false);
     } catch (err: any) {
       console.error('[Pet Submit] Failed to register pet:', err);
     } finally {
-      console.log('[Pet Submit] Finally block - stopping spinner');
       setIsSubmittingPet(false);
     }
   };
@@ -595,13 +653,15 @@ export default function Dashboard() {
 
   return (
     <>
-    <DashboardLayout
+      <DashboardLayout
       user={user}
       menuItems={menuItems}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
-      title="Pet Parent Portal"
+      onTabChange={handleTabChange}
+      title={menuItems.find(m => m.id === activeTab)?.label}
       breadcrumbs={breadcrumbs}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
     >
       <div className="space-y-12 pb-12">
         {activeTab === 'overview' && (
@@ -834,7 +894,7 @@ export default function Dashboard() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pets.map(pet => (
+              {pets.filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(pet => (
                 <Link 
                   key={pet.id} 
                   to={`/pet/${pet.id}`}
@@ -921,10 +981,11 @@ export default function Dashboard() {
             
             {(() => {
               const today = new Date(new Date().toDateString());
-              const upcoming = appointments
+              const filtered = appointments.filter(a => !searchQuery || a.petName.toLowerCase().includes(searchQuery.toLowerCase()));
+              const upcoming = filtered
                 .filter(a => a.status !== 'cancelled' && new Date(a.date) >= today)
                 .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-              const past = appointments
+              const past = filtered
                 .filter(a => a.status === 'completed' || a.status === 'cancelled' || new Date(a.date) < today)
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -1048,20 +1109,52 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {pets.length > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                <button
+                  onClick={() => setBillingFilter('all')}
+                  className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                    billingFilter === 'all'
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  All Pets
+                </button>
+                {pets.map(pet => (
+                  <button
+                    key={pet.id}
+                    onClick={() => setBillingFilter(pet.id!)}
+                    className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                      billingFilter === pet.id
+                        ? 'bg-rose-600 text-white'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-rose-50 hover:text-rose-600'
+                    }`}
+                  >
+                    {pet.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
               {invoices.length === 0 ? (
                 <div className="p-16 text-center text-slate-300 text-sm font-medium">No financial history found.</div>
               ) : (
                 <div className="divide-y divide-slate-50">
-                  {[...invoices].sort((a: any, b: any) => getDateMs(b.createdAt || b.date) - getDateMs(a.createdAt || a.date)).map((inv) => (
+                  {[...invoices].filter(i => {
+                    const matchesSearch = !searchQuery || i.petName.toLowerCase().includes(searchQuery.toLowerCase());
+                    const matchesFilter = billingFilter === 'all' || i.petId === billingFilter;
+                    return matchesSearch && matchesFilter;
+                  }).sort((a: any, b: any) => getDateMs(b.createdAt || b.date) - getDateMs(a.createdAt || a.date)).map((inv) => (
                     <div 
                       key={inv.id} 
-                      onClick={() => handleDownloadInvoice(inv)}
+                      onClick={() => setSelectedInvoice(inv)}
                       className="p-6 flex flex-col md:flex-row items-center justify-between hover:bg-rose-50/20 transition-colors group gap-4 cursor-pointer"
                     >
                       <div className="flex items-center gap-6">
                         <button 
-                          onClick={() => handleDownloadInvoice(inv)}
+                          onClick={(e) => { e.stopPropagation(); handleDownloadInvoice(inv); }}
                           disabled={isDownloading === inv.id}
                           className="w-14 h-14 bg-slate-50 rounded-lg flex items-center justify-center text-slate-300 group-hover:text-rose-500 hover:bg-rose-100 transition-all border border-slate-100 cursor-pointer disabled:opacity-50"
                         >
@@ -1127,7 +1220,7 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[...reports].sort((a: any, b: any) => getDateMs(b.date || b.createdAt) - getDateMs(a.date || a.createdAt)).map((report) => (
+              {[...reports].filter(r => !searchQuery || r.title.toLowerCase().includes(searchQuery.toLowerCase())).sort((a: any, b: any) => getDateMs(b.date || b.createdAt) - getDateMs(a.date || a.createdAt)).map((report) => (
                 <div key={report.id} className="bg-white p-6 rounded-xl border border-slate-100 hover:border-indigo-500/20 transition-all shadow-sm hover:shadow-md group flex flex-col justify-between">
                   <div>
                     <div className="flex items-center gap-4 mb-6">
@@ -1594,6 +1687,124 @@ export default function Dashboard() {
           setIsBookAptDrawerOpen(open);
         }} 
       />
+
+    {/* Invoice Detail Drawer */}
+    <Drawer open={!!selectedInvoice} onOpenChange={(open) => !open && setSelectedInvoice(null)}>
+      <DrawerContent className="overflow-y-auto">
+        <DrawerHeader>
+          <DrawerTitle>Invoice Details</DrawerTitle>
+          <DrawerDescription className="sr-only">View invoice details and download</DrawerDescription>
+        </DrawerHeader>
+        {selectedInvoice && (
+          <div className="p-4 md:p-6 space-y-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">{selectedInvoice.description}</h3>
+                <p className="text-sm text-slate-500">Invoice #{selectedInvoice.invoiceNo || selectedInvoice.id?.slice(-6).toUpperCase()}</p>
+                <p className="text-sm text-slate-500 mt-1">Patient: <span className="font-medium text-slate-900">{selectedInvoice.petName}</span></p>
+                {selectedInvoice.dueDate && !isNaN(new Date(selectedInvoice.dueDate).getTime()) && (
+                  <p className="text-sm text-slate-500">Due: <span className="font-medium text-slate-900">{format(new Date(selectedInvoice.dueDate), 'MMM dd, yyyy')}</span></p>
+                )}
+              </div>
+            </div>
+
+            {/* Line Items */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-2">Line Items</h4>
+              {isLoadingInvoiceItems ? (
+                <div className="flex justify-center p-4">
+                  <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : selectedInvoiceItems.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedInvoiceItems.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-start text-sm p-3 bg-slate-50 rounded-lg">
+                      <div className="flex-1">
+                        <p className="font-medium text-slate-900">{item.description || 'Service'}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Qty: {item.quantity || 1} × ₱{((item.unitPrice || 0)).toFixed(2)}</p>
+                      </div>
+                      <p className="font-medium text-slate-900">₱{((item.lineTotal || 0)).toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 italic">No itemized details available.</p>
+              )}
+            </div>
+            
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Subtotal</span>
+                <span className="font-medium">₱{((selectedInvoice.subtotal || ((selectedInvoice.grandTotal ?? selectedInvoice.amount ?? 0) - ((selectedInvoice as any).taxAmount || (selectedInvoice as any).tax || 0)))).toFixed(2)}</span>
+              </div>
+              {((selectedInvoice as any).taxAmount > 0 || (selectedInvoice as any).tax > 0) && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">VAT (12%)</span>
+                  <span className="font-medium">₱{((selectedInvoice as any).taxAmount || (selectedInvoice as any).tax).toFixed(2)}</span>
+                </div>
+              )}
+              {selectedInvoice.discount && selectedInvoice.discount > 0 && (
+                <div className="flex justify-between text-sm text-emerald-600">
+                  <span>Discount</span>
+                  <span className="font-medium">-₱{selectedInvoice.discount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="pt-3 border-t border-slate-200 flex justify-between font-bold text-base text-slate-900">
+                <span>Total Amount</span>
+                <span>₱{((selectedInvoice.grandTotal ?? selectedInvoice.amount ?? 0)).toFixed(2)}</span>
+              </div>
+            </div>
+            
+            <div className="flex justify-between items-center p-4 bg-white border border-slate-200 rounded-xl">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase">Amount Paid</p>
+                <p className="text-lg font-bold text-emerald-600">₱{((selectedInvoice.amountPaid ?? 0)).toFixed(2)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-semibold text-slate-500 uppercase">Balance Due</p>
+                <p className="text-lg font-bold text-rose-600">₱{((selectedInvoice.grandTotal ?? selectedInvoice.amount ?? 0) - (selectedInvoice.amountPaid ?? 0)).toFixed(2)}</p>
+              </div>
+            </div>
+
+            {selectedInvoicePayments.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-2">Payment History</h4>
+                <div className="space-y-2">
+                  {selectedInvoicePayments.map((payment, idx) => {
+                    const paymentDate = payment.paidAt?.toDate?.() || payment.createdAt?.toDate?.();
+                    const pDate = paymentDate ? paymentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+                    return (
+                      <div key={idx} className="flex justify-between items-center text-sm p-3 bg-emerald-50/50 rounded-lg border border-emerald-100">
+                        <div>
+                          <p className="font-medium text-slate-900">{pDate}</p>
+                          <p className="text-xs text-slate-500 capitalize">Mode: {payment.paymentMethod || 'cash'}</p>
+                        </div>
+                        <p className="font-bold text-emerald-600">₱{((payment.amount || 0)).toFixed(2)}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="pt-4 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleDownloadInvoice(selectedInvoice); }}
+                disabled={isDownloading === selectedInvoice.id}
+                className="flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50"
+              >
+                {isDownloading === selectedInvoice.id ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Download className="w-5 h-5" />
+                )}
+                Download PDF
+              </button>
+            </div>
+          </div>
+        )}
+      </DrawerContent>
+    </Drawer>
     </>
   );
 }

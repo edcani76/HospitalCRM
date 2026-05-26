@@ -16,7 +16,7 @@ import { fetchInvoices, fetchPets, fetchUsers, fetchInvoiceItems, fetchPayments,
 import { clearCache } from '../../lib/offline-cache';
 import { sendEmail } from '../../lib/email-service';
 import { invoiceReceipt } from '../../lib/email-templates';
-import { collection, addDoc, serverTimestamp, updateDoc, doc, getDoc, db, auth } from '../../firebase';
+import { collection, addDoc, serverTimestamp, updateDoc, doc, getDoc, db, auth, getDocs, query, where } from '../../firebase';
 import { format, isPast, parseISO } from 'date-fns';
 import { InvoicePDF } from '../../components/invoice-pdf';
 import { pdf } from '@react-pdf/renderer';
@@ -293,13 +293,40 @@ export default function BillingPage() {
   const handleView = async (bill: any) => {
     setSelectedBill(bill);
     try {
-      const [items, pays] = await Promise.all([
-        fetchInvoiceItems(bill.id),
-        fetchPayments(bill.id)
-      ]);
+      // Fetch items robustly (like Customer Portal)
+      let items: any[] = [];
+      try {
+        const q = query(collection(db, 'invoice_items'), where('invoiceId', '==', bill.id));
+        const snap = await getDocs(q);
+        items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (e) {
+        console.error('Error fetching root invoice items:', e);
+      }
+      
+      if (items.length === 0) {
+        try {
+          const subSnap = await getDocs(collection(db, `invoices/${bill.id}/items`));
+          items = subSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (e) {}
+      }
+      
+      if (items.length === 0 && bill.items) {
+        items = bill.items;
+      }
+      
+      // Filter out tax items
+      items = items.filter((i: any) => i.itemType !== 'tax');
       setInvoiceItems(items);
-      setInvoicePayments(pays);
-    } catch {
+
+      // Fetch payments
+      try {
+        const pays = await fetchPayments(bill.id);
+        setInvoicePayments(pays);
+      } catch (e) {
+        setInvoicePayments([]);
+      }
+    } catch (err) {
+      console.error('handleView error:', err);
       setInvoiceItems([]);
       setInvoicePayments([]);
     }

@@ -495,7 +495,7 @@ export async function fetchInvoiceItems(invoiceId: string) {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   };
-  return fetchWithCache(`invoice_items_${invoiceId}`, queryFn);
+  return queryFn(); // Bypass cache for accurate billing data
 }
 
 // Payments
@@ -505,7 +505,7 @@ export async function fetchPayments(invoiceId: string) {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   };
-  return fetchWithCache(`payments_${invoiceId}`, queryFn);
+  return queryFn(); // Bypass cache for accurate billing data
 }
 
 // Create Invoice from Encounter

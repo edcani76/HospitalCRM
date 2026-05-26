@@ -330,6 +330,7 @@ Implement EMR mode detection, Quick Start Visit, service management, Visit Summa
 | `927d655` | Add role-based restrictions for appointment confirmation and start |
 | `f3885cf` | Convert all Dialog modals to Drawer side panels, standardize height and width |
 | `ef9b23e` | Enhance seed data: complete lab orders with all fields, Drive PDF uploads for lab reports |
+| `[PENDING]` | Fix CRM invoice drawer details fallback; update firestore rules for invoice_items collection |
 
 ### 🔧 Build Status
 - ✅ Lint: Clean (0 errors)

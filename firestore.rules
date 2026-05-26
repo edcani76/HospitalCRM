@@ -204,9 +204,19 @@ service cloud.firestore {
 
     match /invoices/{invoiceId} {
       allow read: if isAuthenticated() && (resource.data.clientUid == request.auth.uid || isAdmin() || isStaff());
-      allow create: if isAdmin();
+      allow create: if isAdmin() || isStaff() || isDoctor();
       allow update: if isAuthenticated() && isValidInvoice(request.resource.data) && (isAdmin() || isStaff());
       allow delete: if isAdmin();
+      
+      match /items/{itemId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin() || isStaff() || isDoctor();
+      }
+    }
+
+    match /invoice_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isStaff() || isDoctor();
     }
 
     match /reports/{reportId} {
