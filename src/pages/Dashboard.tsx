@@ -41,6 +41,15 @@ function PetImage({ pet }: { pet: Pet }) {
   );
 }
 
+const getDateMs = (val: any): number => {
+  if (!val) return 0;
+  if (typeof val.toDate === 'function') return val.toDate().getTime();
+  if (typeof val.seconds === 'number') return val.seconds * 1000;
+  if (typeof val._seconds === 'number') return val._seconds * 1000;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+};
+
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -1044,8 +1053,12 @@ export default function Dashboard() {
                 <div className="p-16 text-center text-slate-300 text-sm font-medium">No financial history found.</div>
               ) : (
                 <div className="divide-y divide-slate-50">
-                  {invoices.map((inv) => (
-                    <div key={inv.id} className="p-6 flex flex-col md:flex-row items-center justify-between hover:bg-rose-50/20 transition-colors group gap-4">
+                  {[...invoices].sort((a: any, b: any) => getDateMs(b.createdAt || b.date) - getDateMs(a.createdAt || a.date)).map((inv) => (
+                    <div 
+                      key={inv.id} 
+                      onClick={() => handleDownloadInvoice(inv)}
+                      className="p-6 flex flex-col md:flex-row items-center justify-between hover:bg-rose-50/20 transition-colors group gap-4 cursor-pointer"
+                    >
                       <div className="flex items-center gap-6">
                         <button 
                           onClick={() => handleDownloadInvoice(inv)}
@@ -1114,7 +1127,7 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {reports.map((report) => (
+              {[...reports].sort((a: any, b: any) => getDateMs(b.date || b.createdAt) - getDateMs(a.date || a.createdAt)).map((report) => (
                 <div key={report.id} className="bg-white p-6 rounded-xl border border-slate-100 hover:border-indigo-500/20 transition-all shadow-sm hover:shadow-md group flex flex-col justify-between">
                   <div>
                     <div className="flex items-center gap-4 mb-6">

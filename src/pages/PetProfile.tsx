@@ -35,6 +35,15 @@ const formatPetAge = (pet: Pet) => {
   return 'Unknown';
 };
 
+const getDateMs = (val: any): number => {
+  if (!val) return 0;
+  if (typeof val.toDate === 'function') return val.toDate().getTime();
+  if (typeof val.seconds === 'number') return val.seconds * 1000;
+  if (typeof val._seconds === 'number') return val._seconds * 1000;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+};
+
 const getStatusBadge = (status: string) => {
   switch (status) {
     case 'in-progress': return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700"><Activity className="w-3 h-3" />In Progress</span>;
@@ -238,12 +247,12 @@ export default function PetProfile() {
 
   const tabs: { key: TabType; label: string; icon: React.ReactNode }[] = [
     { key: 'overview', label: 'Overview', icon: <Info className="w-4 h-4" /> },
-    { key: 'medical-history', label: 'Medical History', icon: <Activity className="w-4 h-4" /> },
-    { key: 'appointments', label: 'Appointments', icon: <Calendar className="w-4 h-4" /> },
+    { key: 'medical-history', label: `Medical History (${encounters.length})`, icon: <Activity className="w-4 h-4" /> },
+    { key: 'appointments', label: `Appointments (${appointments.length})`, icon: <Calendar className="w-4 h-4" /> },
     { key: 'preventive', label: 'Preventive Care', icon: <ShieldCheck className="w-4 h-4" /> },
     { key: 'medications', label: 'Medications', icon: <Pill className="w-4 h-4" /> },
-    { key: 'admissions', label: 'Admissions', icon: <Stethoscope className="w-4 h-4" /> },
-    { key: 'billing', label: 'Billing', icon: <DollarSign className="w-4 h-4" /> },
+    { key: 'admissions', label: `Admissions (${admissions.length})`, icon: <Stethoscope className="w-4 h-4" /> },
+    { key: 'billing', label: `Billing (${invoices.length})`, icon: <DollarSign className="w-4 h-4" /> },
   ];
 
   return (
@@ -538,7 +547,7 @@ export default function PetProfile() {
                         <p className="text-sm">No medical records yet</p>
                       </div>
                     ) : (
-                      [...encounters].sort((a: any, b: any) => (b.startedAt?.toDate?.() || b.createdAt?.toDate?.() || 0) - (a.startedAt?.toDate?.() || a.createdAt?.toDate?.() || 0)).slice(0, 5).map((enc, idx) => (
+                      [...encounters].sort((a: any, b: any) => getDateMs(b.startedAt || b.createdAt) - getDateMs(a.startedAt || a.createdAt)).slice(0, 5).map((enc, idx) => (
                         <motion.div
                           key={enc.id}
                           initial={{ opacity: 0, y: 5 }}
@@ -602,7 +611,7 @@ export default function PetProfile() {
                     </div>
                     {invoices.length > 0 && (
                       <div className="space-y-1.5">
-                        {[...invoices].sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 3).map((inv: any) => (
+                        {[...invoices].sort((a: any, b: any) => getDateMs(b.createdAt) - getDateMs(a.createdAt)).slice(0, 3).map((inv: any) => (
                           <div key={inv.id} className="flex items-center justify-between text-xs p-2 bg-stone-50 rounded-lg">
                             <div className="flex items-center gap-2">
                               <span className="font-mono font-bold text-stone-700">{inv.invoiceNo || `INV-${inv.id?.slice(-6)}`}</span>
@@ -646,7 +655,7 @@ export default function PetProfile() {
                       </h3>
                     </div>
                     <div className="p-4 space-y-2">
-                      {[...reports].sort((a: any, b: any) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()).slice(0, 5).map((r: any) => (
+                      {[...reports].sort((a: any, b: any) => getDateMs(b.date || b.createdAt) - getDateMs(a.date || a.createdAt)).slice(0, 5).map((r: any) => (
                         <div key={r.id} className="flex items-center justify-between p-2 bg-stone-50 rounded-lg text-sm">
                           <div className="flex items-center gap-2">
                             <FileText className="w-4 h-4 text-stone-400" />
@@ -683,7 +692,7 @@ export default function PetProfile() {
               ) : (
                 <div className="space-y-4">
                   {/* Encounters as timeline entries */}
-                  {[...encounters].sort((a: any, b: any) => (b.startedAt?.toDate?.() || b.createdAt?.toDate?.() || 0) - (a.startedAt?.toDate?.() || a.createdAt?.toDate?.() || 0)).map((enc, idx) => {
+                  {[...encounters].sort((a: any, b: any) => getDateMs(b.startedAt || b.createdAt) - getDateMs(a.startedAt || a.createdAt)).map((enc, idx) => {
                     const isLatest = idx === 0;
                     return (
                       <motion.div
@@ -911,7 +920,7 @@ export default function PetProfile() {
               ) : (
                 <div className="space-y-3">
                   <h3 className="text-sm font-bold text-stone-700">Past Admissions</h3>
-                  {[...admissions].filter(a => a.status !== 'admitted').sort((a: any, b: any) => new Date(b.checkInDate || 0).getTime() - new Date(a.checkInDate || 0).getTime()).map((adm: any) => (
+                  {[...admissions].filter(a => a.status !== 'admitted').sort((a: any, b: any) => getDateMs(b.checkInDate) - getDateMs(a.checkInDate)).map((adm: any) => (
                     <div key={adm.id} className="bg-white rounded-xl border border-stone-200 p-4 shadow-sm">
                       <div className="flex items-start justify-between">
                         <div>
@@ -978,7 +987,7 @@ export default function PetProfile() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-100 text-sm">
-                        {[...invoices].sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).map((inv: any) => {
+                        {[...invoices].sort((a: any, b: any) => getDateMs(b.createdAt) - getDateMs(a.createdAt)).map((inv: any) => {
                           const total = inv.grandTotal ?? inv.amount ?? 0;
                           const paid = inv.amountPaid ?? 0;
                           const bal = inv.balanceDue ?? (total - paid);

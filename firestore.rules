@@ -105,6 +105,10 @@ service cloud.firestore {
       return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['staff', 'admin'];
     }
 
+    function isPharmacist() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['pharmacist', 'admin'];
+    }
+
     function hasRequiredFields(fields) {
       return request.resource.data.keys().hasAll(fields);
     }
@@ -223,6 +227,21 @@ service cloud.firestore {
     match /notifications/{notificationId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow write: if isAdmin();
+    }
+
+    match /encounters/{encounterId} {
+      allow read: if isAuthenticated() && (resource.data.clientUid == request.auth.uid || resource.data.ownerUid == request.auth.uid || isAdmin() || isDoctor() || isStaff());
+      allow write: if isAdmin() || isDoctor() || isStaff();
+    }
+
+    match /admissions/{admissionId} {
+      allow read: if isAuthenticated() && (resource.data.clientUid == request.auth.uid || resource.data.ownerUid == request.auth.uid || isAdmin() || isDoctor() || isStaff());
+      allow write: if isAdmin() || isDoctor() || isStaff();
+    }
+
+    match /medications/{medicationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isPharmacist() || isDoctor();
     }
 
     match /{path=**} {
